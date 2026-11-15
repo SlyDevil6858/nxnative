@@ -41,6 +41,30 @@ jobs:
           path: nxnative
           persist-credentials: false
 
+      - name: Load optional launcher appearance overrides
+        working-directory: nxnative
+        run: |
+          ruby -ryaml -e '
+            root = Dir.pwd
+            config = File.file?("appearance.yml") ? YAML.safe_load_file("appearance.yml") : {}
+            appearance = config.is_a?(Hash) ? (config["appearance"] || {}) : {}
+            unless appearance.is_a?(Hash)
+              warn "appearance.yml: appearance must be a mapping; using original appearance"
+              appearance = {}
+            end
+            {"custom_icon" => "NXNATIVE_CUSTOM_ICON", "custom_background" => "NXNATIVE_CUSTOM_BACKGROUND"}.each do |key, env|
+              value = appearance[key]
+              next if value.nil? || value.to_s.strip.empty?
+              path = File.expand_path(value.to_s, root)
+              unless path.start_with?(root + File::SEPARATOR) && File.file?(path)
+                warn "appearance.yml: #{key} path is missing or outside nxnative; ignoring it"
+                next
+              end
+              puts "#{env}=#{path}" >> ENV.fetch("GITHUB_ENV")
+              puts "Using #{key}: #{value}"
+            end
+          '
+
       - name: Verify paths and required game files
         env:
           GAME_FOLDER: ${{ inputs.game_folder }}
