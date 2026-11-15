@@ -1,0 +1,11 @@
+# Optional launcher appearance overrides
+# Leave either value empty to keep the original appearance.
+# Paths are relative to the nxnative repository root.
+
+appearance:
+  custom_icon: ""
+  custom_background: ""
+
+  # Example:
+  # custom_icon: "assets/custom-icon.png"
+  # custom_background: "assets/custom-background.png"
