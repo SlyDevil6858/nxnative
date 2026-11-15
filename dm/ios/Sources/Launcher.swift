@@ -147,6 +147,7 @@ private struct LauncherView: View {
                     Image(uiImage: background).resizable().scaledToFill()
                         .overlay(.black.opacity(0.48))
                         .ignoresSafeArea()
+                }
             }
         }
         .preferredColorScheme(.dark)
