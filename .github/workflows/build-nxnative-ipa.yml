@@ -7,12 +7,12 @@ on:
         description: "Folder inside myprivaterepo containing the game's .xci/.nsp files"
         required: true
         type: string
-        default: "."
+        default: "ROM"
       prod_keys_path:
         description: "Path to prod.keys inside myprivaterepo"
         required: true
         type: string
-        default: "prod.keys"
+        default: "KEYS/prod.keys"
 
 permissions:
   contents: read
