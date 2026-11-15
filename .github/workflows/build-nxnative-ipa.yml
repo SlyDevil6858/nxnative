@@ -1,0 +1,128 @@
+name: Build nxnative IPA (iPhone 13 Pro Max)
+
+on:
+  workflow_dispatch:
+    inputs:
+      game_folder:
+        description: "Folder inside myprivaterepo containing the game's .xci/.nsp files"
+        required: true
+        type: string
+        default: "."
+      prod_keys_path:
+        description: "Path to prod.keys inside myprivaterepo"
+        required: true
+        type: string
+        default: "prod.keys"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build unsigned IPA on Apple Silicon
+    runs-on: xcode-27
+    timeout-minutes: 360
+
+    steps:
+      - name: Check out private game files and keys
+        uses: actions/checkout@v4
+        with:
+          repository: SlyDevil6858/myprivaterepo
+          ref: main
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          lfs: true
+          path: private-game-data
+          persist-credentials: false
+
+      - name: Check out this nxnative fork
+        uses: actions/checkout@v4
+        with:
+          ref: iphone-4gb
+          path: nxnative
+          persist-credentials: false
+
+      - name: Verify paths and required game files
+        env:
+          GAME_FOLDER: ${{ inputs.game_folder }}
+          PROD_KEYS_PATH: ${{ inputs.prod_keys_path }}
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          root = (Path(os.environ["GITHUB_WORKSPACE"]) / "private-game-data").resolve()
+          game = (root / os.environ["GAME_FOLDER"]).resolve()
+          keys = (root / os.environ["PROD_KEYS_PATH"]).resolve()
+
+          def inside_root(path):
+              return path == root or root in path.parents
+
+          if not inside_root(game) or not game.is_dir():
+              raise SystemExit("game_folder must be an existing folder inside myprivaterepo")
+          if not inside_root(keys) or not keys.is_file():
+              raise SystemExit("prod_keys_path must point to an existing file inside myprivaterepo")
+
+          extensions = {".nsp", ".xci", ".nsz", ".xcz"}
+          packages = [
+              p for p in game.iterdir()
+              if p.is_file() and p.suffix.lower() in extensions and p.stat().st_size > 0
+          ]
+          if not packages:
+              raise SystemExit("No non-empty .nsp, .xci, .nsz or .xcz files found directly inside game_folder")
+
+          print(f"Found {len(packages)} game package file(s).")
+          print("prod.keys file exists; its contents will not be printed or uploaded.")
+          PY
+
+      - name: Verify macOS and Xcode
+        run: |
+          test "$(uname -s)" = "Darwin"
+          command -v xcodebuild
+          xcodebuild -version
+          xcodebuild -downloadComponent MetalToolchain
+          xcodebuild -downloadPlatform iOS
+
+      - name: Install native build tools
+        run: |
+          brew install xcodegen zstd glslang
+          if ! dotnet --list-runtimes 2>/dev/null | grep -q 'Microsoft.NETCore.App 10\.'; then
+            brew install --cask dotnet-sdk
+          fi
+          dotnet --list-runtimes
+
+      - name: Set up arm64 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          architecture: arm64
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install lz4 "capstone>=5,<6" fonttools nsz zbic "backports.zstd; python_version < '3.14'"
+
+      - name: Build IPA for a 6 GB iPhone
+        env:
+          GAME_FOLDER: ${{ inputs.game_folder }}
+          PROD_KEYS_PATH: ${{ inputs.prod_keys_path }}
+        run: |
+          DATA_ROOT="$GITHUB_WORKSPACE/private-game-data"
+          GAME_DIR="$DATA_ROOT/$GAME_FOLDER"
+          KEYS_FILE="$DATA_ROOT/$PROD_KEYS_PATH"
+          python nxnative/scripts/build_ipa_from_nsp.py "$GAME_DIR" \
+            --keys "$KEYS_FILE" \
+            --6gb \
+            --out "$RUNNER_TEMP/nxnative-iphone-13-pro-max.ipa" \
+            --progress lines
+
+      - name: Upload IPA to a private release in myprivaterepo
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: SlyDevil6858/myprivaterepo
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          tag_name: nxnative-build-${{ github.run_id }}
+          name: nxnative iPhone 13 Pro Max build ${{ github.run_number }}
+          body: "Unsigned IPA built from the nxnative fork. This release is in the private myprivaterepo repository."
+          files: ${{ runner.temp }}/nxnative-iphone-13-pro-max.ipa
+          fail_on_unmatched_files: true
+          make_latest: false
