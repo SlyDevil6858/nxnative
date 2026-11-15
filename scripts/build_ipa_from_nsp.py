@@ -2510,8 +2510,18 @@ def main(args=None):
     separate = romfs_mode == 'separate'
     if separate: ipa_env['DM_COPY_ROMFS'] = 'NO'; say('game files: separate (DM_COPY_ROMFS=NO), left out of the app; the image stays at ' + str(rfs.source(game)))
     if app_version: ipa_env['DM_APP_VERSION'] = app_version
-    if icon: ipa_env['DM_ICON'] = str(icon); say(f'app icon: {icon}')   # app icon (found above)
-    else: say('[RED] no game icon in the extraction (an older extraction did not save it: delete extract/ and run again); the home-screen icon will be blank')
+    custom_icon = os.environ.get('NXNATIVE_CUSTOM_ICON')
+    if custom_icon and Path(custom_icon).is_file():
+        ipa_env['DM_ICON'] = str(Path(custom_icon).resolve())
+        say(f'custom app icon: {ipa_env["DM_ICON"]}')
+    elif icon:
+        ipa_env['DM_ICON'] = str(icon); say(f'app icon: {icon}')   # game's icon is the default
+    else:
+        say('[RED] no game icon in the extraction (an older extraction did not save it: delete extract/ and run again); the home-screen icon will be blank')
+    custom_background = os.environ.get('NXNATIVE_CUSTOM_BACKGROUND')
+    if custom_background and Path(custom_background).is_file():
+        ipa_env['DM_LAUNCHER_BACKGROUND'] = str(Path(custom_background).resolve())
+        say(f'custom launcher background: {custom_background}')
     if env_file: ipa_env['DM_ENV_FILE'] = str(Path(os.path.expanduser(env_file)).resolve())
     show_fps = SHOW_FPS if args.show_fps is None else args.show_fps
     ipa_env['DM_SHOW_FPS'] = '1' if show_fps else '0'
