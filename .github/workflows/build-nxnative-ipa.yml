@@ -60,7 +60,7 @@ jobs:
                 warn "appearance.yml: #{key} path is missing or outside nxnative; ignoring it"
                 next
               end
-              puts "#{env}=#{path}" >> ENV.fetch("GITHUB_ENV")
+              File.open(ENV.fetch("GITHUB_ENV"), "a") { |file| file.puts "#{env}=#{path}" }
               puts "Using #{key}: #{value}"
             end
           '
