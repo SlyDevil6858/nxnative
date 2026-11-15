@@ -140,6 +140,13 @@ private struct LauncherView: View {
                 .listStyle(.insetGrouped)
                 .contentMargins(.horizontal, 12, for: .scrollContent)
                 .frame(width: geometry.size.width * 2 / 3)
+                .scrollContentBackground(.hidden)
+            }
+            .background {
+                if let background = launcherBackground() {
+                    Image(uiImage: background).resizable().scaledToFill()
+                        .overlay(.black.opacity(0.48))
+                        .ignoresSafeArea()
             }
         }
         .preferredColorScheme(.dark)
@@ -154,6 +161,11 @@ private struct LauncherView: View {
     @ViewBuilder var playButton: some View {
         let button = Button(action: play) { Text("Play").font(.title3.weight(.semibold)).frame(maxWidth: 220) }.controlSize(.large)
         if #available(iOS 26.0, *) { button.buttonStyle(.glassProminent) } else { button.buttonStyle(.borderedProminent) }
+    }
+
+    private func launcherBackground() -> UIImage? {
+        guard let url = Bundle.main.resourceURL?.appendingPathComponent("dm/launcher-custom-background.png") else { return nil }
+        return UIImage(contentsOfFile: url.path)
     }
 
     private func appIcon() -> UIImage? {
