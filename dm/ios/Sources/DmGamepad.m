@@ -524,8 +524,11 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
         rects[name]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(p.x-clickR,p.y-clickR,2*clickR,2*clickR),-pad,-pad)];
     }
     CGFloat dr=self.dpadR; CGPoint dc=self.dpadCenter;
-    for (NSString *name in @[@"dpad-up",@"dpad-down",@"dpad-left",@"dpad-right"])
-        rects[name]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(dc.x-dr,dc.y-dr,2*dr,2*dr),-pad,-pad)];
+    // Crop each native D-pad arm separately instead of repeating the full cross in every PNG.
+    rects[@"dpad-up"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(dc.x-dr,dc.y-dr,2*dr,dr+pad),-pad,-pad)];
+    rects[@"dpad-down"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(dc.x-dr,dc.y,2*dr,dr+pad),-pad,-pad)];
+    rects[@"dpad-left"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(dc.x-dr,dc.y-dr,dr+pad,2*dr),-pad,-pad)];
+    rects[@"dpad-right"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(dc.x,dc.y-dr,dr+pad,2*dr),-pad,-pad)];
     // The right stick is normally invisible. Its native ring/knob artwork is the same
     // geometry as the left stick, captured at the right-stick dimensions.
     CGFloat rr=[self stickR:1], rkr=K_KNOB_R*self.u;
