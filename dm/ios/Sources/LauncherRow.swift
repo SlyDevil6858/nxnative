@@ -20,7 +20,7 @@ private struct LauncherToggleStyle: ToggleStyle {
                 Capsule()
                     .fill(isLocked ? Color(white: 0.16) : (configuration.isOn ? accentColor : Color(white: 0.30)))
                     .frame(width: 58, height: 31)
-                Circle()
+                Capsule()
                     .fill(isLocked ? Color(white: 0.48) : Color.white)
                     .frame(width: 35, height: 27)
                     .padding(2)
