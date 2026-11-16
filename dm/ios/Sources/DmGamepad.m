@@ -1189,11 +1189,11 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [self refresh];
 }
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch {
-    if (gestureRecognizer!=_editHold || _padOff || _editing || !_full || _tap) return NO;
+    if (gestureRecognizer!=_editHold || _padOff || _editing || _tap) return NO;
     return [self inSwap:[touch locationInView:self]];
 }
 - (void)handleEditHold:(UILongPressGestureRecognizer *)gesture {
-    if (gesture.state==UIGestureRecognizerStateBegan && !_padOff && _full && !_tap && !_editing) [self toggleEditor];
+    if (gesture.state==UIGestureRecognizerStateBegan && !_padOff && !_tap && !_editing) [self toggleEditor];
 }
 - (UIColor *)editorAccentColor {
     UIImage *icon=[UIImage imageNamed:@"AppIcon"];
