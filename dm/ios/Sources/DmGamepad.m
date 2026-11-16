@@ -531,10 +531,10 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
     rects[@"dpad-right"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(dc.x,dc.y-dr,dr+pad,2*dr),-pad,-pad)];
     // The right stick is normally invisible. Its native ring/knob artwork is the same
     // geometry as the left stick, captured at the right-stick dimensions.
-    CGFloat rr=[self stickR:1], rkr=K_KNOB_R*self.u;
-    CGPoint rc=CGPointMake(CGRectGetMaxX(self.bounds)-rr-24*self.u,CGRectGetMidY(self.bounds));
-    rects[@"right-stick-base"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(rc.x-rr,rc.y-rr,2*rr,2*rr),-pad,-pad)];
-    rects[@"right-stick-knob"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(rc.x-rkr,rc.y-rkr,2*rkr,2*rkr),-pad,-pad)];
+    // Reuse the actual native stick artwork in isolation; the skin loader scales it
+    // into the right-stick hit area, which has a different on-screen diameter.
+    rects[@"right-stick-base"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(sh.x-sr,sh.y-sr,2*sr,2*sr),-pad,-pad)];
+    rects[@"right-stick-knob"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(kc.x-kr,kc.y-kr,2*kr,2*kr),-pad,-pad)];
 
     BOOL oldCustom=_customSkin, oldFull=_full, oldTap=_tap;
     _customSkin=NO; _full=YES; _tap=NO;
