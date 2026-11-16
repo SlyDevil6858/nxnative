@@ -931,12 +931,14 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         NSURL *themeFolder=source;
         NSDictionary *json=[self validThemeJSONAtFolder:themeFolder];
         if (!json) {
-            NSArray<NSURL *> *children=[NSFileManager.defaultManager contentsOfDirectoryAtURL:source
-                includingPropertiesForKeys:@[NSURLIsDirectoryKey] options:NSDirectoryEnumerationSkipsHiddenFiles error:nil];
             NSMutableArray<NSURL *> *valid=[NSMutableArray array];
-            for (NSURL *child in children) {
-                NSNumber *isDir=nil; [child getResourceValue:&isDir forKey:NSURLIsDirectoryKey error:nil];
-                if (isDir.boolValue && [self validThemeJSONAtFolder:child]) [valid addObject:child];
+            NSDirectoryEnumerator<NSURL *> *enumerator=[NSFileManager.defaultManager enumeratorAtURL:source
+                includingPropertiesForKeys:@[NSURLIsDirectoryKey] options:NSDirectoryEnumerationSkipsHiddenFiles
+                errorHandler:^BOOL(NSURL *url, NSError *error) { (void)url; (void)error; return YES; }];
+            for (NSURL *entry in enumerator) {
+                if (![entry.lastPathComponent isEqualToString:@"theme.json"]) continue;
+                NSURL *candidate=[entry URLByDeletingLastPathComponent];
+                if ([self validThemeJSONAtFolder:candidate] && ![valid containsObject:candidate]) [valid addObject:candidate];
             }
             if (valid.count==1) {
                 themeFolder=valid.firstObject;
