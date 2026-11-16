@@ -35,7 +35,7 @@ static inline NSDictionary *dm_pad_clean_controls(id source) {
 - (instancetype)initWithDefaults:(NSUserDefaults *)defaults game:(NSString *)game {
     if ((self = [super init])) {
         _defaults = defaults;
-        _key = [@"DmPadProfiles.v2." stringByAppendingString:game.length ? game : @"default"];
+        _key = [@"DmPadProfiles.v2." stringByAppendingString:(game.length ? game : @"default")];
         _slots = [NSMutableArray array];
         id raw = [defaults objectForKey:_key];
         NSDictionary *saved = [raw isKindOfClass:NSDictionary.class] && [raw[@"schema"] isEqual:@2] ? raw : nil;
