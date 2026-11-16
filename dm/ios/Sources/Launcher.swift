@@ -220,7 +220,7 @@ private struct LauncherView: View {
                                     .tint(accentColor)
                                     Button("Edit touch controls layout…") { dm_gamepad_present_launcher_editor() }
                                         .foregroundStyle(accentColor)
-                                    Button("Import touch controls skin…") { pickingTheme = true }
+                                    Button("Import touch controls theme…") { pickingTheme = true }
                                         .foregroundStyle(accentColor)
                                     if let selected = themes.first(where: { $0.name == selectedTheme }),
                                        !isBundledTheme(selected) {
