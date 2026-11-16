@@ -196,9 +196,12 @@ private struct LauncherView: View {
                         }
                     }
                     Section {
-                        Button("Reset to tested defaults") { m.reset() }
-                            .tint(accentColor)
-                            .disabled(!m.changed)
+                        Button { m.reset() } label: {
+                            Text("Reset to tested defaults")
+                                .foregroundStyle(m.changed ? accentColor : Color(white: 0.58))
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!m.changed)
                     } footer: {
                         Text("Brings back all settings this game was tested with.")
                             .foregroundStyle(Color(white: 0.58))
