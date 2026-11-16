@@ -986,10 +986,21 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     return YES;
 }
 - (BOOL)loadSelectedTheme {
-    NSString *path=[NSUserDefaults.standardUserDefaults stringForKey:k_theme_path_key];
+    NSUserDefaults *defaults=NSUserDefaults.standardUserDefaults;
+    NSString *path=[defaults stringForKey:k_theme_path_key];
     if (path.length && [self loadThemeAtPath:path]) return YES;
-    [NSUserDefaults.standardUserDefaults removeObjectForKey:k_theme_path_key];
-    [NSUserDefaults.standardUserDefaults setObject:@"Classic" forKey:k_theme_name_key];
+
+    [defaults removeObjectForKey:k_theme_path_key];
+    if (![defaults boolForKey:@"DmTouchControlThemeExplicitlySelected"]) {
+        NSURL *bundledRoot=[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES];
+        NSURL *animalWell=[bundledRoot URLByAppendingPathComponent:@"ANIMAL WELL" isDirectory:YES];
+        if ([self loadThemeAtPath:animalWell.path]) {
+            [defaults setObject:animalWell.path forKey:k_theme_path_key];
+            [defaults setObject:_themeName ?: @"Well" forKey:k_theme_name_key];
+            return YES;
+        }
+    }
+    [defaults setObject:@"Classic" forKey:k_theme_name_key];
     _themeName=@"Classic"; _themeButtonColors=@{}; theme_init(); return NO;
 }
 - (UIColor *)themeColorForButton:(int)b pressed:(BOOL)pressed {
