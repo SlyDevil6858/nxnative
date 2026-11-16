@@ -58,9 +58,19 @@ private extension UIImage {
 }
 
 
-/// The original dominant app-icon colour, shared by the launcher buttons.
+/// Resolve the app icon the same way the launcher header does, including its Info.plist fallback.
+private func launcherAppIcon() -> UIImage? {
+    if let icon = UIImage(named: "AppIcon") { return icon }
+    guard let icons = info("CFBundleIcons") as? [String: Any],
+          let primary = icons["CFBundlePrimaryIcon"] as? [String: Any],
+          let files = primary["CFBundleIconFiles"] as? [String],
+          let last = files.last else { return nil }
+    return UIImage(named: last)
+}
+
+/// The original dominant app-icon colour, shared by both folder-import buttons.
 private func launcherAccentColor() -> Color {
-    Color(uiColor: UIImage(named: "AppIcon")?.dominantColor() ?? .systemBlue)
+    Color(uiColor: launcherAppIcon()?.dominantColor() ?? .systemBlue)
 }
 
 
@@ -312,10 +322,7 @@ private struct LauncherView: View {
     }
 
     private func appIcon() -> UIImage? {
-        if let i = UIImage(named: "AppIcon") { return i }
-        guard let icons = info("CFBundleIcons") as? [String: Any], let primary = icons["CFBundlePrimaryIcon"] as? [String: Any],
-              let files = primary["CFBundleIconFiles"] as? [String], let last = files.last else { return nil }
-        return UIImage(named: last)
+        launcherAppIcon()
     }
 }
 
