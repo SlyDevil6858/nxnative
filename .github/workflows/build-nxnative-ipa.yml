@@ -70,6 +70,7 @@ jobs:
         env:
           GAME_FOLDER: ${{ inputs.game_folder }}
           PROD_KEYS_PATH: ${{ inputs.prod_keys_path }}
+          DM_APP_BUILD: ${{ github.run_number }}
         run: |
           python3 - <<'PY'
           import os
@@ -186,7 +187,7 @@ jobs:
           PY
           )"
 
-          FINAL_IPA="$RUNNER_TEMP/${{ steps.verify-input.outputs.ipa_name }} A15 v${GAME_VERSION}.ipa"
+          FINAL_IPA="$RUNNER_TEMP/${{ steps.verify-input.outputs.ipa_name }} A15 v${GAME_VERSION} build${GITHUB_RUN_NUMBER}.ipa"
           mv "$BASE_IPA" "$FINAL_IPA"
           echo "ipa_path=$FINAL_IPA" >> "$GITHUB_OUTPUT"
           echo "Final IPA filename: $(basename "$FINAL_IPA")"
