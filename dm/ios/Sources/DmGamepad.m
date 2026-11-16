@@ -135,6 +135,30 @@ static const int k_btns[] = {B_ZL, B_L, B_ZR, B_R, B_MINUS, B_PLUS, B_LS, B_RS};
 static NSString *const k_layout_key = @"DmPadLayout";   // NSUserDefaults: 0 = 2D, 1 = 3D, 2 = Tap (DM_GAME_PAD_LAYOUT's numbers)
 int dm_opmode(void);   // hle_oe.c: 0 = handheld
 
+@interface DmPaddedTipLabel : UILabel
+@property(nonatomic) UIEdgeInsets textInsets;
+@end
+@implementation DmPaddedTipLabel
+- (CGRect)textRectForBounds:(CGRect)bounds limitedToNumberOfLines:(NSInteger)numberOfLines {
+    CGRect inset=UIEdgeInsetsInsetRect(bounds,self.textInsets);
+    CGRect text=[super textRectForBounds:inset limitedToNumberOfLines:numberOfLines];
+    text.origin.x-=self.textInsets.left; text.origin.y-=self.textInsets.top;
+    text.size.width+=self.textInsets.left+self.textInsets.right;
+    text.size.height+=self.textInsets.top+self.textInsets.bottom;
+    return text;
+}
+- (void)drawTextInRect:(CGRect)rect {
+    [super drawTextInRect:UIEdgeInsetsInsetRect(rect,self.textInsets)];
+}
+- (CGSize)sizeThatFits:(CGSize)size {
+    CGSize inner=CGSizeMake(MAX(0,size.width-self.textInsets.left-self.textInsets.right),
+                            MAX(0,size.height-self.textInsets.top-self.textInsets.bottom));
+    CGSize measured=[super sizeThatFits:inner];
+    return CGSizeMake(measured.width+self.textInsets.left+self.textInsets.right,
+                      measured.height+self.textInsets.top+self.textInsets.bottom);
+}
+@end
+
 @interface DmGamepad : UIView <UIGestureRecognizerDelegate, UIDocumentPickerDelegate>
 - (UIColor *)editorAccentColor;
 - (void)beginLauncherEdit;
@@ -174,7 +198,7 @@ static void pads_start(void);   // Physical controllers, below
     CGPoint _dragStart, _dragHome;
     CGRect _lastSafe;
     UIButton *_chooseButton, *_profileButton, *_saveAsButton;
-    UILabel *_menuTip;
+    DmPaddedTipLabel *_menuTip;\n    CAShapeLayer *_menuTipArrow;
     UILongPressGestureRecognizer *_editHold;
     UIView *_tools;
     UISlider *_sizeSlider, *_alphaSlider;
@@ -259,17 +283,25 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
         [self applyLayout];
         if (!g_launcher_preview && ![NSUserDefaults.standardUserDefaults boolForKey:@"DmPadMenuTipShown"]) {
             // A one-time hint points out the 2D / 3D layout button without covering the game.
-            _menuTip=[UILabel new];
-            _menuTip.text=@"Hold Select on your controller to open the in-game menu\n(or press and hold 2D / 3D on screen)";
+            _menuTip=[DmPaddedTipLabel new];
+            _menuTip.text=@"Press and hold the 2D or 3D button, or hold Select on your controller, to open the in-game control menu.";
             _menuTip.textColor=UIColor.whiteColor;
             _menuTip.font=[UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
             _menuTip.textAlignment=NSTextAlignmentCenter;
-            _menuTip.numberOfLines=2;
-            _menuTip.backgroundColor=[UIColor colorWithWhite:0.05 alpha:0.92];
+            _menuTip.numberOfLines=0;
+            _menuTip.textInsets=UIEdgeInsetsMake(10,14,10,14);
+            UIColor *tipAccent=[self editorAccentColor];
+            CGFloat red=0,green=0,blue=0,alpha=1;
+            [tipAccent getRed:&red green:&green blue:&blue alpha:&alpha];
+            CGFloat luminance=0.2126*red+0.7152*green+0.0722*blue;
+            _menuTip.textColor=luminance>0.58?UIColor.blackColor:UIColor.whiteColor;
+            _menuTip.backgroundColor=tipAccent;
             _menuTip.layer.cornerRadius=9;
-            _menuTip.layer.masksToBounds=YES;
-            _menuTip.layer.borderWidth=1;
-            _menuTip.layer.borderColor=[UIColor colorWithWhite:1 alpha:0.22].CGColor;
+            _menuTip.layer.masksToBounds=NO;
+            _menuTip.layer.borderWidth=0;
+            _menuTipArrow=[CAShapeLayer layer];
+            _menuTipArrow.fillColor=tipAccent.CGColor;
+            [_menuTip.layer addSublayer:_menuTipArrow];
             _menuTip.alpha=0;
             [self addSubview:_menuTip];
             [NSUserDefaults.standardUserDefaults setBool:YES forKey:@"DmPadMenuTipShown"];
@@ -796,8 +828,17 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     UIWindowScene *ws = self.window.windowScene; if (ws) atomic_store(&g_iface_orient, (int)ws.effectiveGeometry.interfaceOrientation);
     CGFloat u = self.u;
     if (_menuTip) {
-        CGFloat tipWidth=MIN(300, self.bounds.size.width-32);
-        _menuTip.frame=CGRectMake((self.bounds.size.width-tipWidth)/2, self.safeAreaInsets.top+44, tipWidth, 42);
+        CGFloat tipWidth=MIN(340, MAX(0,self.bounds.size.width-32));
+        CGSize tipSize=[_menuTip sizeThatFits:CGSizeMake(tipWidth,CGFLOAT_MAX)];
+        _menuTip.frame=CGRectMake((self.bounds.size.width-tipWidth)/2, self.safeAreaInsets.top+44, tipWidth, tipSize.height);
+        CGFloat arrowX=tipWidth/2;
+        UIBezierPath *arrow=[UIBezierPath bezierPath];
+        [arrow moveToPoint:CGPointMake(arrowX-10,0)];
+        [arrow addLineToPoint:CGPointMake(arrowX, -11)];
+        [arrow addLineToPoint:CGPointMake(arrowX+10,0)];
+        [arrow closePath];
+        _menuTipArrow.frame=_menuTip.bounds;
+        _menuTipArrow.path=arrow.CGPath;
     }
     [CATransaction begin]; [CATransaction setDisableActions:YES];
     CGRect safe=self.safe;
