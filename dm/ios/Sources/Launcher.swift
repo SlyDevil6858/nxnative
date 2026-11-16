@@ -171,7 +171,7 @@ private struct TouchControlSkinsSection: View {
             activePath = destination.path
             status = "Default skin restored. It will be used the next time the game starts."
         } catch {
-            status = "Could not restore the Default skin: \\(error.localizedDescription)"
+            status = "Could not restore the Default skin: \(error.localizedDescription)"
         }
     }
 }
