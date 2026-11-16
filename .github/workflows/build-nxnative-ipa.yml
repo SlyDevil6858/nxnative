@@ -117,7 +117,9 @@ jobs:
                   f"Candidates: {names}. Keep one base .xci, or one base .nsp/.nsz "
                   "alongside any update/DLC files."
               )
-          rom_name = candidates[0].stem
+          # ROM scene/release filenames often use dots as word separators.
+          # Convert those separators into readable spaces for the IPA filename.
+          rom_name = " ".join(candidates[0].stem.replace(".", " ").split())
           if not rom_name.strip() or any(c in rom_name for c in "\r\n"):
               raise SystemExit("The base ROM filename is empty or invalid.")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
