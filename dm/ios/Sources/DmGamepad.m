@@ -294,15 +294,17 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
             UIColor *tipAccent=[self editorAccentColor];
             CGFloat red=0,green=0,blue=0,alpha=1;
             [tipAccent getRed:&red green:&green blue:&blue alpha:&alpha];
-            CGFloat luminance=0.2126*red+0.7152*green+0.0722*blue;
-            _menuTip.textColor=luminance>0.58?UIColor.blackColor:UIColor.whiteColor;
-            _menuTip.backgroundColor=tipAccent;
+            // Keep the app icon's dominant accent, but darken the popup and its arrow by 28%.
+            UIColor *tipFill=[UIColor colorWithRed:red*0.72 green:green*0.72 blue:blue*0.72 alpha:alpha];
+            CGFloat fillLuminance=0.2126*red*0.72+0.7152*green*0.72+0.0722*blue*0.72;
+            _menuTip.textColor=fillLuminance>0.58?UIColor.blackColor:UIColor.whiteColor;
+            _menuTip.backgroundColor=tipFill;
             _menuTip.layer.cornerRadius=14;
             _menuTip.layer.cornerCurve=kCACornerCurveContinuous;
             _menuTip.layer.masksToBounds=NO;
             _menuTip.layer.borderWidth=0;
             _menuTipArrow=[CAShapeLayer layer];
-            _menuTipArrow.fillColor=tipAccent.CGColor;
+            _menuTipArrow.fillColor=tipFill.CGColor;
             [_menuTip.layer addSublayer:_menuTipArrow];
             _menuTip.alpha=0;
             [self addSubview:_menuTip];
