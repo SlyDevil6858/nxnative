@@ -271,6 +271,7 @@ private struct LauncherView: View {
                     }
                 }
                 .listStyle(.insetGrouped)
+                .listSectionBackground(Color.black)
                 .listRowBackground(Color.black)
                 .contentMargins(.horizontal, 12, for: .scrollContent)
                 .frame(width: geometry.size.width * 2 / 3)
