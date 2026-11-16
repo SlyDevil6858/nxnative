@@ -181,7 +181,7 @@ private struct TouchControlSkinsSection: View {
                 Spacer()
                 Text(activePath.isEmpty ? "Built-in" : (activeName.isEmpty ? URL(fileURLWithPath: activePath).lastPathComponent : activeName)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             }
-            Button("Import a skin folder…") { importing = true }
+            Button("Import a touch control skin folder…") { importing = true }
                 .buttonStyle(LauncherImportButtonStyle(accent: launcherAccentColor()))
             Button("Reset to Default", role: .destructive) {
                 UserDefaults.standard.removeObject(forKey: "DmTouchControlSkinPath")
