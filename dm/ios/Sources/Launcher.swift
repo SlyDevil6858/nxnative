@@ -199,8 +199,29 @@ private struct LauncherView: View {
                     ForEach(m.sections, id: \.self) { section in
                         let rows = m.rows(in: section)
                         if !rows.isEmpty {
-                            Section(section) {
+                            Section(section == "Controls" ? "Touch controls" : section) {
                                 ForEach(rows) { SettingRow(s: $0, m: m, accentColor: accentColor) }
+                                if section == "Controls" {
+                                    Picker(selection: Binding(
+                                        get: { selectedTheme },
+                                        set: { name in
+                                            if name == "Classic" { selectTheme(nil, name: name) }
+                                            else if let theme = themes.first(where: { $0.name == name }) {
+                                                selectTheme(theme.path, name: theme.name)
+                                            }
+                                        })) {
+                                        Text("Classic").tag("Classic")
+                                        ForEach(themes) { theme in Text(theme.name).tag(theme.name) }
+                                    } label: {
+                                        Text("Touch controls skin").foregroundStyle(.white)
+                                    }
+                                    .pickerStyle(.menu)
+                                    .tint(accentColor)
+                                    Button("Import control skin…") { pickingTheme = true }
+                                        .foregroundStyle(accentColor)
+                                    Button("Edit touch controls layout…") { dm_gamepad_present_launcher_editor() }
+                                        .foregroundStyle(accentColor)
+                                }
                             }
                         }
                     }
@@ -214,25 +235,6 @@ private struct LauncherView: View {
                     } footer: {
                         Text("Brings back all settings this game was tested with.")
                             .foregroundStyle(Color(white: 0.58))
-                    }
-                    Section("Touch controls") {
-                        Picker("Touch controls skin", selection: Binding(
-                            get: { selectedTheme },
-                            set: { name in
-                                if name == "Classic" { selectTheme(nil, name: name) }
-                                else if let theme = themes.first(where: { $0.name == name }) {
-                                    selectTheme(theme.path, name: theme.name)
-                                }
-                            })) {
-                            Text("Classic").tag("Classic")
-                            ForEach(themes) { theme in Text(theme.name).tag(theme.name) }
-                        }
-                        .pickerStyle(.menu)
-                        .tint(.white)
-                        Button("Import control skin…") { pickingTheme = true }
-                            .foregroundStyle(.white)
-                        Button("Edit touch controls layout…") { dm_gamepad_present_launcher_editor() }
-                            .foregroundStyle(.white)
                     }
                     CloudSavesSection()
                     Section {
@@ -297,6 +299,21 @@ private struct LauncherView: View {
         let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let directory = documents.appendingPathComponent("TouchControlThemes", isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+
+        // Ship the built-in themes (including Forest) into Documents on first launch.
+        // Never overwrite a user's installed or imported theme folder.
+        if let bundledRoot = Bundle.main.resourceURL?.appendingPathComponent("TouchControlThemes", isDirectory: true),
+           let bundledFolders = try? FileManager.default.contentsOfDirectory(at: bundledRoot, includingPropertiesForKeys: [.isDirectoryKey]) {
+            for folder in bundledFolders where (try? folder.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
+                let destination = directory.appendingPathComponent(folder.lastPathComponent, isDirectory: true)
+                guard !FileManager.default.fileExists(atPath: destination.path) else { continue }
+                do {
+                    try FileManager.default.copyItem(at: folder, to: destination)
+                } catch {
+                    NSLog("Could not install bundled touch theme %@: %@", folder.lastPathComponent, error.localizedDescription)
+                }
+            }
+        }
         return directory
     }
 
