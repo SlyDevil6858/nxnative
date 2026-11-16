@@ -163,78 +163,6 @@ private struct DocumentPicker: UIViewControllerRepresentable {
 
 
 /// Lets the user install or remove a folder-based touch-control skin before launching the game.
-private struct TouchControlSkinsSection: View {
-    @State private var importing = false
-    @State private var status = ""
-    @State private var activePath = UserDefaults.standard.string(forKey: "DmTouchControlSkinPath") ?? ""
-    @State private var activeName = UserDefaults.standard.string(forKey: "DmTouchControlSkinName") ?? ""
-
-    var body: some View {
-        Section {
-            HStack {
-                Text("Touch control skin")
-                Spacer()
-                Text(activePath.isEmpty ? "Built-in" : (activeName.isEmpty ? URL(fileURLWithPath: activePath).lastPathComponent : activeName)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
-            }
-            Button {
-                importing = true
-            } label: {
-                Text("Import a touch control skin folder…")
-                    .foregroundColor(launcherAccentColor())
-            }
-            .buttonStyle(.plain)
-            Button("Reset to Default", role: .destructive) {
-                UserDefaults.standard.removeObject(forKey: "DmTouchControlSkinPath")
-                activePath = ""
-                activeName = ""
-                UserDefaults.standard.removeObject(forKey: "DmTouchControlSkinName")
-                status = "Default NXNative touch controls restored. They will be used the next time the game starts."
-            }
-            .disabled(activePath.isEmpty)
-        } footer: {
-            Text(status.isEmpty
-                 ? "Import a folder containing one transparent PNG per control (a.png, b.png, x.png, y.png, stick-base.png, stick-knob.png, zl.png, l.png, zr.png, r.png, minus.png, plus.png, layout.png, dpad-up.png, dpad-down.png, dpad-left.png, dpad-right.png, l3.png, r3.png, right-stick-base.png, right-stick-knob.png). Artwork does not change touch positions or button mappings."
-                 : status)
-        }
-        .fileImporter(isPresented: $importing, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
-            switch result {
-            case .success(let urls):
-                guard let source = urls.first else { return }
-                let scoped = source.startAccessingSecurityScopedResource()
-                defer { if scoped { source.stopAccessingSecurityScopedResource() } }
-                do {
-                    let fm = FileManager.default
-                    let imageNames = ["a", "b", "x", "y", "stick-base", "stick-knob",
-                                      "zl", "l", "zr", "r", "minus", "plus", "layout",
-                                      "dpad-up", "dpad-down", "dpad-left", "dpad-right", "l3", "r3", "right-stick-base", "right-stick-knob"]
-                    let missing = imageNames.filter {
-                        UIImage(contentsOfFile: source.appendingPathComponent($0 + ".png").path) == nil
-                    }
-                    guard missing.isEmpty else {
-                        status = "Skin is missing valid PNGs: " + missing.map { $0 + ".png" }.joined(separator: ", ")
-                        return
-                    }
-                    let docs = try fm.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-                    let destination = docs.appendingPathComponent("TouchControlSkin", isDirectory: true)
-                    if fm.fileExists(atPath: destination.path) { try fm.removeItem(at: destination) }
-                    try fm.copyItem(at: source, to: destination)
-                    UserDefaults.standard.set(destination.path, forKey: "DmTouchControlSkinPath")
-                    let selectedName = source.lastPathComponent
-                    UserDefaults.standard.set(selectedName, forKey: "DmTouchControlSkinName")
-                    activePath = destination.path
-                    activeName = selectedName
-                    status = "Custom skin ‘\\(selectedName)’ imported. It will be used when the game starts."
-                } catch {
-                    status = "Could not import that folder: \(error.localizedDescription)"
-                }
-            case .failure(let error):
-                status = "Import failed: \(error.localizedDescription)"
-            }
-        }
-    }
-
-}
-
 private struct LauncherView: View {
     @ObservedObject var m: LauncherModel
     let play: () -> Void
@@ -273,7 +201,6 @@ private struct LauncherView: View {
                         Text("Brings back all settings this game was tested with.")
                     }
                     CloudSavesSection()
-                    TouchControlSkinsSection()
                     Section {
                         HStack {
                             Text("Memory available")
