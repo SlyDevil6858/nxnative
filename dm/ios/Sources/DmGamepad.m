@@ -897,7 +897,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _themeButton.showsMenuAsPrimaryAction=YES;
 }
 - (void)importThemeFolder {
-    UIDocumentPickerViewController *picker=[[UIDocumentPickerViewController alloc] initForOpeningContentTypes:@[UTType.folder] asCopy:NO];
+    UIDocumentPickerViewController *picker=[[UIDocumentPickerViewController alloc] initWithDocumentTypes:@[@"public.folder"] inMode:UIDocumentPickerModeOpen];
     picker.delegate=self;
     UIViewController *presenter=[self editorPresenter];
     if (presenter) [presenter presentViewController:picker animated:YES completion:nil];
