@@ -98,7 +98,12 @@ static void launcher_done(void) { [g_root startGame]; }
     self.game = [[DmGameView alloc] initWithFrame:self.view.bounds];
     [self.view addSubview:self.game];
     g_layer = (CAMetalLayer *)self.game.layer;
-    if (getenv("DM_METAL_HUD") && atoi(getenv("DM_METAL_HUD"))) { g_layer.developerHUDProperties = @{@"mode": @"default"}; LOG("front end: Metal performance HUD on (DM_METAL_HUD)"); }   // Apple's HUD over the game: frame rate, frame and GPU time, memory
+    BOOL metalHUD=front_ios_runtime_metal_hud_enabled();
+    // MTL_HUD_ENABLED makes the HUD runtime available; the layer mode is what actually
+    // decides whether this game's overlay is visible. Explicitly disable it when the
+    // saved in-game preference is off, rather than leaving the global default active.
+    g_layer.developerHUDProperties = @{@"mode": metalHUD ? @"default" : @"disabled"};
+    LOG("front end: Metal performance HUD %s", metalHUD ? "on" : "off");
     dm_haptics_apple_init();
     self.pad = dm_gamepad_view(self.view.bounds);
     self.pad.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
@@ -220,12 +225,16 @@ BOOL front_ios_runtime_fps_enabled(void) {
     return e ? atoi(e)!=0 : [[NSBundle.mainBundle objectForInfoDictionaryKey:@"DMShowFPS"] boolValue];
 }
 BOOL front_ios_runtime_metal_hud_enabled(void) {
+    // The in-game switch is a runtime preference, so keep its last choice across launches.
+    id saved=[[NSUserDefaults standardUserDefaults] objectForKey:@"DmRuntimeMetalHUDEnabled"];
+    if (saved) return [saved boolValue];
     const char *e=getenv("DM_METAL_HUD");
     return e && atoi(e)!=0;
 }
 void front_ios_set_runtime_hud(BOOL fps, BOOL metalHUD) {
     setenv("DM_SHOW_FPS", fps ? "1" : "0", 1);
     setenv("DM_METAL_HUD", metalHUD ? "1" : "0", 1);
+    [[NSUserDefaults standardUserDefaults] setBool:metalHUD forKey:@"DmRuntimeMetalHUDEnabled"];
     dispatch_async(dispatch_get_main_queue(), ^{
         if (fps) {
             if (!g_root.fps) g_root.fps=front_ios_fps_label();
@@ -234,7 +243,7 @@ void front_ios_set_runtime_hud(BOOL fps, BOOL metalHUD) {
             [g_root.fps removeFromSuperview];
         }
         if (g_layer) {
-            g_layer.developerHUDProperties=metalHUD ? @{@"mode": @"default"} : nil;
+            g_layer.developerHUDProperties=@{@"mode": metalHUD ? @"default" : @"disabled"};
         }
         [g_root.view setNeedsLayout];
         [g_root.view layoutIfNeeded];
