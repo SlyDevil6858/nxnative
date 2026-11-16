@@ -58,6 +58,12 @@ private extension UIImage {
 }
 
 
+/// Shared accent tint for launcher sections outside LauncherView.
+private func launcherAccentColor() -> Color {
+    Color(uiColor: UIImage(named: "AppIcon")?.dominantColor() ?? .systemBlue)
+}
+
+
 /// Cloud saves: an iCloud Drive folder shared with the Mac app (chosen in its settings window's
 /// Cloud saves too). The host brings the save in from there when the game starts and
 /// sends it there after each save (dm/host/save_sync.h); the folder is a bookmark (CloudSaves.m).
@@ -75,7 +81,7 @@ private struct CloudSavesSection: View {
                     .foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             }
             Button(folder.isEmpty ? "Choose a folder in iCloud Drive…" : "Choose a different folder…") { picking = true }
-                .tint(accentColor)
+                .tint(launcherAccentColor())
             if !folder.isEmpty {
                 Button("Turn off cloud saves", role: .destructive) {
                     dm_clear_cloud_saves(); refresh(); note = ""
@@ -156,7 +162,7 @@ private struct TouchControlSkinsSection: View {
                 Text(activePath.isEmpty ? "Built-in" : (activeName.isEmpty ? URL(fileURLWithPath: activePath).lastPathComponent : activeName)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             }
             Button("Import a skin folder…") { importing = true }
-                .tint(accentColor)
+                .tint(launcherAccentColor())
             Button("Reset to Default", role: .destructive) {
                 UserDefaults.standard.removeObject(forKey: "DmTouchControlSkinPath")
                 activePath = ""
