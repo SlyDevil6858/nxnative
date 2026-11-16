@@ -10,6 +10,7 @@ extension LauncherModel {
 private struct LauncherToggleStyle: ToggleStyle {
     let accentColor: Color
     let isLocked: Bool
+    let label: String
 
     func makeBody(configuration: Configuration) -> some View {
         HStack {
@@ -30,7 +31,7 @@ private struct LauncherToggleStyle: ToggleStyle {
                 configuration.isOn.toggle()
             }
             .accessibilityElement()
-            .accessibilityLabel(configuration.label)
+            .accessibilityLabel(label)
             .accessibilityAddTraits(.isButton)
             .accessibilityValue(configuration.isOn ? "On" : "Off")
             .accessibilityHint(isLocked ? "This setting is fixed by the launch environment." : "Double-tap to change.")
@@ -66,7 +67,7 @@ struct SettingRow: View {
             switch s.kind {
             case "choice":
                 Picker(selection: m.binding(s)) {
-                    ForEach(s.options ?? [], id: \\. [0]) { Text($0[1]).tag($0[0]) }
+                    ForEach(s.options ?? [], id: \\.[0]) { Text($0[1]).tag($0[0]) }
                 } label: {
                     settingLabel
                 }
@@ -88,7 +89,7 @@ struct SettingRow: View {
                 Toggle(isOn: Binding(get: { (m.values[s.env] ?? s.def) == s.onValue }, set: { m.values[s.env] = $0 ? s.onValue : s.offValue })) {
                     settingLabel
                 }
-                .toggleStyle(LauncherToggleStyle(accentColor: accentColor, isLocked: locked))
+                .toggleStyle(LauncherToggleStyle(accentColor: accentColor, isLocked: locked, label: s.label))
             }
         }
         .disabled(locked)
