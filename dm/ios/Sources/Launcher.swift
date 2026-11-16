@@ -177,7 +177,9 @@ private struct LauncherView: View {
     @State private var themes: [LauncherTheme] = []
     @State private var selectedTheme = UserDefaults.standard.string(forKey: "DmTouchControlThemeName") ?? "Classic"
     @State private var pickingTheme = false
+    @State private var showingThemeMenu = false
     @State private var confirmingThemeDeletion = false
+    @State private var themeToDelete: LauncherTheme?
 
     var body: some View {
         GeometryReader { geometry in
@@ -203,31 +205,85 @@ private struct LauncherView: View {
                             Section(section == "Controls" ? "Touch controls" : section) {
                                 ForEach(rows) { SettingRow(s: $0, m: m, accentColor: accentColor) }
                                 if section == "Controls" {
-                                    Picker(selection: Binding(
-                                        get: { selectedTheme },
-                                        set: { name in
-                                            if name == "Classic" { selectTheme(nil, name: name) }
-                                            else if let theme = themes.first(where: { $0.name == name }) {
-                                                selectTheme(theme.path, name: theme.name)
-                                            }
-                                        })) {
-                                        Text("CLASSIC").tag("Classic")
-                                        ForEach(themes) { theme in Text(theme.name).tag(theme.name) }
+                                    Button {
+                                        showingThemeMenu = true
                                     } label: {
-                                        Text("Touch controls theme").foregroundStyle(.white)
+                                        HStack {
+                                            Text("Touch controls theme")
+                                                .foregroundStyle(.white)
+                                            Spacer()
+                                            Text(selectedTheme == "Classic" ? "CLASSIC" : selectedTheme)
+                                                .foregroundStyle(accentColor)
+                                            Image(systemName: "chevron.down")
+                                                .font(.caption.weight(.semibold))
+                                                .foregroundStyle(accentColor)
+                                        }
+                                        .contentShape(Rectangle())
                                     }
-                                    .pickerStyle(.menu)
-                                    .tint(accentColor)
+                                    .buttonStyle(.plain)
+                                    .popover(isPresented: $showingThemeMenu, arrowEdge: .trailing) {
+                                        VStack(alignment: .leading, spacing: 0) {
+                                            Button {
+                                                selectTheme(nil, name: "Classic")
+                                                showingThemeMenu = false
+                                            } label: {
+                                                HStack {
+                                                    Text("CLASSIC")
+                                                    Spacer()
+                                                    if selectedTheme == "Classic" {
+                                                        Image(systemName: "checkmark")
+                                                            .foregroundStyle(accentColor)
+                                                    }
+                                                }
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                                .padding(.vertical, 10)
+                                                .contentShape(Rectangle())
+                                            }
+                                            .buttonStyle(.plain)
+                                            ForEach(themes) { theme in
+                                                Divider()
+                                                HStack(spacing: 12) {
+                                                    Button {
+                                                        selectTheme(theme.path, name: theme.name)
+                                                        showingThemeMenu = false
+                                                    } label: {
+                                                        HStack {
+                                                            Text(theme.name)
+                                                            Spacer()
+                                                            if selectedTheme == theme.name {
+                                                                Image(systemName: "checkmark")
+                                                                    .foregroundStyle(accentColor)
+                                                            }
+                                                        }
+                                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                                        .contentShape(Rectangle())
+                                                    }
+                                                    .buttonStyle(.plain)
+                                                    if !isBundledTheme(theme) {
+                                                        Button(role: .destructive) {
+                                                            themeToDelete = theme
+                                                            confirmingThemeDeletion = true
+                                                        } label: {
+                                                            Image(systemName: "trash")
+                                                                .foregroundStyle(.red)
+                                                                .frame(width: 32, height: 32)
+                                                                .contentShape(Rectangle())
+                                                        }
+                                                        .buttonStyle(.plain)
+                                                        .accessibilityLabel("Delete \(theme.name)")
+                                                    }
+                                                }
+                                                .padding(.vertical, 4)
+                                            }
+                                        }
+                                        .padding(12)
+                                        .frame(minWidth: 240)
+                                        .presentationCompactAdaptation(.popover)
+                                    }
                                     Button("Edit touch controls layout…") { dm_gamepad_present_launcher_editor() }
                                         .foregroundStyle(accentColor)
                                     Button("Import touch controls theme…") { pickingTheme = true }
                                         .foregroundStyle(accentColor)
-                                    if let selected = themes.first(where: { $0.name == selectedTheme }),
-                                       !isBundledTheme(selected) {
-                                        Button("Delete imported touch control theme…", role: .destructive) {
-                                            confirmingThemeDeletion = true
-                                        }
-                                    }
                                     (Text("QUICK TIP: ")
                                         .foregroundColor(Color(red: 245 / 255, green: 176 / 255, blue: 15 / 255))
                                         .fontWeight(.bold)
@@ -285,8 +341,11 @@ private struct LauncherView: View {
             } onCancel: { pickingTheme = false }
         }
         .confirmationDialog("Delete imported touch control theme?", isPresented: $confirmingThemeDeletion, titleVisibility: .visible) {
-            Button("Delete \(selectedTheme)", role: .destructive) { deleteSelectedTheme() }
-            Button("Cancel", role: .cancel) {}
+            Button("Delete \(themeToDelete?.name ?? "theme")", role: .destructive) {
+                if let theme = themeToDelete { deleteTheme(theme) }
+                themeToDelete = nil
+            }
+            Button("Cancel", role: .cancel) { themeToDelete = nil }
         } message: {
             Text("This permanently deletes the imported theme folder from this device.")
         }
@@ -360,12 +419,13 @@ private struct LauncherView: View {
         return FileManager.default.fileExists(atPath: bundledRoot.appendingPathComponent(folderName, isDirectory: true).path)
     }
 
-    private func deleteSelectedTheme() {
-        guard let theme = themes.first(where: { $0.name == selectedTheme }),
-              !isBundledTheme(theme) else { return }
+    private func deleteTheme(_ theme: LauncherTheme) {
+        guard !isBundledTheme(theme) else { return }
         do {
             try FileManager.default.removeItem(at: URL(fileURLWithPath: theme.path))
-            selectTheme(nil, name: "Classic")
+            if selectedTheme == theme.name {
+                selectTheme(nil, name: "Classic")
+            }
             refreshThemes()
         } catch {
             NSLog("Touch theme deletion failed: %@", error.localizedDescription)
