@@ -6,6 +6,38 @@ extension LauncherModel {
     func binding(_ s: Setting) -> Binding<String> { Binding(get: { self.values[s.env] ?? s.def }, set: { self.values[s.env] = $0 }) }
 }
 
+/// Keeps locked switches visibly subdued instead of using SwiftUI's brighter default disabled track.
+private struct LauncherToggleStyle: ToggleStyle {
+    let accentColor: Color
+    let isLocked: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        HStack {
+            configuration.label
+            Spacer()
+            ZStack(alignment: configuration.isOn ? .trailing : .leading) {
+                Capsule()
+                    .fill(isLocked ? Color(white: 0.16) : (configuration.isOn ? accentColor : Color(white: 0.30)))
+                    .frame(width: 51, height: 31)
+                Circle()
+                    .fill(isLocked ? Color(white: 0.48) : Color.white)
+                    .frame(width: 27, height: 27)
+                    .padding(2)
+            }
+            .contentShape(Capsule())
+            .onTapGesture {
+                guard !isLocked else { return }
+                configuration.isOn.toggle()
+            }
+            .accessibilityElement()
+            .accessibilityLabel(configuration.label)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityValue(configuration.isOn ? "On" : "Off")
+            .accessibilityHint(isLocked ? "This setting is fixed by the launch environment." : "Double-tap to change.")
+        }
+    }
+}
+
 struct SettingRow: View {
     let s: Setting
     @ObservedObject var m: LauncherModel
@@ -25,7 +57,7 @@ struct SettingRow: View {
     private var settingLabel: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(s.label)
-            if !note.isEmpty { Text(note).font(.footnote).foregroundStyle(.secondary) }
+            if !note.isEmpty { Text(note).font(.footnote).foregroundStyle(Color(white: 0.58)) }
         }
     }
 
@@ -34,7 +66,7 @@ struct SettingRow: View {
             switch s.kind {
             case "choice":
                 Picker(selection: m.binding(s)) {
-                    ForEach(s.options ?? [], id: \.[0]) { Text($0[1]).tag($0[0]) }
+                    ForEach(s.options ?? [], id: \\. [0]) { Text($0[1]).tag($0[0]) }
                 } label: {
                     settingLabel
                 }
@@ -56,7 +88,7 @@ struct SettingRow: View {
                 Toggle(isOn: Binding(get: { (m.values[s.env] ?? s.def) == s.onValue }, set: { m.values[s.env] = $0 ? s.onValue : s.offValue })) {
                     settingLabel
                 }
-                .tint(accentColor)
+                .toggleStyle(LauncherToggleStyle(accentColor: accentColor, isLocked: locked))
             }
         }
         .disabled(locked)
