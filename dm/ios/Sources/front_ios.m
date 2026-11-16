@@ -234,7 +234,7 @@ void front_ios_set_runtime_hud(BOOL fps, BOOL metalHUD) {
             [g_root.fps removeFromSuperview];
         }
         if (g_layer) {
-            g_layer.developerHUDProperties=metalHUD ? @{@ "mode": @"default"} : nil;
+            g_layer.developerHUDProperties=metalHUD ? @{@"mode": @"default"} : nil;
         }
         [g_root.view setNeedsLayout];
         [g_root.view layoutIfNeeded];
