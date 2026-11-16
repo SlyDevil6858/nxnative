@@ -198,7 +198,8 @@ static void pads_start(void);   // Physical controllers, below
     CGPoint _dragStart, _dragHome;
     CGRect _lastSafe;
     UIButton *_chooseButton, *_profileButton, *_saveAsButton;
-    DmPaddedTipLabel *_menuTip;\n    CAShapeLayer *_menuTipArrow;
+    DmPaddedTipLabel *_menuTip;
+    CAShapeLayer *_menuTipArrow;
     UILongPressGestureRecognizer *_editHold;
     UIView *_tools;
     UISlider *_sizeSlider, *_alphaSlider;
