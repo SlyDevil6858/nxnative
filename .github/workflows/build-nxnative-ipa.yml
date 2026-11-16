@@ -13,6 +13,11 @@ on:
         required: true
         type: string
         default: "KEYS/prod.keys"
+      build_number:
+        description: "App build number"
+        required: true
+        type: number
+        default: 3
 
 permissions:
   contents: read
@@ -70,7 +75,7 @@ jobs:
         env:
           GAME_FOLDER: ${{ inputs.game_folder }}
           PROD_KEYS_PATH: ${{ inputs.prod_keys_path }}
-          DM_APP_BUILD: ${{ github.run_number }}
+          DM_APP_BUILD: ${{ inputs.build_number }}
         run: |
           python3 - <<'PY'
           import os
@@ -187,7 +192,7 @@ jobs:
           PY
           )"
 
-          FINAL_IPA="$RUNNER_TEMP/${{ steps.verify-input.outputs.ipa_name }} A15 v${GAME_VERSION} build${GITHUB_RUN_NUMBER}.ipa"
+          FINAL_IPA="$RUNNER_TEMP/${{ steps.verify-input.outputs.ipa_name }} A15 v${GAME_VERSION} build${{ inputs.build_number }}.ipa"
           mv "$BASE_IPA" "$FINAL_IPA"
           echo "ipa_path=$FINAL_IPA" >> "$GITHUB_OUTPUT"
           echo "Final IPA filename: $(basename "$FINAL_IPA")"
@@ -198,7 +203,7 @@ jobs:
           repository: SlyDevil6858/myprivaterepo
           token: ${{ secrets.PRIVATE_REPO_TOKEN }}
           tag_name: nxnative-build-${{ github.run_id }}
-          name: nxnative iPhone 13 Pro Max build ${{ github.run_number }}
+          name: nxnative iPhone 13 Pro Max build ${{ inputs.build_number }}
           body: "Unsigned IPA built from the nxnative fork. This release is in the private myprivaterepo repository."
           files: ${{ steps.build-ipa.outputs.ipa_path }}
           fail_on_unmatched_files: true
