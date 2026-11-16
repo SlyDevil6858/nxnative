@@ -39,6 +39,8 @@ struct SettingRow: View {
                     settingLabel
                 }
                 .pickerStyle(.menu)
+                .tint(accentColor)
+                .foregroundStyle(accentColor)
             case "range":
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
@@ -47,6 +49,7 @@ struct SettingRow: View {
                         Text(percentage).monospacedDigit().foregroundStyle(.secondary)
                     }
                     Slider(value: rangeValue, in: (s.min ?? 0)...(s.max ?? 1), step: s.step ?? 0.05)
+                        .tint(accentColor)
                         .accessibilityLabel(s.label)
                         .accessibilityValue(percentage)
                 }
