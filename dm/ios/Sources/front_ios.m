@@ -195,10 +195,13 @@ static void front_ios_power_watch(void) {
 // Frame-rate counter: the frames put on screen in the last second (nvn_mtl.m counts them for NVN and for the Vulkan layer alike; frames the display link merged away are not counted).
 // On when the IPA was built with it (the NSP script's SHOW_FPS / --show-fps → DMShowFPS in Info.plist); DM_SHOW_FPS=0 / 1 in Documents/env.txt overrides that without a rebuild. NULL when off
 uint64_t mtl_present_count(void);
+static UILabel *g_fps_label;
 static UILabel *front_ios_fps_label(void) {
+    if (g_fps_label) return g_fps_label;
     const char *e = getenv("DM_SHOW_FPS");
     if (!(e ? atoi(e) != 0 : [[NSBundle.mainBundle objectForInfoDictionaryKey:@"DMShowFPS"] boolValue])) return nil;
     UILabel *l = [UILabel new];
+    g_fps_label = l;
     l.font = [UIFont monospacedDigitSystemFontOfSize:13 weight:UIFontWeightSemibold]; l.textColor = UIColor.whiteColor; l.textAlignment = NSTextAlignmentCenter;
     l.backgroundColor = [UIColor colorWithWhite:0 alpha:0.45]; l.layer.cornerRadius = 6; l.layer.masksToBounds = YES; l.userInteractionEnabled = NO;
     l.text = @"-- fps";
@@ -210,6 +213,33 @@ static UILabel *front_ios_fps_label(void) {
     }];
     LOG("front end: frame-rate counter on");
     return l;
+}
+
+BOOL front_ios_runtime_fps_enabled(void) {
+    const char *e=getenv("DM_SHOW_FPS");
+    return e ? atoi(e)!=0 : [[NSBundle.mainBundle objectForInfoDictionaryKey:@"DMShowFPS"] boolValue];
+}
+BOOL front_ios_runtime_metal_hud_enabled(void) {
+    const char *e=getenv("DM_METAL_HUD");
+    return e && atoi(e)!=0;
+}
+void front_ios_set_runtime_hud(BOOL fps, BOOL metalHUD) {
+    setenv("DM_SHOW_FPS", fps ? "1" : "0", 1);
+    setenv("DM_METAL_HUD", metalHUD ? "1" : "0", 1);
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (fps) {
+            if (!g_root.fps) g_root.fps=front_ios_fps_label();
+            if (g_root.fps && g_root.fps.superview!=g_root.view) [g_root.view addSubview:g_root.fps];
+        } else {
+            [g_root.fps removeFromSuperview];
+        }
+        if (g_layer) {
+            g_layer.developerHUDProperties=metalHUD ? @{@ "mode": @"default"} : nil;
+        }
+        [g_root.view setNeedsLayout];
+        [g_root.view layoutIfNeeded];
+    });
+    LOG("front end: runtime FPS counter %s, Metal performance HUD %s", fps ? "on" : "off", metalHUD ? "on" : "off");
 }
 
 // Progress screen of the prepare step (front.h front_progress): a dark view over the game's view and the pad, the title, a bar and a count, centered; UIKit views, so it draws while the game's thread waits
