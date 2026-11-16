@@ -58,9 +58,15 @@ private extension UIImage {
 }
 
 
-/// Shared accent tint for launcher sections outside LauncherView.
+/// A slightly lighter accent for secondary actions; Play keeps the original icon colour.
 private func launcherAccentColor() -> Color {
-    Color(uiColor: UIImage(named: "AppIcon")?.dominantColor() ?? .systemBlue)
+    let base = UIImage(named: "AppIcon")?.dominantColor() ?? .systemBlue
+    var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 1
+    base.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+    let lift: CGFloat = 0.16
+    return Color(red: red + (1 - red) * lift,
+                 green: green + (1 - green) * lift,
+                 blue: blue + (1 - blue) * lift)
 }
 
 
@@ -81,6 +87,7 @@ private struct CloudSavesSection: View {
                     .foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             }
             Button(folder.isEmpty ? "Choose a folder in iCloud Drive…" : "Choose a different folder…") { picking = true }
+                .buttonStyle(.borderedProminent)
                 .tint(launcherAccentColor())
             if !folder.isEmpty {
                 Button("Turn off cloud saves", role: .destructive) {
@@ -162,6 +169,7 @@ private struct TouchControlSkinsSection: View {
                 Text(activePath.isEmpty ? "Built-in" : (activeName.isEmpty ? URL(fileURLWithPath: activePath).lastPathComponent : activeName)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             }
             Button("Import a touch control skin folder…") { importing = true }
+                .buttonStyle(.borderedProminent)
                 .tint(launcherAccentColor())
             Button("Reset to Default", role: .destructive) {
                 UserDefaults.standard.removeObject(forKey: "DmTouchControlSkinPath")
@@ -323,6 +331,7 @@ public func dmShowLauncher(_ viewController: UnsafeMutableRawPointer, _ done: @c
     }
     let h = UIHostingController(rootView: view)
     h.modalPresentationStyle = .fullScreen
+    h.overrideUserInterfaceStyle = .dark
     host = h
     parent.present(h, animated: false)
     fputs("launcher: \(file.settings.count) settings shown\n", stderr)
