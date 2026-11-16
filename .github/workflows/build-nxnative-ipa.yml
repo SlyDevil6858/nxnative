@@ -66,6 +66,7 @@ jobs:
           '
 
       - name: Verify paths and required game files
+        id: verify-input
         env:
           GAME_FOLDER: ${{ inputs.game_folder }}
           PROD_KEYS_PATH: ${{ inputs.prod_keys_path }}
@@ -94,7 +95,30 @@ jobs:
           if not packages:
               raise SystemExit("No non-empty .nsp, .xci, .nsz or .xcz files found directly inside game_folder")
 
+          # Choose the base game ROM for the output name. Updates and DLC remain
+          # available to nxnative in the folder, but should not name the app.
+          xci = [p for p in packages if p.suffix.lower() == ".xci"]
+          base_nsp = [
+              p for p in packages
+              if p.suffix.lower() in {".nsp", ".nsz"}
+              and not any(word in p.stem.lower() for word in ("update", "patch", "dlc"))
+          ]
+          candidates = xci if xci else base_nsp
+          if len(candidates) != 1:
+              names = ", ".join(p.name for p in candidates) or "none"
+              raise SystemExit(
+                  "Could not identify one base ROM for the IPA filename. "
+                  f"Candidates: {names}. Keep one base .xci, or one base .nsp/.nsz "
+                  "alongside any update/DLC files."
+              )
+          rom_name = candidates[0].stem
+          if not rom_name.strip() or any(c in rom_name for c in "\\r\\n"):
+              raise SystemExit("The base ROM filename is empty or invalid.")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"ipa_name={rom_name}\n")
+
           print(f"Found {len(packages)} game package file(s).")
+          print(f"IPA filename will be: {rom_name}.ipa")
           print("prod.keys file exists; its contents will not be printed or uploaded.")
           PY
 
@@ -136,7 +160,7 @@ jobs:
           python nxnative/scripts/build_ipa_from_nsp.py "$GAME_DIR" \
             --keys "$KEYS_FILE" \
             --6gb \
-            --out "$RUNNER_TEMP/nxnative-iphone-13-pro-max.ipa" \
+            --out "$RUNNER_TEMP/${{ steps.verify-input.outputs.ipa_name }}.ipa" \
             --progress lines
 
       - name: Upload IPA to a private release in myprivaterepo
@@ -147,6 +171,6 @@ jobs:
           tag_name: nxnative-build-${{ github.run_id }}
           name: nxnative iPhone 13 Pro Max build ${{ github.run_number }}
           body: "Unsigned IPA built from the nxnative fork. This release is in the private myprivaterepo repository."
-          files: ${{ runner.temp }}/nxnative-iphone-13-pro-max.ipa
+          files: ${{ runner.temp }}/${{ steps.verify-input.outputs.ipa_name }}.ipa
           fail_on_unmatched_files: true
           make_latest: false
