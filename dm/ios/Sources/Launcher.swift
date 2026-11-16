@@ -127,8 +127,8 @@ private struct TouchControlSkinsSection: View {
                     let fm = FileManager.default
                     let twoD = source.appendingPathComponent("skin-2d.png")
                     let threeD = source.appendingPathComponent("skin-3d.png")
-                    guard fm.fileExists(atPath: twoD.path), fm.fileExists(atPath: threeD.path) else {
-                        status = "That folder needs both skin-2d.png and skin-3d.png."
+                    guard UIImage(contentsOfFile: twoD.path) != nil, UIImage(contentsOfFile: threeD.path) != nil else {
+                        status = "That folder needs valid skin-2d.png and skin-3d.png images."
                         return
                     }
                     let docs = try fm.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
