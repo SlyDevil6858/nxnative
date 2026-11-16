@@ -936,7 +936,21 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     NSFileManager *fm=NSFileManager.defaultManager;
     NSURL *docs=[fm URLForDirectory:NSDocumentDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:nil];
     NSURL *dir=[docs URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES];
-    if (create) [fm createDirectoryAtURL:dir withIntermediateDirectories:YES attributes:nil error:nil];
+    if (create) {
+        [fm createDirectoryAtURL:dir withIntermediateDirectories:YES attributes:nil error:nil];
+        // Remove identical copies installed by older builds; retain customized/imported folders.
+        NSURL *bundled=[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES];
+        NSArray<NSURL *> *bundledFolders=[fm contentsOfDirectoryAtURL:bundled
+            includingPropertiesForKeys:@[NSURLIsDirectoryKey] options:NSDirectoryEnumerationSkipsHiddenFiles error:nil];
+        for (NSURL *folder in bundledFolders) {
+            NSNumber *isDirectory=nil; [folder getResourceValue:&isDirectory forKey:NSURLIsDirectoryKey error:nil];
+            if (!isDirectory.boolValue) continue;
+            NSURL *legacy=[dir URLByAppendingPathComponent:folder.lastPathComponent isDirectory:YES];
+            NSData *bundledJSON=[NSData dataWithContentsOfURL:[folder URLByAppendingPathComponent:@"theme.json"]];
+            NSData *legacyJSON=[NSData dataWithContentsOfURL:[legacy URLByAppendingPathComponent:@"theme.json"]];
+            if (bundledJSON && [bundledJSON isEqualToData:legacyJSON]) [fm removeItemAtURL:legacy error:nil];
+        }
+    }
     return dir;
 }
 - (NSDictionary *)validThemeJSONAtFolder:(NSURL *)folder {
