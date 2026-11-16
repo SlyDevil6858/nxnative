@@ -148,6 +148,7 @@ static void pads_start(void);   // Physical controllers, below
     BOOL _stickShown;                              // the left stick was held at the last refresh
     BOOL _full, _tap;                              // the 3D layout / the Tap layout is current
     CALayer *_controls;                            // holds every control layer: hidden while a physical controller is connected (the view itself stays, for game touches)
+    CALayer *_skinLayer; UIImage *_skin2D, *_skin3D; BOOL _customSkin; // optional artwork; native touch hit-testing stays unchanged
     BOOL _padOff;                                  // a physical controller is connected: every touch goes to the game
     UITouch *_game[16];                            // touches on the game's touch screen by finger slot
 }
@@ -192,6 +193,8 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
             if (names[b]) _label[b] = label(_key[b], names[b]);   // the D-pad arms carry no label
         }
         _swap = shape(_controls); _swapLabel = label(_swap, @"");
+        _skinLayer = [CALayer layer]; _skinLayer.contentsGravity = kCAGravityResize; [_controls addSublayer:_skinLayer];
+        [self loadTouchSkin];
         NSNumber *saved = [NSUserDefaults.standardUserDefaults objectForKey:k_layout_key];
         int l = saved ? (int)saved.integerValue : DM_GAME_PAD_LAYOUT;
         if (l == 2 && dm_opmode() != 0) l = 0;   // Tap only in handheld mode (env.txt's DM_OPMODE may have changed it)
@@ -207,10 +210,23 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
     }
     return self;
 }
+- (void)loadTouchSkin {
+    NSString *path = [NSUserDefaults.standardUserDefaults stringForKey:@"DmTouchControlSkinPath"];
+    _skin2D = _skin3D = nil; _customSkin = NO;
+    if (path.length) {
+        _skin2D = [UIImage imageWithContentsOfFile:[path stringByAppendingPathComponent:@"skin-2d.png"]];
+        _skin3D = [UIImage imageWithContentsOfFile:[path stringByAppendingPathComponent:@"skin-3d.png"]];
+        _customSkin = _skin2D.CGImage && _skin3D.CGImage;
+    }
+}
 - (void)applyLayout {   // show / hide the controls for the current layout
     [CATransaction begin]; [CATransaction setDisableActions:YES];
-    for (int b = 0; b < B_N; b++) _key[b].hidden = _tap || (fullOnly(b) && !_full);
-    _ring.hidden = _knob.hidden = _tap;
+    for (int b = 0; b < B_N; b++) _key[b].hidden = _tap || _customSkin || (fullOnly(b) && !_full);
+    _ring.hidden = _knob.hidden = _tap || _customSkin;
+    _swap.hidden = _swapLabel.hidden = _customSkin;
+    UIImage *skin = _full ? _skin3D : _skin2D;
+    _skinLayer.contents = _customSkin && !_tap ? (__bridge id)skin.CGImage : nil;
+    _skinLayer.hidden = !_customSkin || _tap;
     _swapLabel.string = _tap ? @"Tap" : _full ? @"3D" : @"2D";
     [CATransaction commit];
 }
@@ -418,7 +434,7 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     UIWindowScene *ws = self.window.windowScene; if (ws) atomic_store(&g_iface_orient, (int)ws.effectiveGeometry.interfaceOrientation);
     CGFloat u = self.u;
     [CATransaction begin]; [CATransaction setDisableActions:YES];
-    _controls.frame = self.layer.bounds;
+    _controls.frame = self.layer.bounds; _skinLayer.frame = self.layer.bounds;
     for (int b = B_A; b <= B_Y; b++) { CGPoint c = [self facePos:b]; setPath(_key[b], circlePath(c, self.faceR)); placeLabel(_label[b], c, 20 * u); }
     for (int i = 0; i < (int)(sizeof k_btns / sizeof *k_btns); i++) { int b = k_btns[i];
         if (isDrop(b)) {
