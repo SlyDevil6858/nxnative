@@ -164,10 +164,19 @@ private struct DocumentPicker: UIViewControllerRepresentable {
 
 
 /// Lets the user install or remove a folder-based touch-control skin before launching the game.
+private struct LauncherTheme: Identifiable {
+    let name: String
+    let path: String
+    var id: String { path }
+}
+
 private struct LauncherView: View {
     @ObservedObject var m: LauncherModel
     let play: () -> Void
     @State private var memory = os_proc_available_memory()
+    @State private var themes: [LauncherTheme] = []
+    @State private var selectedTheme = UserDefaults.standard.string(forKey: "DmTouchControlThemeName") ?? "Classic"
+    @State private var pickingTheme = false
 
     var body: some View {
         GeometryReader { geometry in
@@ -206,6 +215,24 @@ private struct LauncherView: View {
                         Text("Brings back all settings this game was tested with.")
                             .foregroundStyle(Color(white: 0.58))
                     }
+                    Section("Touch controls") {
+                        Menu {
+                            Button("Classic") { selectTheme(nil, name: "Classic") }
+                            ForEach(themes) { theme in
+                                Button(theme.name) { selectTheme(theme.path, name: theme.name) }
+                            }
+                        } label: {
+                            HStack {
+                                Text("Control skin")
+                                Spacer()
+                                Text(selectedTheme + "  ▾").foregroundStyle(accentColor)
+                            }
+                        }
+                        Button("Import control skin…") { pickingTheme = true }
+                            .foregroundStyle(accentColor)
+                        Button("Edit control layout…") { dm_gamepad_present_launcher_editor() }
+                            .foregroundStyle(accentColor)
+                    }
                     CloudSavesSection()
                     Section {
                         HStack {
@@ -232,6 +259,13 @@ private struct LauncherView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .sheet(isPresented: $pickingTheme) {
+            DocumentPicker(types: [.folder]) { url in
+                pickingTheme = false
+                importTheme(from: url)
+            } onCancel: { pickingTheme = false }
+        }
+        .onAppear(perform: refreshThemes)
         .task {
             while !Task.isCancelled {
                 memory = os_proc_available_memory()
@@ -256,6 +290,77 @@ private struct LauncherView: View {
 
     private func appIcon() -> UIImage? {
         launcherAppIcon()
+    }
+
+    private func themesDirectory() -> URL {
+        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let directory = documents.appendingPathComponent("TouchControlThemes", isDirectory: true)
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory
+    }
+
+    private func themeJSON(in folder: URL) -> [String: Any]? {
+        let file = folder.appendingPathComponent("theme.json")
+        guard let data = try? Data(contentsOf: file),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let palette = json["palette"] as? [String: Any] else { return nil }
+        let required = ["idle", "pressed", "outline", "ringFill", "text", "pressedText"]
+        for key in required {
+            guard let value = palette[key] as? String else { return nil }
+            let hex = value.hasPrefix("#") ? String(value.dropFirst()) : value
+            guard hex.count == 6, hex.allSatisfy({ $0.isHexDigit }) else { return nil }
+        }
+        return json
+    }
+
+    private func refreshThemes() {
+        let root = themesDirectory()
+        let folders = (try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: [.isDirectoryKey])) ?? []
+        themes = folders.compactMap { folder in
+            guard (try? folder.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true,
+                  let json = themeJSON(in: folder) else { return nil }
+            return LauncherTheme(name: (json["name"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? folder.lastPathComponent,
+                                 path: folder.path)
+        }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        let path = UserDefaults.standard.string(forKey: "DmTouchControlThemePath")
+        if let selected = themes.first(where: { $0.path == path }) { selectedTheme = selected.name }
+        else if path == nil { selectedTheme = "Classic" }
+    }
+
+    private func selectTheme(_ path: String?, name: String) {
+        if let path { UserDefaults.standard.set(path, forKey: "DmTouchControlThemePath") }
+        else { UserDefaults.standard.removeObject(forKey: "DmTouchControlThemePath") }
+        UserDefaults.standard.set(name, forKey: "DmTouchControlThemeName")
+        selectedTheme = name
+    }
+
+    private func importTheme(from source: URL) {
+        let scoped = source.startAccessingSecurityScopedResource()
+        defer { if scoped { source.stopAccessingSecurityScopedResource() } }
+        var candidate = source
+        if themeJSON(in: candidate) == nil {
+            let children = (try? FileManager.default.contentsOfDirectory(at: source, includingPropertiesForKeys: [.isDirectoryKey])) ?? []
+            let valid = children.filter {
+                (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true && themeJSON(in: $0) != nil
+            }
+            guard valid.count == 1, let only = valid.first else { return }
+            candidate = only
+        }
+        guard let json = themeJSON(in: candidate) else { return }
+        let rawName = (json["name"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? candidate.lastPathComponent
+        let safeName = String(rawName.map { $0.isLetter || $0.isNumber || $0 == " " || $0 == "_" || $0 == "-" ? $0 : "_" })
+            .trimmingCharacters(in: CharacterSet(charactersIn: " ._"))
+        let destination = themesDirectory().appendingPathComponent(safeName.isEmpty ? "Imported Theme" : safeName, isDirectory: true)
+        do {
+            if FileManager.default.fileExists(atPath: destination.path) {
+                try FileManager.default.removeItem(at: destination)
+            }
+            try FileManager.default.copyItem(at: candidate, to: destination)
+            refreshThemes()
+            selectTheme(destination.path, name: rawName)
+        } catch {
+            NSLog("Touch theme import failed: %@", error.localizedDescription)
+        }
     }
 }
 
