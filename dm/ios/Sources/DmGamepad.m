@@ -1116,38 +1116,60 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 - (void)saveEdit { [_profiles save:_custom layout:self.controlsLayout slot:_profiles.selected]; [self finishEdit]; }
 - (void)cancelEdit { [self loadControls]; [self finishEdit]; }
 - (void)resetAllControls { [_custom removeAllObjects]; [self updateEditor]; [self setNeedsLayout]; }
-- (void)resetControl { [_custom removeObjectForKey:[self controlID:_selected]]; [self updateEditor]; [self setNeedsLayout]; }
-- (void)storeControlAt:(CGPoint)point {
-    CGRect safe=self.safe; if (safe.size.width<=0 || safe.size.height<=0) return;
-    CGFloat margin=(_selected==16?K_STICK_R:_selected==17?K_DPAD_R:isDrop(_selected)?38:isClick(_selected)?22:28)*self.u*_sizeSlider.value;
-    point=dm_pad_clamp(point,safe,margin);
-    _custom[[self controlID:_selected]]=@{@"x":@((point.x-safe.origin.x)/safe.size.width),
-        @"y":@((point.y-safe.origin.y)/safe.size.height),@"scale":@(_sizeSlider.value),@"alpha":@(_alphaSlider.value)};
+- (void)resetControl {
+    if (_selected<0) {
+        for (int b=0;b<18;b++) if ([self editable:b]) [_custom removeObjectForKey:[self controlID:b]];
+    } else [_custom removeObjectForKey:[self controlID:_selected]];
     [self updateEditor]; [self setNeedsLayout];
 }
+- (void)storeControlAt:(CGPoint)point {
+    CGRect safe=self.safe; if (safe.size.width<=0 || safe.size.height<=0) return;
+    if (_selected<0 && _dragAllHomes.count) {
+        CGPoint delta=CGPointMake(point.x-_dragHome.x,point.y-_dragHome.y);
+        for (NSString *key in _dragAllHomes) {
+            int b=(int)[key integerValue]; CGPoint home=_dragAllHomes[key].CGPointValue;
+            CGFloat margin=(b==16?K_STICK_R:b==17?K_DPAD_R:isDrop(b)?38:isClick(b)?22:28)*self.u*[self scale:b];
+            CGPoint moved=dm_pad_clamp(CGPointMake(home.x+delta.x,home.y+delta.y),safe,margin);
+            NSMutableDictionary *value=[_custom[key] mutableCopy] ?: [NSMutableDictionary dictionary];
+            value[@"x"]=@((moved.x-safe.origin.x)/safe.size.width);
+            value[@"y"]=@((moved.y-safe.origin.y)/safe.size.height);
+            _custom[key]=value;
+        }
+    } else {
+        CGFloat margin=(_selected==16?K_STICK_R:_selected==17?K_DPAD_R:isDrop(_selected)?38:isClick(_selected)?22:28)*self.u*_sizeSlider.value;
+        point=dm_pad_clamp(point,safe,margin);
+        _custom[[self controlID:_selected]]=@{@"x":@((point.x-safe.origin.x)/safe.size.width),
+            @"y":@((point.y-safe.origin.y)/safe.size.height),@"scale":@(_sizeSlider.value),@"alpha":@(_alphaSlider.value)};
+    }
+    [self setNeedsLayout]; [self refresh];
+}
 - (void)adjustControl {
-    NSString *key=[self controlID:_selected];
     float requestedScale=_sizeSlider.value;
-    // Scale is independent of position. Do not route slider changes through
-    // storeControlAt:, which also writes coordinates and can move untouched
-    // controls while the editor is being refreshed.
-    NSMutableDictionary *value=[_custom[key] mutableCopy] ?: [NSMutableDictionary dictionary];
-    value[@"scale"]=@(requestedScale);
-    _custom[key]=value;
+    if (_selected<0) {
+        for (int b=0;b<18;b++) if ([self editable:b]) {
+            NSString *key=[self controlID:b]; NSMutableDictionary *value=[_custom[key] mutableCopy] ?: [NSMutableDictionary dictionary];
+            value[@"scale"]=@(requestedScale); _custom[key]=value;
+        }
+    } else {
+        NSString *key=[self controlID:_selected];
+        NSMutableDictionary *value=[_custom[key] mutableCopy] ?: [NSMutableDictionary dictionary];
+        value[@"scale"]=@(requestedScale); _custom[key]=value;
+    }
     _editInfo.text=[NSString stringWithFormat:@"Size %.0f%% · Opacity %.0f%%\nDrag a control to move it.",requestedScale*100,_alphaSlider.value*100];
-    [self setNeedsLayout];
-    [self layoutIfNeeded]; // Apply the new control geometry immediately while the slider is moving.
-    [self refresh];
+    [self setNeedsLayout]; [self layoutIfNeeded]; [self refresh];
 }
 - (void)adjustOpacityControl {
-    NSString *key=[self controlID:_selected];
     float requestedAlpha=_alphaSlider.value;
-    // Opacity is independent of geometry. Keep this as an alpha-only profile
-    // entry when the control has never been moved; position:base: deliberately
-    // ignores entries without numeric x/y and therefore keeps the default home.
-    NSMutableDictionary *value=[_custom[key] mutableCopy] ?: [NSMutableDictionary dictionary];
-    value[@"alpha"]=@(requestedAlpha);
-    _custom[key]=value;
+    if (_selected<0) {
+        for (int b=0;b<18;b++) if ([self editable:b]) {
+            NSString *key=[self controlID:b]; NSMutableDictionary *value=[_custom[key] mutableCopy] ?: [NSMutableDictionary dictionary];
+            value[@"alpha"]=@(requestedAlpha); _custom[key]=value;
+        }
+    } else {
+        NSString *key=[self controlID:_selected];
+        NSMutableDictionary *value=[_custom[key] mutableCopy] ?: [NSMutableDictionary dictionary];
+        value[@"alpha"]=@(requestedAlpha); _custom[key]=value;
+    }
     _editInfo.text=[NSString stringWithFormat:@"Size %.0f%% · Opacity %.0f%%\nDrag a control to move it.",_sizeSlider.value*100,requestedAlpha*100];
     [self refresh];
 }
