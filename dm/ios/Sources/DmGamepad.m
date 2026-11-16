@@ -150,6 +150,7 @@ static void pads_start(void);   // Physical controllers, below
     CALayer *_controls;                            // holds every control layer: hidden while a physical controller is connected (the view itself stays, for game touches)
     NSMutableDictionary<NSString *, CALayer *> *_skinItems; NSDictionary<NSString *, UIImage *> *_skinImages; BOOL _customSkin; // one image layer per control; native touch hit-testing stays unchanged
     BOOL _padOff;                                  // a physical controller is connected: every touch goes to the game
+    BOOL _builtInSkinExportChecked;                 // export native artwork once after the view has real dimensions
     UITouch *_game[16];                            // touches on the game's touch screen by finger slot
 }
 
@@ -480,6 +481,117 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     CFRelease(f);
 }
 
+
+// Export native artwork through a fresh off-screen layer tree for each PNG.
+// The live gamepad layers are never hidden, moved, recoloured or otherwise modified.
+- (void)exportBuiltInSkin {
+    if (self.bounds.size.width <= 0 || self.bounds.size.height <= 0) return;
+    [CATransaction flush];
+    NSArray<NSString *> *names = @[@"a", @"b", @"x", @"y", @"stick-base", @"stick-knob", @"zl", @"l", @"zr", @"r", @"minus", @"plus", @"layout", @"dpad-up", @"dpad-down", @"dpad-left", @"dpad-right", @"l3", @"r3", @"right-stick-base", @"right-stick-knob"];
+    NSMutableDictionary<NSString *, NSValue *> *rects = [NSMutableDictionary dictionary];
+    CGFloat pad = 5 * self.u;
+    for (int b = B_A; b <= B_Y; b++) {
+        CGPoint p = [self facePos:b]; CGFloat r = self.faceR;
+        rects[@[@"a", @"b", @"x", @"y"][b]] = [NSValue valueWithCGRect:CGRectInset(CGRectMake(p.x-r,p.y-r,2*r,2*r),-pad,-pad)];
+    }
+    CGPoint sh = self.stickHome; CGFloat sr = [self stickR:0];
+    rects[@"stick-base"] = [NSValue valueWithCGRect:CGRectInset(CGRectMake(sh.x-sr,sh.y-sr,2*sr,2*sr),-pad,-pad)];
+    CGFloat kr = K_KNOB_R * self.u; CGPoint ko = [self knobOffset:0];
+    CGPoint kc = CGPointMake(sh.x+ko.x,sh.y+ko.y);
+    rects[@"stick-knob"] = [NSValue valueWithCGRect:CGRectInset(CGRectMake(kc.x-kr,kc.y-kr,2*kr,2*kr),-pad,-pad)];
+    for (NSString *name in @[@"zl", @"l", @"zr", @"r"]) {
+        int b = [name isEqual:@"zl"]?B_ZL:[name isEqual:@"l"]?B_L:[name isEqual:@"zr"]?B_ZR:B_R;
+        CGPoint p=[self dropCenter:b]; CGFloat r=[self dropR:b]*K_DROP_TIP;
+        rects[name]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(p.x-r,p.y-r,2*r,2*r),-pad,-pad)];
+    }
+    for (NSString *name in @[@"minus", @"plus"]) {
+        int b=[name isEqual:@"plus"]?B_PLUS:B_MINUS;
+        rects[name]=[NSValue valueWithCGRect:CGRectInset([self pillRect:b],-pad,-pad)];
+    }
+    CGFloat swapR=K_SWAP_R*self.u; CGPoint sp=self.swapCenter;
+    rects[@"layout"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(sp.x-swapR,sp.y-swapR,2*swapR,2*swapR),-pad,-pad)];
+    CGFloat clickR=K_CLICK_R*self.u;
+    for (NSString *name in @[@"l3", @"r3"]) {
+        CGPoint p=[self clickCenter:[name isEqual:@"l3"]?B_LS:B_RS];
+        rects[name]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(p.x-clickR,p.y-clickR,2*clickR,2*clickR),-pad,-pad)];
+    }
+    CGFloat dr=self.dpadR; CGPoint dc=self.dpadCenter;
+    rects[@"dpad-up"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(dc.x-dr,dc.y-dr,2*dr,dr+pad),-pad,-pad)];
+    rects[@"dpad-down"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(dc.x-dr,dc.y,2*dr,dr+pad),-pad,-pad)];
+    rects[@"dpad-left"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(dc.x-dr,dc.y-dr,dr+pad,2*dr),-pad,-pad)];
+    rects[@"dpad-right"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(dc.x,dc.y-dr,dr+pad,2*dr),-pad,-pad)];
+    CGFloat rr=[self stickR:1], rkr=K_KNOB_R*self.u;
+    CGPoint rc=CGPointMake(CGRectGetMaxX(self.bounds)-rr-24*self.u,CGRectGetMidY(self.bounds));
+    rects[@"right-stick-base"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(rc.x-rr,rc.y-rr,2*rr,2*rr),-pad,-pad)];
+    rects[@"right-stick-knob"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(rc.x-rkr,rc.y-rkr,2*rkr,2*rkr),-pad,-pad)];
+
+    NSMutableDictionary<NSString *, CALayer *> *sources=[NSMutableDictionary dictionary];
+    for (int b=B_A; b<=B_Y; b++) sources[@[@"a", @"b", @"x", @"y"][b]]=_key[b];
+    sources[@"stick-base"]=_ring; sources[@"stick-knob"]=_knob;
+    sources[@"zl"]=_key[B_ZL]; sources[@"l"]=_key[B_L]; sources[@"zr"]=_key[B_ZR]; sources[@"r"]=_key[B_R];
+    sources[@"minus"]=_key[B_MINUS]; sources[@"plus"]=_key[B_PLUS]; sources[@"layout"]=_swap;
+    sources[@"dpad-up"]=_key[B_UP]; sources[@"dpad-down"]=_key[B_DOWN];
+    sources[@"dpad-left"]=_key[B_LEFT]; sources[@"dpad-right"]=_key[B_RIGHT];
+    sources[@"l3"]=_key[B_LS]; sources[@"r3"]=_key[B_RS];
+    sources[@"right-stick-base"]=_ring; sources[@"right-stick-knob"]=_knob;
+
+    NSURL *docs=[NSFileManager.defaultManager URLForDirectory:NSDocumentDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:nil];
+    NSURL *folder=[[docs URLByAppendingPathComponent:@"TouchControlSkins" isDirectory:YES] URLByAppendingPathComponent:@"Default" isDirectory:YES];
+    NSError *dirError=nil;
+    if (![NSFileManager.defaultManager createDirectoryAtURL:folder withIntermediateDirectories:YES attributes:nil error:&dirError]) {
+        LOG("touch skin export: cannot create folder: %s", dirError.localizedDescription.UTF8String ?: "?");
+        return;
+    }
+    NSMutableArray<NSString *> *failed=[NSMutableArray array];
+    CGFloat scale=UIScreen.mainScreen.scale;
+    UIGraphicsImageRendererFormat *format=[UIGraphicsImageRendererFormat defaultFormat];
+    format.scale=scale; format.opaque=NO;
+
+    for (NSString *name in names) {
+        CALayer *source=sources[name];
+        CGRect cropRect=CGRectIntersection(rects[name].CGRectValue,self.bounds);
+        if (!source || CGRectIsEmpty(cropRect)) { [failed addObject:name]; continue; }
+
+        // Archiving the selected layer also preserves its nested text/inner-ring layers.
+        NSError *archiveError=nil;
+        NSData *archive=[NSKeyedArchiver archivedDataWithRootObject:source requiringSecureCoding:NO error:&archiveError];
+        CALayer *isolated=archive ? [NSKeyedUnarchiver unarchiveTopLevelObjectWithData:archive error:nil] : nil;
+        if (!isolated) { [failed addObject:name]; continue; }
+        isolated.hidden=NO;
+        if ([name hasPrefix:@"right-stick-"]) {
+            CGPoint target=rc;
+            isolated.affineTransform=CGAffineTransformMakeTranslation(target.x-sh.x,target.y-sh.y);
+        }
+
+        // This temporary canvas contains exactly one control; no neighbouring live
+        // control can appear in the resulting bitmap.
+        CALayer *canvas=[CALayer layer];
+        canvas.frame=self.bounds; canvas.bounds=self.bounds;
+        [canvas addSublayer:isolated];
+        UIImage *whole=[[[UIGraphicsImageRenderer alloc] initWithSize:self.bounds.size format:format] imageWithActions:^(UIGraphicsImageRendererContext *ctx) {
+            [canvas renderInContext:ctx.CGContext];
+        }];
+        CGRect pixels=CGRectMake(floor(cropRect.origin.x*scale),
+                                 floor((self.bounds.size.height-CGRectGetMaxY(cropRect))*scale),
+                                 ceil(cropRect.size.width*scale),ceil(cropRect.size.height*scale));
+        CGImageRef cropped=CGImageCreateWithImageInRect(whole.CGImage,pixels);
+        if (!cropped) { [failed addObject:name]; continue; }
+        UIImage *piece=[UIImage imageWithCGImage:cropped scale:1 orientation:UIImageOrientationUp];
+        CGImageRelease(cropped);
+        UIGraphicsImageRendererFormat *outFormat=[UIGraphicsImageRendererFormat defaultFormat];
+        outFormat.scale=1; outFormat.opaque=NO;
+        UIImage *png=[[[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(256,256) format:outFormat] imageWithActions:^(UIGraphicsImageRendererContext *ctx) {
+            CGFloat factor=MIN(256.0/piece.size.width,256.0/piece.size.height);
+            CGSize size=CGSizeMake(piece.size.width*factor,piece.size.height*factor);
+            [piece drawInRect:CGRectMake((256-size.width)/2,(256-size.height)/2,size.width,size.height)];
+        }];
+        NSData *data=UIImagePNGRepresentation(png);
+        if (!data || ![data writeToURL:[folder URLByAppendingPathComponent:[name stringByAppendingString:@".png"]] options:NSDataWritingAtomic error:nil]) [failed addObject:name];
+    }
+    if (failed.count) LOG("touch skin export: failed controls: %s", [failed componentsJoinedByString:@", "].UTF8String);
+    else LOG("touch skin export: wrote 21 isolated PNGs to Documents/TouchControlSkins/Default");
+}
+
 - (void)layoutSubviews {
     [super layoutSubviews];
     UIWindowScene *ws = self.window.windowScene; if (ws) atomic_store(&g_iface_orient, (int)ws.effectiveGeometry.interfaceOrientation);
@@ -509,6 +621,10 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     [self layoutSkinItems];
     [CATransaction commit];
     [self refresh];
+    if (!_builtInSkinExportChecked) {
+        _builtInSkinExportChecked = YES;
+        dispatch_async(dispatch_get_main_queue(), ^{ [self exportBuiltInSkin]; });
+    }
 }
 - (void)safeAreaInsetsDidChange { [super safeAreaInsetsDidChange]; [self setNeedsLayout]; }
 - (void)refresh {   // pressed state → fill, sticks → knob position
