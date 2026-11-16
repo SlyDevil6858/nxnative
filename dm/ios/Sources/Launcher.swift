@@ -106,6 +106,7 @@ private struct CloudSavesSection: View {
             Text(note.isEmpty
                  ? "Choose a folder in iCloud Drive, and the same one in the Mac app's Cloud saves. The save comes in when the game starts and goes out after each save; a save that is replaced is kept in save-backups."
                  : note)
+                .foregroundStyle(Color(white: 0.58))
         }
         .sheet(isPresented: $picking) {
             DocumentPicker(types: [.folder]) { url in
