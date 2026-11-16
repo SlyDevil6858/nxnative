@@ -160,6 +160,7 @@ jobs:
         env:
           GAME_FOLDER: ${{ inputs.game_folder }}
           PROD_KEYS_PATH: ${{ inputs.prod_keys_path }}
+          DM_APP_BUILD: ${{ inputs.build_number }}
         run: |
           set -o pipefail
           DATA_ROOT="$GITHUB_WORKSPACE/private-game-data"
