@@ -132,6 +132,8 @@ static NSString *const k_layout_key = @"DmPadLayout";   // NSUserDefaults: 0 = 2
 int dm_opmode(void);   // hle_oe.c: 0 = handheld
 
 @interface DmGamepad : UIView <UIGestureRecognizerDelegate, UIDocumentPickerDelegate>
+- (void)beginLauncherEdit;
+- (void)saveEdit;
 @end
 static __weak DmGamepad *g_view;
 static void pads_start(void);   // Physical controllers, below
@@ -819,6 +821,15 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         [NSFileManager.defaultManager createDirectoryAtURL:dir withIntermediateDirectories:YES attributes:nil error:nil];
     return dir;
 }
+- (NSDictionary *)validThemeJSONAtFolder:(NSURL *)folder {
+    NSData *data=[NSData dataWithContentsOfURL:[folder URLByAppendingPathComponent:@"theme.json"]];
+    NSDictionary *json=data?[NSJSONSerialization JSONObjectWithData:data options:0 error:nil]:nil;
+    NSDictionary *palette=[json isKindOfClass:NSDictionary.class]?json[@"palette"]:nil;
+    if (![palette isKindOfClass:NSDictionary.class]) return nil;
+    for (NSString *key in @[@"idle",@"pressed",@"outline",@"ringFill",@"text",@"pressedText"])
+        if (!themeHex(palette[key])) return nil;
+    return json;
+}
 - (BOOL)loadThemeAtPath:(NSString *)path {
     if (!path.length) return NO;
     NSData *data=[NSData dataWithContentsOfFile:[path stringByAppendingPathComponent:@"theme.json"]];
@@ -886,7 +897,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         NSString *themePath=folder.path;
         NSData *data=[NSData dataWithContentsOfFile:[themePath stringByAppendingPathComponent:@"theme.json"]];
         NSDictionary *json=data?[NSJSONSerialization JSONObjectWithData:data options:0 error:nil]:nil;
-        if (![json isKindOfClass:NSDictionary.class] || ![json[@"palette"] isKindOfClass:NSDictionary.class]) continue;
+        json=[self validThemeJSONAtFolder:folder];
+        if (!json) continue;
         NSString *title=[json[@"name"] isKindOfClass:NSString.class] && [json[@"name"] length] ? json[@"name"] : folder.lastPathComponent;
         UIAction *pick=[UIAction actionWithTitle:title image:nil identifier:nil handler:^(__unused UIAction *a) {
             [self applyThemePath:themePath name:title];
@@ -907,19 +919,31 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     NSURL *source=urls.firstObject; if (!source) return;
     BOOL scoped=[source startAccessingSecurityScopedResource];
     @try {
-        NSData *data=[NSData dataWithContentsOfURL:[source URLByAppendingPathComponent:@"theme.json"]];
-        NSDictionary *json=data?[NSJSONSerialization JSONObjectWithData:data options:0 error:nil]:nil;
-        NSDictionary *palette=[json isKindOfClass:NSDictionary.class]?json[@"palette"]:nil;
-        NSArray *required=@[@"idle",@"pressed",@"outline",@"ringFill",@"text",@"pressedText"];
-        NSMutableArray *missing=[NSMutableArray array];
-        for (NSString *key in required) if (!themeHex(palette[key])) [missing addObject:key];
-        if (missing.count) {
+        // Accept either the individual theme folder or a parent folder containing exactly one
+        // valid theme folder (for example, importing TouchControlThemes/Forest).
+        NSURL *themeFolder=source;
+        NSDictionary *json=[self validThemeJSONAtFolder:themeFolder];
+        if (!json) {
+            NSArray<NSURL *> *children=[NSFileManager.defaultManager contentsOfDirectoryAtURL:source
+                includingPropertiesForKeys:@[NSURLIsDirectoryKey] options:NSDirectoryEnumerationSkipsHiddenFiles error:nil];
+            NSMutableArray<NSURL *> *valid=[NSMutableArray array];
+            for (NSURL *child in children) {
+                NSNumber *isDir=nil; [child getResourceValue:&isDir forKey:NSURLIsDirectoryKey error:nil];
+                if (isDir.boolValue && [self validThemeJSONAtFolder:child]) [valid addObject:child];
+            }
+            if (valid.count==1) {
+                themeFolder=valid.firstObject;
+                json=[self validThemeJSONAtFolder:themeFolder];
+            }
+        }
+        if (!json) {
             UIAlertController *alert=[UIAlertController alertControllerWithTitle:@"Invalid Theme Folder"
-                message:@"The folder needs a valid theme.json with all six palette colors." preferredStyle:UIAlertControllerStyleAlert];
+                message:@"Choose a theme folder containing theme.json with all six palette colors. You can also choose a parent folder if it contains one theme folder."
+                preferredStyle:UIAlertControllerStyleAlert];
             [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
             [[self editorPresenter] presentViewController:alert animated:YES completion:nil]; return;
         }
-        NSString *folderName=[json[@"name"] isKindOfClass:NSString.class] && [json[@"name"] length]?json[@"name"]:source.lastPathComponent;
+        NSString *folderName=[json[@"name"] isKindOfClass:NSString.class] && [json[@"name"] length]?json[@"name"]:themeFolder.lastPathComponent;
         NSCharacterSet *allowed=[NSCharacterSet characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 _-"];
         NSMutableString *safeBuffer=[NSMutableString string];
         for (NSUInteger i=0;i<folderName.length;i++) {
@@ -931,7 +955,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         NSURL *destination=[[self themesDirectoryCreating:YES] URLByAppendingPathComponent:safeName isDirectory:YES];
         NSFileManager *fm=NSFileManager.defaultManager; NSError *error=nil;
         if ([fm fileExistsAtPath:destination.path]) [fm removeItemAtURL:destination error:nil];
-        if (![fm copyItemAtURL:source toURL:destination error:&error]) {
+        if (![fm copyItemAtURL:themeFolder toURL:destination error:&error]) {
             UIAlertController *alert=[UIAlertController alertControllerWithTitle:@"Theme Import Failed" message:error.localizedDescription
                 preferredStyle:UIAlertControllerStyleAlert];
             [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
@@ -1061,6 +1085,12 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [profiles addObject:[UIMenu menuWithTitle:@"" image:nil identifier:nil options:UIMenuOptionsDisplayInline children:@[rename]]];
     _profileButton.menu=[UIMenu menuWithTitle:@"Control profiles" children:profiles]; _profileButton.showsMenuAsPrimaryAction=YES;
     _saveAsButton.menu=[UIMenu menuWithTitle:@"Save a copy to" children:copies]; _saveAsButton.showsMenuAsPrimaryAction=YES;
+}
+- (void)beginLauncherEdit {
+    // The launcher preview is not a live gamepad session. Keep editing available
+    // even when a physical controller is connected to the phone.
+    _padOff=NO;
+    [self toggleEditor];
 }
 - (void)toggleEditor {
     if (_padOff) return;
@@ -1253,6 +1283,59 @@ static BOOL pads_slotted(GCController *gone) {
     });   // the touch gamepad hides while any controller is in use
 }
 @end
+
+@interface DmPadLauncherEditorController : UIViewController
+@property(nonatomic,strong) DmGamepad *pad;
+@property(nonatomic,strong) UIButton *closeButton;
+@end
+@implementation DmPadLauncherEditorController
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.view.backgroundColor=UIColor.blackColor;
+    _pad=[[DmGamepad alloc] initWithFrame:self.view.bounds];
+    _pad.autoresizingMask=UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
+    [self.view addSubview:_pad];
+    _closeButton=[UIButton buttonWithType:UIButtonTypeSystem];
+    _closeButton.frame=CGRectMake(0,0,76,36);
+    _closeButton.autoresizingMask=UIViewAutoresizingFlexibleLeftMargin|UIViewAutoresizingFlexibleBottomMargin;
+    [_closeButton setTitle:@"Done" forState:UIControlStateNormal];
+    [_closeButton setTitleColor:UIColor.whiteColor forState:UIControlStateNormal];
+    _closeButton.backgroundColor=[UIColor colorWithWhite:0.10 alpha:0.95];
+    _closeButton.layer.cornerRadius=7;
+    [_closeButton addTarget:self action:@selector(closeEditor) forControlEvents:UIControlEventTouchUpInside];
+    [self.view addSubview:_closeButton];
+}
+- (void)viewDidLayoutSubviews {
+    [super viewDidLayoutSubviews];
+    _pad.frame=self.view.bounds;
+    _closeButton.frame=CGRectMake(CGRectGetWidth(self.view.bounds)-88, self.view.safeAreaInsets.top+8, 76, 36);
+}
+- (void)viewDidAppear:(BOOL)animated {
+    [super viewDidAppear:animated];
+    [_pad beginLauncherEdit];
+}
+- (void)closeEditor {
+    [_pad saveEdit];
+    [self dismissViewControllerAnimated:YES completion:nil];
+}
+@end
+
+void dm_gamepad_present_launcher_editor(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIWindow *window=nil;
+        for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+            if (![scene isKindOfClass:UIWindowScene.class] || scene.activationState!=UISceneActivationStateForegroundActive) continue;
+            for (UIWindow *candidate in ((UIWindowScene *)scene).windows) if (candidate.isKeyWindow) { window=candidate; break; }
+            if (window) break;
+        }
+        UIViewController *presenter=window.rootViewController;
+        while (presenter.presentedViewController) presenter=presenter.presentedViewController;
+        if (!presenter) return;
+        DmPadLauncherEditorController *editor=[DmPadLauncherEditorController new];
+        editor.modalPresentationStyle=UIModalPresentationFullScreen;
+        [presenter presentViewController:editor animated:YES completion:nil];
+    });
+}
 
 UIView *dm_gamepad_view(CGRect frame) { DmGamepad *v = [[DmGamepad alloc] initWithFrame:frame]; g_view = v; return v; }
 void dm_gamepad_active(void) { dispatch_async(dispatch_get_main_queue(), ^{ for (GCController *c in GCController.controllers) dm_motion_rearm(c); }); }   // On become active: motion_apple.h
