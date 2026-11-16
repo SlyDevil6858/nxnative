@@ -539,7 +539,7 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
     BOOL oldCustom=_customSkin;
     _customSkin=NO; [self applyLayout]; [self layoutIfNeeded]; [CATransaction flush];
     UIGraphicsImageRendererFormat *format=[UIGraphicsImageRendererFormat defaultFormat]; format.scale=UIScreen.mainScreen.scale; format.opaque=NO;
-    UIImage *whole=[[UIGraphicsImageRenderer alloc] initWithSize:self.bounds.size format:format] imageWithActions:^(UIGraphicsImageRendererContext *ctx) {
+    UIImage *whole=[[[UIGraphicsImageRenderer alloc] initWithSize:self.bounds.size format:format] imageWithActions:^(UIGraphicsImageRendererContext *ctx) {
         [self.layer renderInContext:ctx.CGContext];
     }];
     CGImageRef full=whole.CGImage;
@@ -555,7 +555,7 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
         if (!crop) { [failed addObject:name]; continue; }
         UIImage *piece=[UIImage imageWithCGImage:crop scale:1 orientation:UIImageOrientationUp]; CGImageRelease(crop);
         UIGraphicsImageRendererFormat *outFormat=[UIGraphicsImageRendererFormat defaultFormat]; outFormat.scale=1; outFormat.opaque=NO;
-        UIImage *png=[[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(256,256) format:outFormat] imageWithActions:^(UIGraphicsImageRendererContext *ctx) {
+        UIImage *png=[[[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(256,256) format:outFormat] imageWithActions:^(UIGraphicsImageRendererContext *ctx) {
             CGFloat factor=MIN(256.0/piece.size.width,256.0/piece.size.height);
             CGSize size=CGSizeMake(piece.size.width*factor,piece.size.height*factor);
             [piece drawInRect:CGRectMake((256-size.width)/2,(256-size.height)/2,size.width,size.height)];
