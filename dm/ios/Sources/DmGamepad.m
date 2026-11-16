@@ -173,6 +173,7 @@ static void pads_start(void);   // Physical controllers, below
     CGRect _lastSafe;
     UIButton *_chooseButton, *_profileButton, *_saveAsButton;
     UILabel *_menuTip;
+- (void)openMenuFromController;
     UILongPressGestureRecognizer *_editHold;
     UIView *_tools;
     UISlider *_sizeSlider, *_alphaSlider;
@@ -258,7 +259,7 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
         if (!g_launcher_preview && ![NSUserDefaults.standardUserDefaults boolForKey:@"DmPadMenuTipShown"]) {
             // A one-time hint points out the 2D / 3D layout button without covering the game.
             _menuTip=[UILabel new];
-            _menuTip.text=@"Tap 2D or 3D to open the in-game menu";
+            _menuTip.text=@"Hold Select on your controller to open the in-game menu\n(or tap 2D / 3D on screen)";
             _menuTip.textColor=UIColor.whiteColor;
             _menuTip.font=[UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
             _menuTip.textAlignment=NSTextAlignmentCenter;
@@ -1196,12 +1197,15 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [self toggleEditor];
 }
 - (void)toggleEditor {
-    if (_padOff) return;
     if (_editing) { _tools.hidden=!_tools.hidden; return; }
     _editWasTap=_tap;
     if (_tap) { _tap=NO; [self loadControls]; [self applyLayout]; }
-    [self reset]; _editing=YES; _controls.hidden=NO; _selected=B_A; _tools.hidden=NO;
+    [self reset]; _editing=YES; _controls.hidden=_padOff; _selected=B_A; _tools.hidden=NO;
     [self updateEditor]; [self setNeedsLayout];
+}
+- (void)openMenuFromController {
+    if (_padOff && !_editing) [self toggleEditor];
+    else if (_editing) [self toggleEditor];
 }
 - (void)finishEdit {
     [self reset]; _editing=NO;
@@ -1360,6 +1364,19 @@ static void read_pad(GCExtendedGamepad *g) {
     dm_pad_set_player(p, m, axis(g.leftThumbstick.xAxis.value), axis(g.leftThumbstick.yAxis.value), axis(g.rightThumbstick.xAxis.value), axis(g.rightThumbstick.yAxis.value));
 }
 // Home and Capture: without this iOS takes them as system gestures (Home opens the Games overlay, Capture a screenshot); the app gives them no function
+static void pad_watch_select(GCController *c) {
+    GCControllerButtonInput *select=c.extendedGamepad.buttonOptions;
+    if (!select) return;
+    __weak GCControllerButtonInput *weakSelect=select;
+    select.pressedChangedHandler=^(__kindof GCControllerButtonInput *button, float value, BOOL pressed) {
+        (void)button; (void)value;
+        if (!pressed) return;
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.75 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            GCControllerButtonInput *held=weakSelect;
+            if (held && held.isPressed) [g_view openMenuFromController];
+        });
+    };
+}
 static void pad_keep_system_buttons(GCController *c) { for (NSString *b in @[GCInputButtonHome, GCInputButtonShare]) c.physicalInputProfile.buttons[b].preferredSystemGestureState = GCSystemGestureStateDisabled; }
 static const char *pad_name(GCController *c) { return c.vendorName.UTF8String ?: "?"; }
 static void npad_name(int p, char *out, size_t cap) { uint32_t id = dm_player_npad(p); if (id == 0x20) snprintf(out, cap, "handheld"); else snprintf(out, cap, "%u", id); }
@@ -1373,7 +1390,7 @@ static BOOL pads_merged(GCController *gone) {
     BOOL any = NO; int motion = 0;
     for (GCController *c in GCController.controllers) if (c != gone && c.extendedGamepad) {
         if (c.motion.hasRotationRate) motion = 1;
-        any = YES; pad_keep_system_buttons(c); c.extendedGamepad.valueChangedHandler = ^(GCExtendedGamepad *g, GCControllerElement *el) { (void)el; read_pad(g); };
+        any = YES; pad_keep_system_buttons(c); pad_watch_select(c); c.extendedGamepad.valueChangedHandler = ^(GCExtendedGamepad *g, GCControllerElement *el) { (void)el; read_pad(g); };
         dm_motion_attach(c, 0);   // every controller is player 1: the last one moved drives its six-axis sensor
         read_pad(c.extendedGamepad);
     }
@@ -1394,7 +1411,7 @@ static BOOL pads_slotted(GCController *gone) {
     for (GCController *c in now) if (c.extendedGamepad && c != gone && pad_slot_of(&g_slots, (__bridge const void *)c) < 0) {
         int p = pad_slot_take(&g_slots, (__bridge const void *)c, pad_name(c));
         if (p < 0) { LOG("controller '%s' connected: all %d players are taken, not used", pad_name(c), DM_PLAYERS); continue; }
-        g_held[p] = c; pad_keep_system_buttons(c);
+        g_held[p] = c; pad_keep_system_buttons(c); pad_watch_select(c);
         c.extendedGamepad.valueChangedHandler = ^(GCExtendedGamepad *g, GCControllerElement *el) { (void)el; read_pad(g); };
         dm_motion_attach(c, p);
         npad_name(p, nb, sizeof nb); LOG("controller '%s' connected: player %d (npad %s)%s", pad_name(c), p + 1, nb, c.motion.hasRotationRate ? ", with motion (gyro)" : "");
