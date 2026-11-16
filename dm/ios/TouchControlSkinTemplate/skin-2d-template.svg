@@ -10,14 +10,14 @@
     </style>
   </defs>
   <!-- Left stick -->
-  <circle class="ring" cx="100" cy="313" r="74"/>
-  <circle class="key" cx="100" cy="313" r="29"/>
-  <circle cx="100" cy="313" r="18" fill="none" stroke="#fff" stroke-opacity=".38" stroke-width="1.5"/>
+  <circle class="ring" cx="100" cy="325" r="74"/>
+  <circle class="key" cx="100" cy="325" r="29"/>
+  <circle cx="100" cy="325" r="18" fill="none" stroke="#fff" stroke-opacity=".38" stroke-width="1.5"/>
   <!-- Face-button diamond: Y / X / B / A -->
-  <circle class="key" cx="748" cy="313" r="26"/><text class="txt" x="748" y="313">Y</text>
-  <circle class="key" cx="796" cy="265" r="26"/><text class="txt" x="796" y="265">X</text>
-  <circle class="key" cx="796" cy="361" r="26"/><text class="txt" x="796" y="361">B</text>
-  <circle class="key" cx="844" cy="313" r="26"/><text class="txt" x="844" y="313">A</text>
+  <circle class="key" cx="748" cy="325" r="26"/><text class="txt" x="748" y="325">Y</text>
+  <circle class="key" cx="796" cy="276" r="26"/><text class="txt" x="796" y="276">X</text>
+  <circle class="key" cx="796" cy="373" r="26"/><text class="txt" x="796" y="373">B</text>
+  <circle class="key" cx="844" cy="325" r="26"/><text class="txt" x="844" y="325">A</text>
   <!-- Shoulder and trigger buttons -->
   <path class="key" d="M65 28 Q66 14 83 14 Q106 14 106 37 Q99 59 77 65 Q63 53 65 28Z"/>
   <text class="txt small" x="84" y="39">ZL</text>
