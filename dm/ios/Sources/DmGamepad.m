@@ -136,6 +136,7 @@ int dm_opmode(void);   // hle_oe.c: 0 = handheld
 - (void)saveEdit;
 @end
 static __weak DmGamepad *g_view;
+static BOOL g_launcher_preview = NO;
 static void pads_start(void);   // Physical controllers, below
 
 @implementation DmGamepad {
@@ -244,13 +245,15 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
         _editHold.minimumPressDuration=0.6; _editHold.cancelsTouchesInView=YES; _editHold.delegate=self;
         [self addGestureRecognizer:_editHold];
         [self applyLayout];
-        NSNotificationCenter *nc = NSNotificationCenter.defaultCenter;
-        [nc addObserver:self selector:@selector(padsChanged:) name:GCControllerDidConnectNotification object:nil];
-        [nc addObserver:self selector:@selector(padsChanged:) name:GCControllerDidDisconnectNotification object:nil];
-        pads_start();
-        [self padsChanged:nil];
-        motion_start();
-        phone_motion_start(self);
+        if (!g_launcher_preview) {
+            NSNotificationCenter *nc = NSNotificationCenter.defaultCenter;
+            [nc addObserver:self selector:@selector(padsChanged:) name:GCControllerDidConnectNotification object:nil];
+            [nc addObserver:self selector:@selector(padsChanged:) name:GCControllerDidDisconnectNotification object:nil];
+            pads_start();
+            [self padsChanged:nil];
+            motion_start();
+            phone_motion_start(self);
+        }
     }
     return self;
 }
@@ -1282,6 +1285,7 @@ static BOOL pads_slotted(GCController *gone) {
         [self reset];
     });   // the touch gamepad hides while any controller is in use
 }
+- (void)dealloc { [NSNotificationCenter.defaultCenter removeObserver:self]; }
 @end
 
 @interface DmPadLauncherEditorController : UIViewController
@@ -1292,7 +1296,9 @@ static BOOL pads_slotted(GCController *gone) {
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.view.backgroundColor=UIColor.blackColor;
+    g_launcher_preview=YES;
     _pad=[[DmGamepad alloc] initWithFrame:self.view.bounds];
+    g_launcher_preview=NO;
     _pad.autoresizingMask=UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
     [self.view addSubview:_pad];
     _closeButton=[UIButton buttonWithType:UIButtonTypeSystem];
