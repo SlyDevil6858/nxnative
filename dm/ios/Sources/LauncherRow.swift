@@ -19,10 +19,10 @@ private struct LauncherToggleStyle: ToggleStyle {
             ZStack(alignment: configuration.isOn ? .trailing : .leading) {
                 Capsule()
                     .fill(isLocked ? Color(white: 0.16) : (configuration.isOn ? accentColor : Color(white: 0.30)))
-                    .frame(width: 58, height: 31)
+                    .frame(width: 52, height: 31)
                 Capsule()
                     .fill(isLocked ? Color(white: 0.48) : Color.white)
-                    .frame(width: 44, height: 27)
+                    .frame(width: 27, height: 27)
             }
             .contentShape(Capsule())
             .onTapGesture {
