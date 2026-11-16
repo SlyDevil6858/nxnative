@@ -256,7 +256,7 @@ private struct LauncherView: View {
                     playButton
                 }
                 .padding(16)
-                .frame(width: geometry.size.width * 0.25, height: geometry.size.height)
+                .frame(width: geometry.size.width * 0.30, height: geometry.size.height)
                 List {
                     ForEach(m.sections, id: \.self) { section in
                         let rows = m.rows(in: section)
@@ -286,7 +286,7 @@ private struct LauncherView: View {
                 .listRowBackground(Color.black)
                 .background(Color.black)
                 .contentMargins(.horizontal, 0, for: .scrollContent)
-                .frame(width: geometry.size.width * 0.75)
+                .frame(width: geometry.size.width * 0.70)
                 .scrollContentBackground(.hidden)
                 .environment(\.colorScheme, .dark)
             }
