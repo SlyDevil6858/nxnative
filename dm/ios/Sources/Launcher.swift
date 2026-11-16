@@ -58,9 +58,29 @@ private extension UIImage {
 }
 
 
-/// Shared accent tint for launcher sections outside LauncherView.
+/// A slightly brighter accent for secondary launcher actions; the Play button keeps the unmodified icon colour.
 private func launcherAccentColor() -> Color {
-    Color(uiColor: UIImage(named: "AppIcon")?.dominantColor() ?? .systemBlue)
+    let base = UIImage(named: "AppIcon")?.dominantColor() ?? .systemBlue
+    var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 1
+    base.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+    let lift: CGFloat = 0.16
+    return Color(red: red + (1 - red) * lift,
+                 green: green + (1 - green) * lift,
+                 blue: blue + (1 - blue) * lift)
+}
+
+/// Gives import actions a visibly tinted surface while keeping their labels neutral.
+private struct LauncherImportButtonStyle: ButtonStyle {
+    let accent: Color
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(.primary)
+            .padding(.vertical, 9)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(accent.opacity(configuration.isPressed ? 0.28 : 0.16),
+                        in: RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(accent.opacity(0.85), lineWidth: 1))
+    }
 }
 
 
@@ -81,7 +101,7 @@ private struct CloudSavesSection: View {
                     .foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             }
             Button(folder.isEmpty ? "Choose a folder in iCloud Drive…" : "Choose a different folder…") { picking = true }
-                .tint(launcherAccentColor())
+                .buttonStyle(LauncherImportButtonStyle(accent: launcherAccentColor()))
             if !folder.isEmpty {
                 Button("Turn off cloud saves", role: .destructive) {
                     dm_clear_cloud_saves(); refresh(); note = ""
@@ -162,7 +182,7 @@ private struct TouchControlSkinsSection: View {
                 Text(activePath.isEmpty ? "Built-in" : (activeName.isEmpty ? URL(fileURLWithPath: activePath).lastPathComponent : activeName)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             }
             Button("Import a skin folder…") { importing = true }
-                .tint(launcherAccentColor())
+                .buttonStyle(LauncherImportButtonStyle(accent: launcherAccentColor()))
             Button("Reset to Default", role: .destructive) {
                 UserDefaults.standard.removeObject(forKey: "DmTouchControlSkinPath")
                 activePath = ""
@@ -323,6 +343,7 @@ public func dmShowLauncher(_ viewController: UnsafeMutableRawPointer, _ done: @c
     }
     let h = UIHostingController(rootView: view)
     h.modalPresentationStyle = .fullScreen
+    h.overrideUserInterfaceStyle = .dark
     host = h
     parent.present(h, animated: false)
     fputs("launcher: \(file.settings.count) settings shown\n", stderr)
