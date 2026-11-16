@@ -226,7 +226,8 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
     if (images.count != names.count) return;
     _skinImages = images; _customSkin = YES;
     for (NSString *name in names) {
-        CALayer *layer = [CALayer layer]; layer.contents = (__bridge id)images[name].CGImage;
+        UIImage *image = (UIImage *)images[name];
+        CALayer *layer = [CALayer layer]; layer.contents = (__bridge id)image.CGImage;
         layer.contentsGravity = kCAGravityResize; layer.contentsScale = UIScreen.mainScreen.scale;
         [_controls addSublayer:layer]; _skinItems[name] = layer;
     }
