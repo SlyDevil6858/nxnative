@@ -936,27 +936,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     NSFileManager *fm=NSFileManager.defaultManager;
     NSURL *docs=[fm URLForDirectory:NSDocumentDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:nil];
     NSURL *dir=[docs URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES];
-    if (create) {
-        [fm createDirectoryAtURL:dir withIntermediateDirectories:YES attributes:nil error:nil];
-
-        // Also install themes shipped in the app's TouchControlThemes resource folder.
-        // This matters when the game starts directly and never visits the launcher,
-        // which normally performs this copy. Never overwrite a theme the user placed
-        // in Documents/TouchControlThemes themselves.
-        NSURL *bundled=[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES];
-        NSArray<NSURL *> *bundledFolders=[fm contentsOfDirectoryAtURL:bundled
-            includingPropertiesForKeys:@[NSURLIsDirectoryKey] options:NSDirectoryEnumerationSkipsHiddenFiles error:nil];
-        for (NSURL *folder in bundledFolders) {
-            NSNumber *isDirectory=nil;
-            [folder getResourceValue:&isDirectory forKey:NSURLIsDirectoryKey error:nil];
-            if (!isDirectory.boolValue) continue;
-            NSURL *destination=[dir URLByAppendingPathComponent:folder.lastPathComponent isDirectory:YES];
-            if ([fm fileExistsAtPath:destination.path]) continue;
-            NSError *error=nil;
-            if (![fm copyItemAtURL:folder toURL:destination error:&error])
-                NSLog(@"Could not install bundled touch theme %@: %@",folder.lastPathComponent,error.localizedDescription);
-        }
-    }
+    if (create) [fm createDirectoryAtURL:dir withIntermediateDirectories:YES attributes:nil error:nil];
     return dir;
 }
 - (NSDictionary *)validThemeJSONAtFolder:(NSURL *)folder {
@@ -1028,8 +1008,13 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         [self refresh]; [self updateEditor];
     }];
     classic.state=[current isEqualToString:@"Classic"]?UIMenuElementStateOn:UIMenuElementStateOff; [items addObject:classic];
-    NSArray<NSURL *> *folders=[NSFileManager.defaultManager contentsOfDirectoryAtURL:[self themesDirectoryCreating:YES]
-        includingPropertiesForKeys:nil options:NSDirectoryEnumerationSkipsHiddenFiles error:nil];
+    NSURL *documentsRoot=[self themesDirectoryCreating:YES];
+    NSURL *bundledRoot=[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES];
+    NSArray<NSURL *> *bundledFolders=[NSFileManager.defaultManager contentsOfDirectoryAtURL:bundledRoot
+        includingPropertiesForKeys:nil options:NSDirectoryEnumerationSkipsHiddenFiles error:nil] ?: @[];
+    NSArray<NSURL *> *importedFolders=[NSFileManager.defaultManager contentsOfDirectoryAtURL:documentsRoot
+        includingPropertiesForKeys:nil options:NSDirectoryEnumerationSkipsHiddenFiles error:nil] ?: @[];
+    NSArray<NSURL *> *folders=[bundledFolders arrayByAddingObjectsFromArray:importedFolders];
     for (NSURL *folder in folders) {
         BOOL isDir=NO; if (![NSFileManager.defaultManager fileExistsAtPath:folder.path isDirectory:&isDir] || !isDir) continue;
         NSString *themePath=folder.path;
