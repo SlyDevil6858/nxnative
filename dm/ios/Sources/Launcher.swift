@@ -348,9 +348,12 @@ private struct LauncherView: View {
         defer { if scoped { source.stopAccessingSecurityScopedResource() } }
         var candidate = source
         if themeJSON(in: candidate) == nil {
-            let children = (try? FileManager.default.contentsOfDirectory(at: source, includingPropertiesForKeys: [.isDirectoryKey])) ?? []
-            let valid = children.filter {
-                (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true && themeJSON(in: $0) != nil
+            var valid: [URL] = []
+            if let enumerator = FileManager.default.enumerator(at: source, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]) {
+                for case let entry as URL in enumerator where entry.lastPathComponent == "theme.json" {
+                    let folder = entry.deletingLastPathComponent()
+                    if themeJSON(in: folder) != nil && !valid.contains(folder) { valid.append(folder) }
+                }
             }
             guard valid.count == 1, let only = valid.first else { return }
             candidate = only
