@@ -19,10 +19,10 @@ private struct LauncherToggleStyle: ToggleStyle {
             ZStack(alignment: configuration.isOn ? .trailing : .leading) {
                 Capsule()
                     .fill(isLocked ? Color(white: 0.16) : (configuration.isOn ? accentColor : Color(white: 0.30)))
-                    .frame(width: 52, height: 31)
+                    .frame(width: 67, height: 31)
                 Capsule()
                     .fill(isLocked ? Color(white: 0.48) : Color.white)
-                    .frame(width: 27, height: 27)
+                    .frame(width: 42, height: 27)
             }
             .contentShape(Capsule())
             .onTapGesture {
@@ -66,7 +66,7 @@ struct SettingRow: View {
             switch s.kind {
             case "choice":
                 Picker(selection: m.binding(s)) {
-                    ForEach(s.options ?? [], id: \.[0]) { Text($0[1]).tag($0[0]) }
+                    ForEach(s.options ?? [], id: \\[0]) { Text($0[1]).tag($0[0]) }
                 } label: {
                     settingLabel
                 }
