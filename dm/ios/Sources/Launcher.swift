@@ -216,22 +216,23 @@ private struct LauncherView: View {
                             .foregroundStyle(Color(white: 0.58))
                     }
                     Section("Touch controls") {
-                        Menu {
-                            Button("Classic") { selectTheme(nil, name: "Classic") }
-                            ForEach(themes) { theme in
-                                Button(theme.name) { selectTheme(theme.path, name: theme.name) }
-                            }
-                        } label: {
-                            HStack {
-                                Text("Control skin")
-                                Spacer()
-                                Text(selectedTheme + "  ▾").foregroundStyle(accentColor)
-                            }
+                        Picker("Touch controls skin", selection: Binding(
+                            get: { selectedTheme },
+                            set: { name in
+                                if name == "Classic" { selectTheme(nil, name: name) }
+                                else if let theme = themes.first(where: { $0.name == name }) {
+                                    selectTheme(theme.path, name: theme.name)
+                                }
+                            })) {
+                            Text("Classic").tag("Classic")
+                            ForEach(themes) { theme in Text(theme.name).tag(theme.name) }
                         }
+                        .pickerStyle(.menu)
+                        .tint(.white)
                         Button("Import control skin…") { pickingTheme = true }
-                            .foregroundStyle(accentColor)
-                        Button("Edit control layout…") { dm_gamepad_present_launcher_editor() }
-                            .foregroundStyle(accentColor)
+                            .foregroundStyle(.white)
+                        Button("Edit touch controls layout…") { dm_gamepad_present_launcher_editor() }
+                            .foregroundStyle(.white)
                     }
                     CloudSavesSection()
                     Section {
