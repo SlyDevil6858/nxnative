@@ -146,19 +146,22 @@ private struct TouchControlSkinsSection: View {
     @State private var importing = false
     @State private var status = ""
     @State private var activePath = UserDefaults.standard.string(forKey: "DmTouchControlSkinPath") ?? ""
+    @State private var activeName = UserDefaults.standard.string(forKey: "DmTouchControlSkinName") ?? ""
 
     var body: some View {
         Section {
             HStack {
                 Text("Touch control skin")
                 Spacer()
-                Text(activePath.isEmpty ? "Built-in" : "Custom").foregroundStyle(.secondary)
+                Text(activePath.isEmpty ? "Built-in" : (activeName.isEmpty ? URL(fileURLWithPath: activePath).lastPathComponent : activeName)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             }
             Button("Import a skin folder…") { importing = true }
                 .tint(accentColor)
             Button("Reset to Default", role: .destructive) {
                 UserDefaults.standard.removeObject(forKey: "DmTouchControlSkinPath")
                 activePath = ""
+                activeName = ""
+                UserDefaults.standard.removeObject(forKey: "DmTouchControlSkinName")
                 status = "Default NXNative touch controls restored. They will be used the next time the game starts."
             }
             .disabled(activePath.isEmpty)
@@ -190,8 +193,11 @@ private struct TouchControlSkinsSection: View {
                     if fm.fileExists(atPath: destination.path) { try fm.removeItem(at: destination) }
                     try fm.copyItem(at: source, to: destination)
                     UserDefaults.standard.set(destination.path, forKey: "DmTouchControlSkinPath")
+                    let selectedName = source.lastPathComponent
+                    UserDefaults.standard.set(selectedName, forKey: "DmTouchControlSkinName")
                     activePath = destination.path
-                    status = "Custom skin imported. It will be used when the game starts."
+                    activeName = selectedName
+                    status = "Custom skin ‘\\(selectedName)’ imported. It will be used when the game starts."
                 } catch {
                     status = "Could not import that folder: \(error.localizedDescription)"
                 }
