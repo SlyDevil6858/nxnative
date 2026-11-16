@@ -40,7 +40,6 @@ struct SettingRow: View {
                 }
                 .pickerStyle(.menu)
                 .tint(accentColor)
-                .foregroundStyle(accentColor)
             case "range":
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
