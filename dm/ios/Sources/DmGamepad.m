@@ -264,7 +264,7 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
     static dispatch_once_t once;
     dispatch_once(&once, ^{
         skinIDs=@{@"a":@0,@"b":@1,@"x":@2,@"y":@3,@"l3":@4,@"r3":@5,@"l":@6,@"r":@7,
-                  @"zl":@8,@"zr":@9,@"plus":@10,@"minus":@11,@"stick-base":@16,@"stick-knob":@16,
+                  @"zl":@8,@"zr":@9,@"plus":@10,@"minus":@11,@"stick-base":@16,@"stick-knob":@16,@"right-stick-base":@16,@"right-stick-knob":@16,
                   @"dpad-up":@17,@"dpad-down":@17,@"dpad-left":@17,@"dpad-right":@17};
     });
     NSNumber *control=skinIDs[name];
