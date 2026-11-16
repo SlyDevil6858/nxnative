@@ -286,8 +286,6 @@ private struct LauncherView: View {
                 .listRowBackground(Color.black)
                 .background(Color.black)
                 .contentMargins(.horizontal, 0, for: .scrollContent)
-                .listRowSeparatorLeading(0)
-                .listRowSeparatorTrailing(0)
                 .frame(width: geometry.size.width * 0.75)
                 .scrollContentBackground(.hidden)
                 .environment(\.colorScheme, .dark)
