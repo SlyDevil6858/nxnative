@@ -223,7 +223,7 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
     [CATransaction begin]; [CATransaction setDisableActions:YES];
     for (int b = 0; b < B_N; b++) _key[b].hidden = _tap || _customSkin || (fullOnly(b) && !_full);
     _ring.hidden = _knob.hidden = _tap || _customSkin;
-    _swap.hidden = _swapLabel.hidden = _customSkin;
+    _swap.hidden = _swapLabel.hidden = _customSkin && !_tap;
     UIImage *skin = _full ? _skin3D : _skin2D;
     _skinLayer.contents = _customSkin && !_tap ? (__bridge id)skin.CGImage : nil;
     _skinLayer.hidden = !_customSkin || _tap;
