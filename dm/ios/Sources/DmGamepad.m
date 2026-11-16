@@ -474,6 +474,7 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
         }]];
         [menu addAction:[UIAlertAction actionWithTitle:@"Use Built-in Controls" style:UIAlertActionStyleDestructive handler:^(__unused UIAlertAction *a) {
             [NSUserDefaults.standardUserDefaults removeObjectForKey:@"DmTouchControlSkinPath"];
+            [NSUserDefaults.standardUserDefaults removeObjectForKey:@"DmTouchControlSkinName"];
             [self loadTouchSkin]; [self setNeedsLayout]; [self refresh];
         }]];
         [menu addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
@@ -511,6 +512,7 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
             return;
         }
         [NSUserDefaults.standardUserDefaults setObject:destination.path forKey:@"DmTouchControlSkinPath"];
+        [NSUserDefaults.standardUserDefaults setObject:source.lastPathComponent forKey:@"DmTouchControlSkinName"];
         [self loadTouchSkin]; [self setNeedsLayout]; [self refresh];
     } @finally {
         if (scoped) [source stopAccessingSecurityScopedResource];
