@@ -1,0 +1,26 @@
+{
+  "name": "Well",
+  "palette": {
+    "idle": "5420B8",
+    "pressed": "7928E8",
+    "outline": "A9EFFF",
+    "ringFill": "210B55",
+    "text": "DDF8FF",
+    "pressedText": "10051F"
+  },
+  "buttons": {
+    "A": "6B20D8",
+    "B": "3A0B91",
+    "X": "8C27E8",
+    "Y": "5B12C7",
+    "L": "28105A",
+    "R": "28105A",
+    "ZL": "28105A",
+    "ZR": "28105A",
+    "Stick": "5420B8",
+    "Minus": "251044",
+    "Plus": "8A1B8D",
+    "Dpad": "0B2926",
+    "Layout": "5420B8"
+  }
+}
