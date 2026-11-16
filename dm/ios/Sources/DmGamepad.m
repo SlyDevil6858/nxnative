@@ -259,7 +259,7 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
         if (!g_launcher_preview && ![NSUserDefaults.standardUserDefaults boolForKey:@"DmPadMenuTipShown"]) {
             // A one-time hint points out the 2D / 3D layout button without covering the game.
             _menuTip=[UILabel new];
-            _menuTip.text=@"Hold Select on your controller to open the in-game menu\n(or tap 2D / 3D on screen)";
+            _menuTip.text=@"Hold Select on your controller to open the in-game menu\n(or press and hold 2D / 3D on screen)";
             _menuTip.textColor=UIColor.whiteColor;
             _menuTip.font=[UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
             _menuTip.textAlignment=NSTextAlignmentCenter;
