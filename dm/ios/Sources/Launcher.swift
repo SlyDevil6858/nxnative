@@ -214,7 +214,7 @@ private struct LauncherView: View {
                                         Text("Classic").tag("Classic")
                                         ForEach(themes) { theme in Text(theme.name).tag(theme.name) }
                                     } label: {
-                                        Text("Touch controls skin").foregroundStyle(.white)
+                                        Text("Touch controls theme").foregroundStyle(.white)
                                     }
                                     .pickerStyle(.menu)
                                     .tint(accentColor)
