@@ -781,7 +781,7 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     CAShapeLayer *in = (CAShapeLayer *)_knob.sublayers.firstObject; CGPathRef ip = circlePath(CGPointMake(k, k), k * 0.62);
     in.frame = _knob.bounds; in.path = ip; CGPathRelease(ip);
     [self layoutSkinItems];
-    if (_editing) {
+    if (_editing && _selected>=0) {
         CGPoint center=[self controlCenter:_selected];
         CGFloat radius=_selected==16?[self stickR:0]:_selected==17?self.dpadR:
             _selected<4?[self faceRadius:_selected]:isDrop(_selected)?[self dropR:_selected]*K_DROP_TIP:
