@@ -880,10 +880,30 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
 static NSString *const k_theme_path_key = @"DmTouchControlThemePath";
 static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 - (NSURL *)themesDirectoryCreating:(BOOL)create {
-    NSURL *docs=[NSFileManager.defaultManager URLForDirectory:NSDocumentDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:nil];
+    NSFileManager *fm=NSFileManager.defaultManager;
+    NSURL *docs=[fm URLForDirectory:NSDocumentDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:nil];
     NSURL *dir=[docs URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES];
-    if (create && ![NSFileManager.defaultManager fileExistsAtPath:dir.path])
-        [NSFileManager.defaultManager createDirectoryAtURL:dir withIntermediateDirectories:YES attributes:nil error:nil];
+    if (create) {
+        [fm createDirectoryAtURL:dir withIntermediateDirectories:YES attributes:nil error:nil];
+
+        // Also install themes shipped in the app's TouchControlThemes resource folder.
+        // This matters when the game starts directly and never visits the launcher,
+        // which normally performs this copy. Never overwrite a theme the user placed
+        // in Documents/TouchControlThemes themselves.
+        NSURL *bundled=[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES];
+        NSArray<NSURL *> *bundledFolders=[fm contentsOfDirectoryAtURL:bundled
+            includingPropertiesForKeys:@[NSURLIsDirectoryKey] options:NSDirectoryEnumerationSkipsHiddenFiles error:nil];
+        for (NSURL *folder in bundledFolders) {
+            NSNumber *isDirectory=nil;
+            [folder getResourceValue:&isDirectory forKey:NSURLIsDirectoryKey error:nil];
+            if (!isDirectory.boolValue) continue;
+            NSURL *destination=[dir URLByAppendingPathComponent:folder.lastPathComponent isDirectory:YES];
+            if ([fm fileExistsAtPath:destination.path]) continue;
+            NSError *error=nil;
+            if (![fm copyItemAtURL:folder toURL:destination error:&error])
+                NSLog(@"Could not install bundled touch theme %@: %@",folder.lastPathComponent,error.localizedDescription);
+        }
+    }
     return dir;
 }
 - (NSDictionary *)validThemeJSONAtFolder:(NSURL *)folder {
