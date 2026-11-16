@@ -297,7 +297,8 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
             CGFloat luminance=0.2126*red+0.7152*green+0.0722*blue;
             _menuTip.textColor=luminance>0.58?UIColor.blackColor:UIColor.whiteColor;
             _menuTip.backgroundColor=tipAccent;
-            _menuTip.layer.cornerRadius=9;
+            _menuTip.layer.cornerRadius=14;
+            _menuTip.layer.cornerCurve=kCACornerCurveContinuous;
             _menuTip.layer.masksToBounds=NO;
             _menuTip.layer.borderWidth=0;
             _menuTipArrow=[CAShapeLayer layer];
