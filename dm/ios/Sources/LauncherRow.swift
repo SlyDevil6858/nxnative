@@ -22,7 +22,7 @@ private struct LauncherToggleStyle: ToggleStyle {
                     .frame(width: 58, height: 31)
                 Capsule()
                     .fill(isLocked ? Color(white: 0.48) : Color.white)
-                    .frame(width: 28, height: 27)
+                    .frame(width: 44, height: 27)
             }
             .contentShape(Capsule())
             .onTapGesture {
