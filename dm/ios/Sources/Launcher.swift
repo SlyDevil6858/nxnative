@@ -395,20 +395,7 @@ private struct LauncherView: View {
         let directory = documents.appendingPathComponent("TouchControlThemes", isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
-        // Ship the built-in themes (including Forest) into Documents on first launch.
-        // Never overwrite a user's installed or imported theme folder.
-        if let bundledRoot = Bundle.main.resourceURL?.appendingPathComponent("TouchControlThemes", isDirectory: true),
-           let bundledFolders = try? FileManager.default.contentsOfDirectory(at: bundledRoot, includingPropertiesForKeys: [.isDirectoryKey]) {
-            for folder in bundledFolders where (try? folder.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
-                let destination = directory.appendingPathComponent(folder.lastPathComponent, isDirectory: true)
-                guard !FileManager.default.fileExists(atPath: destination.path) else { continue }
-                do {
-                    try FileManager.default.copyItem(at: folder, to: destination)
-                } catch {
-                    NSLog("Could not install bundled touch theme %@: %@", folder.lastPathComponent, error.localizedDescription)
-                }
-            }
-        }
+        // Built-in themes stay read-only in the app bundle. Only imported themes live in Documents.
         return directory
     }
 
@@ -416,8 +403,9 @@ private struct LauncherView: View {
         guard let bundledRoot = Bundle.main.resourceURL?.appendingPathComponent("TouchControlThemes", isDirectory: true) else {
             return false
         }
-        let folderName = URL(fileURLWithPath: theme.path).lastPathComponent
-        return FileManager.default.fileExists(atPath: bundledRoot.appendingPathComponent(folderName, isDirectory: true).path)
+        let path = URL(fileURLWithPath: theme.path).standardizedFileURL.path
+        let root = bundledRoot.standardizedFileURL.path + "/"
+        return path.hasPrefix(root)
     }
 
     private func deleteTheme(_ theme: LauncherTheme) {
@@ -449,8 +437,11 @@ private struct LauncherView: View {
     }
 
     private func refreshThemes() {
-        let root = themesDirectory()
-        let folders = (try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: [.isDirectoryKey])) ?? []
+        let documentsRoot = themesDirectory()
+        let bundledRoot = Bundle.main.resourceURL?.appendingPathComponent("TouchControlThemes", isDirectory: true)
+        let bundledFolders = bundledRoot.flatMap { try? FileManager.default.contentsOfDirectory(at: $0, includingPropertiesForKeys: [.isDirectoryKey]) } ?? []
+        let importedFolders = (try? FileManager.default.contentsOfDirectory(at: documentsRoot, includingPropertiesForKeys: [.isDirectoryKey])) ?? []
+        let folders = bundledFolders + importedFolders
         themes = folders.compactMap { folder in
             guard (try? folder.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true,
                   let json = themeJSON(in: folder) else { return nil }
