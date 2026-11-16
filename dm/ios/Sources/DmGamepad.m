@@ -938,6 +938,9 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     NSURL *dir=[docs URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES];
     if (create) {
         [fm createDirectoryAtURL:dir withIntermediateDirectories:YES attributes:nil error:nil];
+        // Remove retired built-in themes copied into Documents by older builds.
+        [fm removeItemAtURL:[dir URLByAppendingPathComponent:@"Forest" isDirectory:YES] error:nil];
+        [fm removeItemAtURL:[dir URLByAppendingPathComponent:@"Well" isDirectory:YES] error:nil];
         // Remove identical copies installed by older builds; retain customized/imported folders.
         NSURL *bundled=[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES];
         NSArray<NSURL *> *bundledFolders=[fm contentsOfDirectoryAtURL:bundled
