@@ -941,17 +941,13 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
 - (void)adjustOpacityControl {
     NSString *key=[self controlID:_selected];
     float requestedAlpha=_alphaSlider.value;
-    NSMutableDictionary *value=[_custom[key] mutableCopy];
-    // Create a complete position/scale record before changing opacity. This is
-    // essential for untouched controls, which otherwise only had an alpha key.
-    if (![value[@"x"] isKindOfClass:NSNumber.class] || ![value[@"y"] isKindOfClass:NSNumber.class]) {
-        [self storeControlAt:[self controlCenter:_selected]];
-        value=[_custom[key] mutableCopy] ?: [NSMutableDictionary dictionary];
-    }
-    _alphaSlider.value=requestedAlpha;
-    value[@"alpha"]=@(requestedAlpha); _custom[key]=value;
+    // Opacity is independent of geometry. Keep this as an alpha-only profile
+    // entry when the control has never been moved; position:base: deliberately
+    // ignores entries without numeric x/y and therefore keeps the default home.
+    NSMutableDictionary *value=[_custom[key] mutableCopy] ?: [NSMutableDictionary dictionary];
+    value[@"alpha"]=@(requestedAlpha);
+    _custom[key]=value;
     _editInfo.text=[NSString stringWithFormat:@"Size %.0f%% · Opacity %.0f%%\nDrag a control to move it.",_sizeSlider.value*100,requestedAlpha*100];
-    // Only redraw layers; do not trigger layoutSubviews or rewrite coordinates.
     [self refresh];
 }
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch {
