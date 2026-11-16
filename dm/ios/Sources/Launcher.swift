@@ -396,6 +396,18 @@ private struct LauncherView: View {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
         // Built-in themes stay read-only in the app bundle. Only imported themes live in Documents.
+        // Remove identical legacy copies left by older builds, but preserve any user-customized folder.
+        if let bundledRoot = Bundle.main.resourceURL?.appendingPathComponent("TouchControlThemes", isDirectory: true),
+           let bundledFolders = try? FileManager.default.contentsOfDirectory(at: bundledRoot, includingPropertiesForKeys: [.isDirectoryKey]) {
+            for bundled in bundledFolders where (try? bundled.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
+                let legacy = directory.appendingPathComponent(bundled.lastPathComponent, isDirectory: true)
+                let bundledJSON = try? Data(contentsOf: bundled.appendingPathComponent("theme.json"))
+                let legacyJSON = try? Data(contentsOf: legacy.appendingPathComponent("theme.json"))
+                if let bundledJSON, bundledJSON == legacyJSON {
+                    try? FileManager.default.removeItem(at: legacy)
+                }
+            }
+        }
         return directory
     }
 
