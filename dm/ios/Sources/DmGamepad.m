@@ -14,7 +14,6 @@
 //   Each physical controller is a player of its own (local co-op), as on the Mac: the first one connected is player 1, together with the touch gamepad, the next player 2, and so on up to 8; see "Physical controllers" below.
 //   Shaking the phone shakes the controller (DM_BTN_SHAKE: its six-axis sensor, hle_hid.c), whichever controls are in use; see "Shaking the phone" below.
 #import <UIKit/UIKit.h>
-#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 #import <GameController/GameController.h>
 #import <CoreMotion/CoreMotion.h>
 #import <CoreText/CoreText.h>
@@ -130,7 +129,7 @@ static const int k_btns[] = {B_ZL, B_L, B_ZR, B_R, B_MINUS, B_PLUS, B_LS, B_RS};
 static NSString *const k_layout_key = @"DmPadLayout";   // NSUserDefaults: 0 = 2D, 1 = 3D, 2 = Tap (DM_GAME_PAD_LAYOUT's numbers)
 int dm_opmode(void);   // hle_oe.c: 0 = handheld
 
-@interface DmGamepad : UIView <UIDocumentPickerDelegate>
+@interface DmGamepad : UIView
 @end
 static __weak DmGamepad *g_view;
 static void pads_start(void);   // Physical controllers, below
@@ -151,7 +150,6 @@ static void pads_start(void);   // Physical controllers, below
     CALayer *_controls;                            // holds every control layer: hidden while a physical controller is connected (the view itself stays, for game touches)
     NSMutableDictionary<NSString *, CALayer *> *_skinItems; NSDictionary<NSString *, UIImage *> *_skinImages; BOOL _customSkin; // one image layer per control; native touch hit-testing stays unchanged
     BOOL _padOff;                                  // a physical controller is connected: every touch goes to the game
-    NSTimeInterval _swapBeganAt;                   // long-press the layout control to open touch-skin options
     UITouch *_game[16];                            // touches on the game's touch screen by finger slot
 }
 
@@ -214,9 +212,7 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
 }
 - (void)loadTouchSkin {
     NSString *path = [NSUserDefaults.standardUserDefaults stringForKey:@"DmTouchControlSkinPath"];
-    _customSkin = NO;
-    for (CALayer *layer in _skinItems.allValues) [layer removeFromSuperlayer];
-    [_skinItems removeAllObjects];
+    _customSkin = NO; [_skinItems removeAllObjects];
     if (!path.length) return;
     NSArray<NSString *> *names = @[@"a", @"b", @"x", @"y", @"stick-base", @"stick-knob",
         @"zl", @"l", @"zr", @"r", @"minus", @"plus", @"layout",
@@ -230,8 +226,7 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
     if (images.count != names.count) return;
     _skinImages = images; _customSkin = YES;
     for (NSString *name in names) {
-        UIImage *image = (UIImage *)images[name];
-        CALayer *layer = [CALayer layer]; layer.contents = (__bridge id)image.CGImage;
+        CALayer *layer = [CALayer layer]; layer.contents = (__bridge id)images[name].CGImage;
         layer.contentsGravity = kCAGravityResize; layer.contentsScale = UIScreen.mainScreen.scale;
         [_controls addSublayer:layer]; _skinItems[name] = layer;
     }
@@ -410,7 +405,7 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
         if (_padOff) { game |= [self gameBegin:t]; continue; }
         CGPoint p = [t locationInView:self]; int hit = _tap ? -1 : [self btnAt:p];
         if (hit >= 0) { [_owner setObject:@(C_BTN | (uint64_t)hit << 8) forKey:t]; continue; }
-        if ([self inSwap:p]) { _swapBeganAt = t.timestamp; [_owner setObject:@(C_SWAP) forKey:t]; continue; }
+        if ([self inSwap:p]) { [_owner setObject:@(C_SWAP) forKey:t]; continue; }
         if (_tap) { game |= [self gameBegin:t]; continue; }
         // diamond, D-pad, left stick: take the one with the smallest distance / grab radius, if it is <= 1
         CGFloat best = 1; int kind = C_NONE, idx = 0;
@@ -440,203 +435,17 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
     [self recompute];
 }
 - (void)endTouches:(NSSet<UITouch *> *)ts tapped:(BOOL)ended {
-    BOOL swap = NO, openSkinMenu = NO, game = NO;
+    BOOL swap = NO, game = NO;
     for (UITouch *t in ts) {
         uint64_t v = [_owner objectForKey:t].unsignedLongLongValue;
-        if (ended && (v & 0xff) == C_SWAP && [self inSwap:[t locationInView:self]]) {
-            if (t.timestamp - _swapBeganAt >= 0.65) openSkinMenu = YES;
-            else swap = YES;
-        }   // short tap changes layout; long press opens skin options
+        if (ended && (v & 0xff) == C_SWAP && [self inSwap:[t locationInView:self]]) swap = YES;   // layout button: counts only when released on the button
         if ((v & 0xff) == C_GAME && (v >> 8) < 16) { _game[v >> 8] = nil; game = YES; }
         [_owner removeObjectForKey:t]; [_faceOf removeObjectForKey:t]; for (int i = 0; i < 2; i++) if (t == _stick[i]) _stick[i] = nil;
     }
     if (game) [self pushGame];
     [self recompute];
     if (swap) [self nextLayout];
-    if (openSkinMenu) [self showTouchSkinMenu];
 }
-- (UIViewController *)topPresenter {
-    UIViewController *vc = self.window.rootViewController;
-    while (vc.presentedViewController) vc = vc.presentedViewController;
-    return vc;
-}
-- (void)showTouchSkinMenu {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        UIViewController *presenter = [self topPresenter];
-        if (!presenter || presenter.presentedViewController) return;
-        NSString *activeSkinName = [NSUserDefaults.standardUserDefaults stringForKey:@"DmTouchControlSkinName"];
-        NSString *menuMessage = activeSkinName.length
-            ? [NSString stringWithFormat:@"Current skin: %@\\nChoose another folder or restore the built-in controls.", activeSkinName]
-            : @"Current skin: Built-in\\nChoose a skin folder while the game is running.";
-        UIAlertController *menu = [UIAlertController alertControllerWithTitle:@"Touch Control Skin"
-            message:menuMessage
-            preferredStyle:UIAlertControllerStyleActionSheet];
-        [menu addAction:[UIAlertAction actionWithTitle:@"Import Skin Folder…" style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *a) {
-            UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc] initForOpeningContentTypes:@[[UTType typeWithFilenameExtension:@"folder"]] asCopy:NO];
-            picker.delegate = self;
-            [presenter presentViewController:picker animated:YES completion:nil];
-        }]];
-        [menu addAction:[UIAlertAction actionWithTitle:@"Export Built-in Skin (PNG)" style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *a) {
-            [self exportBuiltInSkin];
-        }]];
-        [menu addAction:[UIAlertAction actionWithTitle:@"Use Built-in Controls" style:UIAlertActionStyleDestructive handler:^(__unused UIAlertAction *a) {
-            [NSUserDefaults.standardUserDefaults removeObjectForKey:@"DmTouchControlSkinPath"];
-            [NSUserDefaults.standardUserDefaults removeObjectForKey:@"DmTouchControlSkinName"];
-            [self loadTouchSkin]; [self setNeedsLayout]; [self refresh];
-        }]];
-        [menu addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
-        menu.popoverPresentationController.sourceView = self;
-        menu.popoverPresentationController.sourceRect = CGRectMake(CGRectGetMidX(self.bounds), CGRectGetMidY(self.bounds), 1, 1);
-        [presenter presentViewController:menu animated:YES completion:nil];
-    });
-}
-// Export the real native CAShapeLayer/CATextLayer artwork as transparent PNGs.
-// Each crop is taken from the rendered native controller, so the paths, strokes,
-// shadows and labels come from the same layers used by the built-in controls.
-- (void)exportBuiltInSkin {
-    [self setNeedsLayout]; [self layoutIfNeeded];
-    [CATransaction flush];
-    NSArray<NSString *> *names = @[@"a", @"b", @"x", @"y", @"stick-base", @"stick-knob", @"zl", @"l", @"zr", @"r", @"minus", @"plus", @"layout", @"dpad-up", @"dpad-down", @"dpad-left", @"dpad-right", @"l3", @"r3", @"right-stick-base", @"right-stick-knob"];
-    NSMutableDictionary<NSString *, NSValue *> *rects = [NSMutableDictionary dictionary];
-    CGFloat pad = 5 * self.u;
-    for (int b = B_A; b <= B_Y; b++) {
-        CGPoint p = [self facePos:b]; CGFloat r = self.faceR;
-        rects[@[@"a",@"b",@"x",@"y"][b]] = [NSValue valueWithCGRect:CGRectInset(CGRectMake(p.x-r,p.y-r,2*r,2*r),-pad,-pad)];
-    }
-    CGPoint sh = self.stickHome; CGFloat sr = [self stickR:0];
-    rects[@"stick-base"] = [NSValue valueWithCGRect:CGRectInset(CGRectMake(sh.x-sr,sh.y-sr,2*sr,2*sr),-pad,-pad)];
-    CGFloat kr = K_KNOB_R * self.u; CGPoint ko = [self knobOffset:0];
-    CGPoint kc = CGPointMake(sh.x+ko.x,sh.y+ko.y);
-    rects[@"stick-knob"] = [NSValue valueWithCGRect:CGRectInset(CGRectMake(kc.x-kr,kc.y-kr,2*kr,2*kr),-pad,-pad)];
-    for (NSString *name in @[@"zl",@"l",@"zr",@"r"]) {
-        int b = [name isEqual:@"zl"]?B_ZL:[name isEqual:@"l"]?B_L:[name isEqual:@"zr"]?B_ZR:B_R;
-        CGPoint p=[self dropCenter:b]; CGFloat r=[self dropR:b]*K_DROP_TIP;
-        rects[name]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(p.x-r,p.y-r,2*r,2*r),-pad,-pad)];
-    }
-    for (NSString *name in @[@"minus",@"plus"]) {
-        int b=[name isEqual:@"plus"]?B_PLUS:B_MINUS; rects[name]=[NSValue valueWithCGRect:CGRectInset([self pillRect:b],-pad,-pad)];
-    }
-    CGFloat swapR=K_SWAP_R*self.u; CGPoint sp=self.swapCenter;
-    rects[@"layout"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(sp.x-swapR,sp.y-swapR,2*swapR,2*swapR),-pad,-pad)];
-    CGFloat clickR=K_CLICK_R*self.u;
-    for (NSString *name in @[@"l3",@"r3"]) {
-        CGPoint p=[self clickCenter:[name isEqual:@"l3"]?B_LS:B_RS];
-        rects[name]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(p.x-clickR,p.y-clickR,2*clickR,2*clickR),-pad,-pad)];
-    }
-    CGFloat dr=self.dpadR; CGPoint dc=self.dpadCenter;
-    // Crop each native D-pad arm separately instead of repeating the full cross in every PNG.
-    rects[@"dpad-up"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(dc.x-dr,dc.y-dr,2*dr,dr+pad),-pad,-pad)];
-    rects[@"dpad-down"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(dc.x-dr,dc.y,2*dr,dr+pad),-pad,-pad)];
-    rects[@"dpad-left"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(dc.x-dr,dc.y-dr,dr+pad,2*dr),-pad,-pad)];
-    rects[@"dpad-right"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(dc.x,dc.y-dr,dr+pad,2*dr),-pad,-pad)];
-    // The right stick is normally invisible. Its native ring/knob artwork is the same
-    // geometry as the left stick, captured at the right-stick dimensions.
-    // Reuse the actual native stick artwork in isolation; the skin loader scales it
-    // into the right-stick hit area, which has a different on-screen diameter.
-    rects[@"right-stick-base"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(sh.x-sr,sh.y-sr,2*sr,2*sr),-pad,-pad)];
-    rects[@"right-stick-knob"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(kc.x-kr,kc.y-kr,2*kr,2*kr),-pad,-pad)];
-
-    BOOL oldCustom=_customSkin, oldFull=_full, oldTap=_tap, oldControlsHidden=_controls.hidden;
-    _customSkin=NO; _full=YES; _tap=NO;
-    [self applyLayout]; [self layoutIfNeeded]; [CATransaction flush];
-
-    // Map each PNG to exactly one native layer. For every export, all sibling
-    // controls are hidden so neighbouring buttons cannot bleed into the crop.
-    NSMutableDictionary<NSString *, CALayer *> *sourceLayers=[NSMutableDictionary dictionary];
-    for (int b=B_A; b<=B_Y; b++) sourceLayers[@[@"a",@"b",@"x",@"y"][b]]=_key[b];
-    sourceLayers[@"stick-base"]=_ring; sourceLayers[@"stick-knob"]=_knob;
-    sourceLayers[@"zl"]=_key[B_ZL]; sourceLayers[@"l"]=_key[B_L];
-    sourceLayers[@"zr"]=_key[B_ZR]; sourceLayers[@"r"]=_key[B_R];
-    sourceLayers[@"minus"]=_key[B_MINUS]; sourceLayers[@"plus"]=_key[B_PLUS];
-    sourceLayers[@"layout"]=_swap;
-    sourceLayers[@"dpad-up"]=_key[B_UP]; sourceLayers[@"dpad-down"]=_key[B_DOWN];
-    sourceLayers[@"dpad-left"]=_key[B_LEFT]; sourceLayers[@"dpad-right"]=_key[B_RIGHT];
-    sourceLayers[@"l3"]=_key[B_LS]; sourceLayers[@"r3"]=_key[B_RS];
-    sourceLayers[@"right-stick-base"]=_ring; sourceLayers[@"right-stick-knob"]=_knob;
-
-    UIGraphicsImageRendererFormat *format=[UIGraphicsImageRendererFormat defaultFormat];
-    format.scale=UIScreen.mainScreen.scale; format.opaque=NO;
-    NSURL *docs=[NSFileManager.defaultManager URLForDirectory:NSDocumentDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:nil];
-    NSURL *folder=[[docs URLByAppendingPathComponent:@"TouchControlSkins" isDirectory:YES] URLByAppendingPathComponent:@"Default" isDirectory:YES];
-    [NSFileManager.defaultManager createDirectoryAtURL:folder withIntermediateDirectories:YES attributes:nil error:nil];
-    NSMutableArray *failed=[NSMutableArray array];
-    CGFloat scale=UIScreen.mainScreen.scale;
-    for (NSString *name in names) {
-        CALayer *selected=sourceLayers[name];
-        if (!selected) { [failed addObject:name]; continue; }
-        for (CALayer *sibling in _controls.sublayers) sibling.hidden=YES;
-        _controls.hidden=NO;
-        selected.hidden=NO;
-        [CATransaction flush];
-        UIImage *whole=[[[UIGraphicsImageRenderer alloc] initWithSize:self.bounds.size format:format] imageWithActions:^(UIGraphicsImageRendererContext *ctx) {
-            [self.layer renderInContext:ctx.CGContext];
-        }];
-        CGRect r=CGRectIntersection(rects[name].CGRectValue,self.bounds);
-        CGRect pixels=CGRectMake(floor(r.origin.x*scale),floor((self.bounds.size.height-CGRectGetMaxY(r))*scale),ceil(r.size.width*scale),ceil(r.size.height*scale));
-        CGImageRef crop=CGImageCreateWithImageInRect(whole.CGImage,pixels);
-        if (!crop) { [failed addObject:name]; continue; }
-        UIImage *piece=[UIImage imageWithCGImage:crop scale:1 orientation:UIImageOrientationUp]; CGImageRelease(crop);
-        UIGraphicsImageRendererFormat *outFormat=[UIGraphicsImageRendererFormat defaultFormat]; outFormat.scale=1; outFormat.opaque=NO;
-        UIImage *png=[[[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(256,256) format:outFormat] imageWithActions:^(UIGraphicsImageRendererContext *ctx) {
-            CGFloat factor=MIN(256.0/piece.size.width,256.0/piece.size.height);
-            CGSize size=CGSizeMake(piece.size.width*factor,piece.size.height*factor);
-            [piece drawInRect:CGRectMake((256-size.width)/2,(256-size.height)/2,size.width,size.height)];
-        }];
-        NSData *data=UIImagePNGRepresentation(png);
-        if (![data writeToURL:[folder URLByAppendingPathComponent:[name stringByAppendingString:@".png"]] options:NSDataWritingAtomic error:nil]) [failed addObject:name];
-    }
-    for (CALayer *sibling in _controls.sublayers) sibling.hidden=NO;
-    _controls.hidden=oldControlsHidden;
-    _customSkin=oldCustom; _full=oldFull; _tap=oldTap;
-    [self applyLayout]; [self setNeedsLayout]; [self refresh];
-    NSString *message=failed.count ? [NSString stringWithFormat:@"Some images could not be exported: %@",[failed componentsJoinedByString:@", "]] :
-        [NSString stringWithFormat:@"Exported 21 transparent PNGs (256×256) to Documents/TouchControlSkins/Default. You can import this folder as a skin.\n\nNote: the right stick is normally hidden, so its artwork is generated from the native stick geometry.",nil];
-    UIAlertController *done=[UIAlertController alertControllerWithTitle:failed.count?@"Export Incomplete":@"Built-in Skin Exported" message:message preferredStyle:UIAlertControllerStyleAlert];
-    [done addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
-    [[self topPresenter] presentViewController:done animated:YES completion:nil];
-}
-- (void)documentPicker:(UIDocumentPickerViewController *)controller didPickDocumentsAtURLs:(NSArray<NSURL *> *)urls {
-    NSURL *source = urls.firstObject;
-    if (!source) return;
-    BOOL scoped = [source startAccessingSecurityScopedResource];
-    @try {
-        NSArray<NSString *> *names = @[@"a", @"b", @"x", @"y", @"stick-base", @"stick-knob", @"zl", @"l", @"zr", @"r", @"minus", @"plus", @"layout", @"dpad-up", @"dpad-down", @"dpad-left", @"dpad-right", @"l3", @"r3", @"right-stick-base", @"right-stick-knob"];
-        NSMutableArray<NSString *> *missing = [NSMutableArray array];
-        for (NSString *name in names) {
-            NSString *file = [[source URLByAppendingPathComponent:[name stringByAppendingString:@".png"]] path];
-            if (![UIImage imageWithContentsOfFile:file]) [missing addObject:[name stringByAppendingString:@".png"]];
-        }
-        if (missing.count) {
-            UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Invalid Skin Folder" message:[NSString stringWithFormat:@"Missing valid PNGs: %@", [missing componentsJoinedByString:@", "]] preferredStyle:UIAlertControllerStyleAlert];
-            [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
-            [[self topPresenter] presentViewController:alert animated:YES completion:nil];
-            return;
-        }
-        NSFileManager *fm = NSFileManager.defaultManager;
-        NSURL *docs = [fm URLForDirectory:NSDocumentDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:nil];
-        NSURL *destination = [docs URLByAppendingPathComponent:@"TouchControlSkin" isDirectory:YES];
-        if ([fm fileExistsAtPath:destination.path]) [fm removeItemAtURL:destination error:nil];
-        NSError *error = nil;
-        if (![fm copyItemAtURL:source toURL:destination error:&error]) {
-            UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Skin Import Failed" message:error.localizedDescription preferredStyle:UIAlertControllerStyleAlert];
-            [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
-            [[self topPresenter] presentViewController:alert animated:YES completion:nil];
-            return;
-        }
-        [NSUserDefaults.standardUserDefaults setObject:destination.path forKey:@"DmTouchControlSkinPath"];
-        NSString *selectedSkinName = source.lastPathComponent;
-        [NSUserDefaults.standardUserDefaults setObject:selectedSkinName forKey:@"DmTouchControlSkinName"];
-        [self loadTouchSkin]; [self setNeedsLayout]; [self refresh];
-        UIAlertController *notice = [UIAlertController alertControllerWithTitle:@"Touch Skin Applied"
-            message:[NSString stringWithFormat:@"Now using ‘%@’.", selectedSkinName]
-            preferredStyle:UIAlertControllerStyleAlert];
-        [notice addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
-        [[self topPresenter] presentViewController:notice animated:YES completion:nil];
-    } @finally {
-        if (scoped) [source stopAccessingSecurityScopedResource];
-    }
-}
-- (void)documentPickerWasCancelled:(UIDocumentPickerViewController *)controller { (void)controller; }
 - (void)touchesEnded:(NSSet<UITouch *> *)ts withEvent:(UIEvent *)e { [self endTouches:ts tapped:YES]; }
 - (void)touchesCancelled:(NSSet<UITouch *> *)ts withEvent:(UIEvent *)e { [self endTouches:ts tapped:NO]; }
 - (void)reset { [_owner removeAllObjects]; [_faceOf removeAllObjects]; _stick[0] = _stick[1] = nil; for (int i = 0; i < 16; i++) _game[i] = nil; [self pushGame]; [self recompute]; }
