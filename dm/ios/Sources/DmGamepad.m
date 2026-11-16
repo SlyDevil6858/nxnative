@@ -464,8 +464,12 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
     dispatch_async(dispatch_get_main_queue(), ^{
         UIViewController *presenter = [self topPresenter];
         if (!presenter || presenter.presentedViewController) return;
+        NSString *activeSkinName = [NSUserDefaults.standardUserDefaults stringForKey:@"DmTouchControlSkinName"];
+        NSString *menuMessage = activeSkinName.length
+            ? [NSString stringWithFormat:@"Current skin: %@\\nChoose another folder or restore the built-in controls.", activeSkinName]
+            : @"Current skin: Built-in\\nChoose a skin folder while the game is running.";
         UIAlertController *menu = [UIAlertController alertControllerWithTitle:@"Touch Control Skin"
-            message:@"Choose a skin folder while the game is running, or restore the built-in controls."
+            message:menuMessage
             preferredStyle:UIAlertControllerStyleActionSheet];
         [menu addAction:[UIAlertAction actionWithTitle:@"Import Skin Folder…" style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *a) {
             UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc] initForOpeningContentTypes:@[[UTType typeWithFilenameExtension:@"folder"]] asCopy:NO];
@@ -512,8 +516,14 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
             return;
         }
         [NSUserDefaults.standardUserDefaults setObject:destination.path forKey:@"DmTouchControlSkinPath"];
-        [NSUserDefaults.standardUserDefaults setObject:source.lastPathComponent forKey:@"DmTouchControlSkinName"];
+        NSString *selectedSkinName = source.lastPathComponent;
+        [NSUserDefaults.standardUserDefaults setObject:selectedSkinName forKey:@"DmTouchControlSkinName"];
         [self loadTouchSkin]; [self setNeedsLayout]; [self refresh];
+        UIAlertController *notice = [UIAlertController alertControllerWithTitle:@"Touch Skin Applied"
+            message:[NSString stringWithFormat:@"Now using ‘%@’.", selectedSkinName]
+            preferredStyle:UIAlertControllerStyleAlert];
+        [notice addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+        [[self topPresenter] presentViewController:notice animated:YES completion:nil];
     } @finally {
         if (scoped) [source stopAccessingSecurityScopedResource];
     }
