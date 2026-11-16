@@ -9,6 +9,7 @@ extension LauncherModel {
 struct SettingRow: View {
     let s: Setting
     @ObservedObject var m: LauncherModel
+    let accentColor: Color
 
     private var locked: Bool { m.fixed.contains(s.env) }
     private var note: String {
@@ -53,6 +54,7 @@ struct SettingRow: View {
                 Toggle(isOn: Binding(get: { (m.values[s.env] ?? s.def) == s.onValue }, set: { m.values[s.env] = $0 ? s.onValue : s.offValue })) {
                     settingLabel
                 }
+                .tint(accentColor)
             }
         }
         .disabled(locked)
