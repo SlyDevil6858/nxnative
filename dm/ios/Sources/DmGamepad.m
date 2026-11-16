@@ -206,6 +206,7 @@ static void pads_start(void);   // Physical controllers, below
     UISwitch *_fpsSwitch, *_hudSwitch;
     UILabel *_editInfo;
     CAShapeLayer *_editHighlight;
+    CAGradientLayer *_editHighlightGradient;
     NSDictionary<NSString *, NSValue *> *_dragAllHomes;
     UITouch *_game[16];                            // touches on the game's touch screen by finger slot
 }
@@ -264,12 +265,32 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
         _swap = shape(_controls); _swapLabel = label(_swap, @"");
         _skinItems = [NSMutableDictionary dictionary];
         _customSkin = NO; // Native vector controls are used; the PNG skin system is retired.
+        // One shared conic gradient masks every selection outline, keeping all
+        // highlighters perfectly in sync with a single lightweight animation.
         _editHighlight = [CAShapeLayer layer];
         _editHighlight.fillColor = UIColor.clearColor.CGColor;
-        _editHighlight.strokeColor = [self editorAccentColor].CGColor;
-        _editHighlight.lineWidth = 2.5;
+        _editHighlight.strokeColor = UIColor.whiteColor.CGColor;
+        _editHighlight.lineWidth = 3.5;
+        _editHighlight.lineCap = kCALineCapRound;
+        _editHighlight.lineJoin = kCALineJoinRound;
         _editHighlight.hidden = YES;
-        [_controls addSublayer:_editHighlight];
+        _editHighlightGradient = [CAGradientLayer layer];
+        _editHighlightGradient.type = kCAGradientLayerConic;
+        _editHighlightGradient.startPoint = CGPointMake(0.5, 0.5);
+        _editHighlightGradient.endPoint = CGPointMake(1.0, 0.5);
+        _editHighlightGradient.colors = @[
+            (id)[UIColor colorWithRed:1.0 green:0.0 blue:0.0 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:1.0 green:0.65 blue:0.0 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:1.0 green:1.0 blue:0.0 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:0.0 green:0.85 blue:0.15 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:0.0 green:0.65 blue:1.0 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:0.35 green:0.1 blue:1.0 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:0.85 green:0.0 blue:1.0 alpha:1.0].CGColor,
+            (id)[UIColor colorWithRed:1.0 green:0.0 blue:0.0 alpha:1.0].CGColor
+        ];
+        _editHighlightGradient.locations = @[@0.0, @0.1429, @0.2857, @0.4286, @0.5714, @0.7143, @0.8571, @1.0];
+        _editHighlightGradient.mask = _editHighlight;
+        [_controls addSublayer:_editHighlightGradient];
         NSNumber *saved = [NSUserDefaults.standardUserDefaults objectForKey:k_layout_key];
         int l = saved ? (int)saved.integerValue : DM_GAME_PAD_LAYOUT;
         if (l == 2 && dm_opmode() != 0) l = 0;   // Tap only in handheld mode (env.txt's DM_OPMODE may have changed it)
@@ -894,11 +915,15 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
             CGPathAddEllipseInRect(outlines, NULL,
                 CGRectMake(center.x - radius, center.y - radius, 2 * radius, 2 * radius));
         }
+        _editHighlight.frame = _controls.bounds;
+        _editHighlightGradient.frame = _controls.bounds;
         _editHighlight.path = outlines;
         CGPathRelease(outlines);
         _editHighlight.hidden = NO;
+        _editHighlightGradient.hidden = NO;
     } else {
         _editHighlight.hidden = YES;
+        _editHighlightGradient.hidden = YES;
     }
     [CATransaction commit];
     [self refresh];
@@ -1290,6 +1315,21 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _editWasTap=_tap;
     if (_tap) { _tap=NO; [self loadControls]; [self applyLayout]; }
     [self reset]; _editing=YES; _controls.hidden=_padOff; _selected=B_A; _tools.hidden=NO;
+    if (!UIAccessibilityIsReduceMotionEnabled()) {
+        CAKeyframeAnimation *rainbow = [CAKeyframeAnimation animationWithKeyPath:@"endPoint"];
+        rainbow.values = @[
+            [NSValue valueWithCGPoint:CGPointMake(1.0, 0.5)],
+            [NSValue valueWithCGPoint:CGPointMake(0.5, 1.0)],
+            [NSValue valueWithCGPoint:CGPointMake(0.0, 0.5)],
+            [NSValue valueWithCGPoint:CGPointMake(0.5, 0.0)],
+            [NSValue valueWithCGPoint:CGPointMake(1.0, 0.5)]
+        ];
+        rainbow.duration = 8.0;
+        rainbow.calculationMode = kCAAnimationLinear;
+        rainbow.repeatCount = HUGE_VALF;
+        rainbow.removedOnCompletion = YES;
+        [_editHighlightGradient addAnimation:rainbow forKey:@"synchronizedRainbow"];
+    }
     [self updateEditor]; [self setNeedsLayout];
 }
 - (void)openMenuFromController {
@@ -1300,7 +1340,9 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [self reset]; _editing=NO;
     if (_editWasTap) { _tap=YES; [self applyLayout]; }
     _tools.hidden=YES; _controls.hidden=_padOff;
-    _editHighlight.hidden=YES; [self setNeedsLayout];
+    _editHighlight.hidden=YES; _editHighlightGradient.hidden=YES;
+    [_editHighlightGradient removeAnimationForKey:@"synchronizedRainbow"];
+    [self setNeedsLayout];
 }
 - (void)saveEdit { [_profiles save:_custom layout:self.controlsLayout slot:_profiles.selected]; [self finishEdit]; }
 - (void)cancelEdit { [self loadControls]; [self finishEdit]; }
