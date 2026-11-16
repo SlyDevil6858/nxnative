@@ -26,6 +26,7 @@ static CAMetalLayer *g_layer;
 static void front_ios_power_watch(void);
 static void front_ios_audio_watch(void);
 static UILabel *front_ios_fps_label(void);
+BOOL front_ios_runtime_metal_hud_enabled(void);
 
 @interface DmGameView : UIView
 @end
