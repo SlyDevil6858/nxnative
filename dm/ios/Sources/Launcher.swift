@@ -228,18 +228,16 @@ private struct LauncherView: View {
                                             confirmingThemeDeletion = true
                                         }
                                     }
-                                    VStack(alignment: .leading, spacing: 6) {
-                                        Label("Quick tip", systemImage: "lightbulb.fill")
-                                            .font(.caption.weight(.semibold))
+                                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                                        Image(systemName: "lightbulb.fill")
                                             .foregroundStyle(accentColor)
-                                        Text("During gameplay, press and hold the 2D or 3D button, or hold Select on your controller, to open the in-game control menu.")
+                                        (Text("Quick tip: ").foregroundColor(accentColor).fontWeight(.semibold)
+                                         + Text("During gameplay, press and hold the 2D or 3D button, or hold Select on your controller, to open the in-game control menu."))
+                                            .foregroundColor(Color(white: 0.82))
                                             .font(.footnote)
-                                            .foregroundStyle(Color(white: 0.82))
                                             .fixedSize(horizontal: false, vertical: true)
                                     }
-                                    .padding(12)
                                     .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(Color(white: 0.09), in: RoundedRectangle(cornerRadius: 10))
                                     .listRowBackground(Color.black)
                                 }
                             }
