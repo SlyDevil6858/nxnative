@@ -1364,14 +1364,36 @@ static BOOL pads_slotted(GCController *gone) {
 @interface DmPadLauncherEditorController : UIViewController
 @property(nonatomic,strong) DmGamepad *pad;
 @property(nonatomic,strong) UIButton *closeButton;
+@property(nonatomic,strong) UIImageView *backgroundImageView;
+@property(nonatomic,strong) UIView *backgroundDimmer;
 @end
 @implementation DmPadLauncherEditorController
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.view.backgroundColor=UIColor.blackColor;
+    self.view.alpha=0;
+
+    // Reuse the launcher's artwork, but leave only a faint trace of it under the editor.
+    NSURL *backgroundURL=[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"dm/launcher-custom-background.png"];
+    UIImage *background=backgroundURL ? [UIImage imageWithContentsOfFile:backgroundURL.path] : nil;
+    if (background) {
+        _backgroundImageView=[[UIImageView alloc] initWithFrame:self.view.bounds];
+        _backgroundImageView.image=background;
+        _backgroundImageView.contentMode=UIViewContentModeScaleAspectFill;
+        _backgroundImageView.autoresizingMask=UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
+        _backgroundImageView.clipsToBounds=YES;
+        [self.view addSubview:_backgroundImageView];
+        _backgroundDimmer=[[UIView alloc] initWithFrame:self.view.bounds];
+        _backgroundDimmer.backgroundColor=[UIColor colorWithWhite:0 alpha:0.86];
+        _backgroundDimmer.autoresizingMask=UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
+        [self.view addSubview:_backgroundDimmer];
+    }
+
     g_launcher_preview=YES;
     _pad=[[DmGamepad alloc] initWithFrame:self.view.bounds];
     g_launcher_preview=NO;
+    _pad.backgroundColor=UIColor.clearColor;
+    _pad.opaque=NO;
     _pad.autoresizingMask=UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
     [self.view addSubview:_pad];
     _closeButton=[UIButton buttonWithType:UIButtonTypeSystem];
@@ -1391,11 +1413,23 @@ static BOOL pads_slotted(GCController *gone) {
 }
 - (void)viewDidAppear:(BOOL)animated {
     [super viewDidAppear:animated];
-    [_pad beginLauncherEdit];
+    UIView *launcher=self.presentingViewController.view;
+    [UIView animateWithDuration:0.30 delay:0 options:UIViewAnimationOptionBeginFromCurrentState|UIViewAnimationOptionCurveEaseInOut animations:^{
+        self.view.alpha=1;
+        launcher.alpha=0;
+    } completion:^(__unused BOOL finished) {
+        [self.pad beginLauncherEdit];
+    }];
 }
 - (void)closeEditor {
     [_pad saveEdit];
-    [self dismissViewControllerAnimated:YES completion:nil];
+    UIView *launcher=self.presentingViewController.view;
+    [UIView animateWithDuration:0.26 delay:0 options:UIViewAnimationOptionBeginFromCurrentState|UIViewAnimationOptionCurveEaseInOut animations:^{
+        self.view.alpha=0;
+        launcher.alpha=1;
+    } completion:^(__unused BOOL finished) {
+        [self dismissViewControllerAnimated:NO completion:nil];
+    }];
 }
 @end
 
@@ -1411,8 +1445,10 @@ void dm_gamepad_present_launcher_editor(void) {
         while (presenter.presentedViewController) presenter=presenter.presentedViewController;
         if (!presenter) return;
         DmPadLauncherEditorController *editor=[DmPadLauncherEditorController new];
-        editor.modalPresentationStyle=UIModalPresentationFullScreen;
-        [presenter presentViewController:editor animated:YES completion:nil];
+        editor.modalPresentationStyle=UIModalPresentationOverFullScreen;
+        editor.modalTransitionStyle=UIModalTransitionStyleCrossDissolve;
+        presenter.view.alpha=1;
+        [presenter presentViewController:editor animated:NO completion:nil];
     });
 }
 
