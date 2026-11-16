@@ -31,6 +31,10 @@
 #include <stdatomic.h>
 #import "DmPadProfiles.h"
 
+extern BOOL front_ios_runtime_fps_enabled(void);
+extern BOOL front_ios_runtime_metal_hud_enabled(void);
+extern void front_ios_set_runtime_hud(BOOL fps, BOOL metalHUD);
+
 enum { B_A = 0, B_B, B_X, B_Y, B_LS, B_RS, B_L, B_R, B_ZL, B_ZR, B_PLUS, B_MINUS, B_LEFT, B_UP, B_RIGHT, B_DOWN, B_N };
 enum { C_NONE = 0, C_STICK, C_DPAD, C_FACE, C_BTN, C_SWAP, C_GAME };   // which control a touch holds; C_GAME: none, the touch goes to the game's touch screen (finger slot << 8)
 
@@ -171,6 +175,7 @@ static void pads_start(void);   // Physical controllers, below
     UILongPressGestureRecognizer *_editHold;
     UIView *_tools;
     UISlider *_sizeSlider, *_alphaSlider;
+    UISwitch *_fpsSwitch, *_hudSwitch;
     UILabel *_editInfo;
     CAShapeLayer *_editHighlight;
     NSDictionary<NSString *, NSValue *> *_dragAllHomes;
@@ -766,7 +771,7 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     [CATransaction begin]; [CATransaction setDisableActions:YES];
     CGRect safe=self.safe;
     if (!CGRectEqualToRect(safe,_lastSafe)) { _lastSafe=safe; if (!_editing) [self reset]; }
-    _tools.frame=CGRectMake(CGRectGetMidX(safe)-160,CGRectGetMidY(safe)-132,320,264);
+    _tools.frame=CGRectMake(CGRectGetMidX(safe)-160,CGRectGetMidY(safe)-164,320,328);
     _controls.frame = self.layer.bounds;
     for (int b = B_A; b <= B_Y; b++) { CGPoint c = [self facePos:b]; setPath(_key[b], circlePath(c, [self faceRadius:b])); placeLabel(_label[b], c, 20 * u * [self scale:b]); }
     for (int i = 0; i < (int)(sizeof k_btns / sizeof *k_btns); i++) { int b = k_btns[i];
@@ -1042,6 +1047,25 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     importThemeButton.titleLabel.adjustsFontSizeToFitWidth=YES;
     importThemeButton.titleLabel.minimumScaleFactor=0.8;
     importThemeButton.titleLabel.lineBreakMode=NSLineBreakByClipping;
+
+    UILabel *fpsTitle=[[UILabel alloc] initWithFrame:CGRectMake(10,260,210,28)];
+    fpsTitle.text=@"FPS counter"; fpsTitle.textColor=UIColor.whiteColor;
+    fpsTitle.font=[UIFont systemFontOfSize:13]; [_tools addSubview:fpsTitle];
+    _fpsSwitch=[[UISwitch alloc] initWithFrame:CGRectMake(254,258,52,31)];
+    _fpsSwitch.on=front_ios_runtime_fps_enabled();
+    [_fpsSwitch addTarget:self action:@selector(editorHUDChanged) forControlEvents:UIControlEventValueChanged];
+    [_tools addSubview:_fpsSwitch];
+
+    UILabel *hudTitle=[[UILabel alloc] initWithFrame:CGRectMake(10,294,210,28)];
+    hudTitle.text=@"Performance HUD"; hudTitle.textColor=UIColor.whiteColor;
+    hudTitle.font=[UIFont systemFontOfSize:13]; [_tools addSubview:hudTitle];
+    _hudSwitch=[[UISwitch alloc] initWithFrame:CGRectMake(254,292,52,31)];
+    _hudSwitch.on=front_ios_runtime_metal_hud_enabled();
+    [_hudSwitch addTarget:self action:@selector(editorHUDChanged) forControlEvents:UIControlEventValueChanged];
+    [_tools addSubview:_hudSwitch];
+}
+- (void)editorHUDChanged {
+    front_ios_set_runtime_hud(_fpsSwitch.on, _hudSwitch.on);
 }
 - (void)updateEditor {
     [self updateProfileMenu];
