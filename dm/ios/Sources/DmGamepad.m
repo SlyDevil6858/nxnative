@@ -800,6 +800,8 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     _ring.opacity = _knob.opacity = [self opacity:16];
     _ring.fillColor = k_ringFill.CGColor;
     _ring.strokeColor = k_line.CGColor; _knob.strokeColor = k_line.CGColor;
+    CAShapeLayer *innerRing=(CAShapeLayer *)_knob.sublayers.firstObject;
+    innerRing.strokeColor=k_line.CGColor;
     _swap.fillColor = [self themeColorForButton:B_N pressed:_swapHeld].CGColor;
     _swap.strokeColor = k_line.CGColor; _swapLabel.foregroundColor = (_swapHeld ? k_textOn : k_text).CGColor;
     CGPoint h = self.stickHome, o = [self knobOffset:0];
@@ -881,10 +883,11 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         includingPropertiesForKeys:nil options:NSDirectoryEnumerationSkipsHiddenFiles error:nil];
     for (NSURL *folder in folders) {
         BOOL isDir=NO; if (![NSFileManager.defaultManager fileExistsAtPath:folder.path isDirectory:&isDir] || !isDir) continue;
-        NSString *title=folder.lastPathComponent, *themePath=folder.path;
+        NSString *themePath=folder.path;
         NSData *data=[NSData dataWithContentsOfFile:[themePath stringByAppendingPathComponent:@"theme.json"]];
         NSDictionary *json=data?[NSJSONSerialization JSONObjectWithData:data options:0 error:nil]:nil;
         if (![json isKindOfClass:NSDictionary.class] || ![json[@"palette"] isKindOfClass:NSDictionary.class]) continue;
+        NSString *title=[json[@"name"] isKindOfClass:NSString.class] && [json[@"name"] length] ? json[@"name"] : folder.lastPathComponent;
         UIAction *pick=[UIAction actionWithTitle:title image:nil identifier:nil handler:^(__unused UIAction *a) {
             [self applyThemePath:themePath name:title];
         }];
@@ -917,7 +920,14 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             [[self editorPresenter] presentViewController:alert animated:YES completion:nil]; return;
         }
         NSString *folderName=[json[@"name"] isKindOfClass:NSString.class] && [json[@"name"] length]?json[@"name"]:source.lastPathComponent;
-        NSString *safeName=[[folderName componentsSeparatedByCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"/:"]] componentsJoinedByString:@"_"];
+        NSCharacterSet *allowed=[NSCharacterSet characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 _-"];
+        NSMutableString *safeBuffer=[NSMutableString string];
+        for (NSUInteger i=0;i<folderName.length;i++) {
+            unichar ch=[folderName characterAtIndex:i];
+            [safeBuffer appendFormat:@"%C",[allowed characterIsMember:ch] ? ch : '_'];
+        }
+        NSString *safeName=[safeBuffer stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@" ._"]];
+        if (!safeName.length) safeName=@"Imported Theme";
         NSURL *destination=[[self themesDirectoryCreating:YES] URLByAppendingPathComponent:safeName isDirectory:YES];
         NSFileManager *fm=NSFileManager.defaultManager; NSError *error=nil;
         if ([fm fileExistsAtPath:destination.path]) [fm removeItemAtURL:destination error:nil];
