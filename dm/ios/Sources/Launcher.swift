@@ -75,6 +75,7 @@ private struct CloudSavesSection: View {
                     .foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             }
             Button(folder.isEmpty ? "Choose a folder in iCloud Drive…" : "Choose a different folder…") { picking = true }
+                .tint(accentColor)
             if !folder.isEmpty {
                 Button("Turn off cloud saves", role: .destructive) {
                     dm_clear_cloud_saves(); refresh(); note = ""
@@ -154,6 +155,7 @@ private struct TouchControlSkinsSection: View {
                 Text(activePath.isEmpty ? "Built-in" : "Custom").foregroundStyle(.secondary)
             }
             Button("Import a skin folder…") { importing = true }
+                .tint(accentColor)
             Button("Reset to Default", role: .destructive) {
                 UserDefaults.standard.removeObject(forKey: "DmTouchControlSkinPath")
                 activePath = ""
