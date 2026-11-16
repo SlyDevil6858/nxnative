@@ -211,7 +211,7 @@ private struct LauncherView: View {
                                                 selectTheme(theme.path, name: theme.name)
                                             }
                                         })) {
-                                        Text("Classic").tag("Classic")
+                                        Text("CLASSIC").tag("Classic")
                                         ForEach(themes) { theme in Text(theme.name).tag(theme.name) }
                                     } label: {
                                         Text("Touch controls theme").foregroundStyle(.white)
