@@ -1403,16 +1403,28 @@ static BOOL pads_slotted(GCController *gone) {
     NSURL *backgroundURL=[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"dm/launcher-custom-background.png"];
     UIImage *background=backgroundURL ? [UIImage imageWithContentsOfFile:backgroundURL.path] : nil;
     if (background) {
-        _backgroundImageView=[[UIImageView alloc] initWithFrame:self.view.bounds];
+        // Match LauncherView's resizable, scaled-to-fill image: pin both layers to
+        // the full-screen view bounds so safe-area insets cannot shift the crop.
+        _backgroundImageView=[UIImageView new];
         _backgroundImageView.image=background;
         _backgroundImageView.contentMode=UIViewContentModeScaleAspectFill;
-        _backgroundImageView.autoresizingMask=UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
         _backgroundImageView.clipsToBounds=YES;
+        _backgroundImageView.translatesAutoresizingMaskIntoConstraints=NO;
         [self.view addSubview:_backgroundImageView];
-        _backgroundDimmer=[[UIView alloc] initWithFrame:self.view.bounds];
+        _backgroundDimmer=[UIView new];
         _backgroundDimmer.backgroundColor=[UIColor colorWithWhite:0 alpha:0.86];
-        _backgroundDimmer.autoresizingMask=UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
+        _backgroundDimmer.translatesAutoresizingMaskIntoConstraints=NO;
         [self.view addSubview:_backgroundDimmer];
+        [NSLayoutConstraint activateConstraints:@[
+            [_backgroundImageView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
+            [_backgroundImageView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
+            [_backgroundImageView.topAnchor constraintEqualToAnchor:self.view.topAnchor],
+            [_backgroundImageView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
+            [_backgroundDimmer.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
+            [_backgroundDimmer.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
+            [_backgroundDimmer.topAnchor constraintEqualToAnchor:self.view.topAnchor],
+            [_backgroundDimmer.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor]
+        ]];
     }
 
     g_launcher_preview=YES;
