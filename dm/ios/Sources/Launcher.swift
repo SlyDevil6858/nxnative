@@ -228,6 +228,19 @@ private struct LauncherView: View {
                                             confirmingThemeDeletion = true
                                         }
                                     }
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        Label("Quick tip", systemImage: "lightbulb.fill")
+                                            .font(.caption.weight(.semibold))
+                                            .foregroundStyle(accentColor)
+                                        Text("During gameplay, tap the 2D or 3D button at the top of the screen to open the in-game control menu.")
+                                            .font(.footnote)
+                                            .foregroundStyle(Color(white: 0.82))
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    }
+                                    .padding(12)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(Color(white: 0.09), in: RoundedRectangle(cornerRadius: 10))
+                                    .listRowBackground(Color.black)
                                 }
                             }
                         }
