@@ -308,7 +308,7 @@ private struct LauncherView: View {
         for key in required {
             guard let value = palette[key] as? String else { return nil }
             let hex = value.hasPrefix("#") ? String(value.dropFirst()) : value
-            guard hex.count == 6, hex.allSatisfy({ $0.isHexDigit }) else { return nil }
+            guard hex.range(of: "^[0-9A-Fa-f]{6}$", options: .regularExpression) != nil else { return nil }
         }
         return json
     }
