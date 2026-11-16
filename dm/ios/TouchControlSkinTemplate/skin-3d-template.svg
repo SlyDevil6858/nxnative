@@ -10,19 +10,21 @@
     </style>
   </defs>
   <!-- Left stick -->
-  <circle class="ring" cx="100" cy="313" r="74"/>
-  <circle class="key" cx="100" cy="313" r="29"/>
-  <circle cx="100" cy="313" r="18" fill="none" stroke="#fff" stroke-opacity=".38" stroke-width="1.5"/>
+  <circle class="ring" cx="100" cy="325" r="74"/>
+  <circle class="key" cx="100" cy="325" r="29"/>
+  <circle cx="100" cy="325" r="18" fill="none" stroke="#fff" stroke-opacity=".38" stroke-width="1.5"/>
   <!-- Face-button diamond -->
-  <circle class="key" cx="748" cy="313" r="26"/><text class="txt" x="748" y="313">Y</text>
-  <circle class="key" cx="796" cy="265" r="26"/><text class="txt" x="796" y="265">X</text>
-  <circle class="key" cx="796" cy="361" r="26"/><text class="txt" x="796" y="361">B</text>
-  <circle class="key" cx="844" cy="313" r="26"/><text class="txt" x="844" y="313">A</text>
-  <!-- D-pad -->
-  <path class="key" d="M249 267 L283 267 L283 298 L266 315 L249 298Z"/>
-  <path class="key" d="M283 300 L314 300 L314 334 L283 334 L266 317Z"/>
-  <path class="key" d="M249 334 L283 334 L283 365 L249 365 L266 348Z"/>
-  <path class="key" d="M218 300 L249 300 L266 317 L249 334 L218 334Z"/>
+  <circle class="key" cx="748" cy="325" r="26"/><text class="txt" x="748" y="325">Y</text>
+  <circle class="key" cx="796" cy="276" r="26"/><text class="txt" x="796" y="276">X</text>
+  <circle class="key" cx="796" cy="373" r="26"/><text class="txt" x="796" y="373">B</text>
+  <circle class="key" cx="844" cy="325" r="26"/><text class="txt" x="844" y="325">A</text>
+  <!-- D-pad, placed at the native lower-left 3D-layout centre -->
+  <g transform="translate(0 25)">
+    <path class="key" d="M249 267 L283 267 L283 298 L266 315 L249 298Z"/>
+    <path class="key" d="M283 300 L314 300 L314 334 L283 334 L266 317Z"/>
+    <path class="key" d="M249 334 L283 334 L283 365 L249 365 L266 348Z"/>
+    <path class="key" d="M218 300 L249 300 L266 317 L249 334 L218 334Z"/>
+  </g>
   <!-- Shoulder and trigger buttons -->
   <path class="key" d="M65 28 Q66 14 83 14 Q106 14 106 37 Q99 59 77 65 Q63 53 65 28Z"/><text class="txt small" x="84" y="39">ZL</text>
   <rect class="key" x="63" y="83" width="46" height="46" rx="23"/><text class="txt small" x="86" y="106">L</text>
