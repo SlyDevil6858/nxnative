@@ -114,7 +114,7 @@ private struct TouchControlSkinsSection: View {
             .disabled(activePath.isEmpty)
         } footer: {
             Text(status.isEmpty
-                 ? "Import a folder containing one transparent PNG per control (a.png, b.png, x.png, y.png, stick-base.png, stick-knob.png, zl.png, l.png, zr.png, r.png, minus.png, plus.png, layout.png, dpad-up.png, dpad-down.png, dpad-left.png, dpad-right.png, l3.png, r3.png). Artwork does not change touch positions or button mappings."
+                 ? "Import a folder containing one transparent PNG per control (a.png, b.png, x.png, y.png, stick-base.png, stick-knob.png, zl.png, l.png, zr.png, r.png, minus.png, plus.png, layout.png, dpad-up.png, dpad-down.png, dpad-left.png, dpad-right.png, l3.png, r3.png, right-stick-base.png, right-stick-knob.png). Artwork does not change touch positions or button mappings."
                  : status)
         }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
@@ -127,7 +127,7 @@ private struct TouchControlSkinsSection: View {
                     let fm = FileManager.default
                     let imageNames = ["a", "b", "x", "y", "stick-base", "stick-knob",
                                       "zl", "l", "zr", "r", "minus", "plus", "layout",
-                                      "dpad-up", "dpad-down", "dpad-left", "dpad-right", "l3", "r3"]
+                                      "dpad-up", "dpad-down", "dpad-left", "dpad-right", "l3", "r3", "right-stick-base", "right-stick-knob"]
                     let missing = imageNames.filter {
                         UIImage(contentsOfFile: source.appendingPathComponent($0 + ".png").path) == nil
                     }
