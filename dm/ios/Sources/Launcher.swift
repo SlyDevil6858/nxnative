@@ -114,7 +114,7 @@ private struct TouchControlSkinsSection: View {
             .disabled(activePath.isEmpty)
         } footer: {
             Text(status.isEmpty
-                 ? "Import a folder containing skin-2d.png and skin-3d.png. Start with the supplied Photoshop-friendly SVG templates. Artwork does not change touch positions or button mappings."
+                 ? "Import a folder containing one transparent PNG per control (a.png, b.png, x.png, y.png, stick-base.png, stick-knob.png, zl.png, l.png, zr.png, r.png, minus.png, plus.png, layout.png, dpad-up.png, dpad-down.png, dpad-left.png, dpad-right.png, l3.png, r3.png). Artwork does not change touch positions or button mappings."
                  : status)
         }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
@@ -125,10 +125,14 @@ private struct TouchControlSkinsSection: View {
                 defer { if scoped { source.stopAccessingSecurityScopedResource() } }
                 do {
                     let fm = FileManager.default
-                    let twoD = source.appendingPathComponent("skin-2d.png")
-                    let threeD = source.appendingPathComponent("skin-3d.png")
-                    guard UIImage(contentsOfFile: twoD.path) != nil, UIImage(contentsOfFile: threeD.path) != nil else {
-                        status = "That folder needs valid skin-2d.png and skin-3d.png images."
+                    let imageNames = ["a", "b", "x", "y", "stick-base", "stick-knob",
+                                      "zl", "l", "zr", "r", "minus", "plus", "layout",
+                                      "dpad-up", "dpad-down", "dpad-left", "dpad-right", "l3", "r3"]
+                    let missing = imageNames.filter {
+                        UIImage(contentsOfFile: source.appendingPathComponent($0 + ".png").path) == nil
+                    }
+                    guard missing.isEmpty else {
+                        status = "Skin is missing valid PNGs: " + missing.map { $0 + ".png" }.joined(separator: ", ")
                         return
                     }
                     let docs = try fm.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
