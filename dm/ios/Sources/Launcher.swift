@@ -261,6 +261,7 @@ private struct LauncherView: View {
                                                     .buttonStyle(.plain)
                                                     if !isBundledTheme(theme) {
                                                         Button(role: .destructive) {
+                                                            showingThemeMenu = false
                                                             themeToDelete = theme
                                                             confirmingThemeDeletion = true
                                                         } label: {
