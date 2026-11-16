@@ -150,6 +150,7 @@ jobs:
           python -m pip install lz4 "capstone>=5,<6" fonttools nsz zbic "backports.zstd; python_version < '3.14'"
 
       - name: Build IPA for a 6 GB iPhone
+        id: build-ipa
         env:
           GAME_FOLDER: ${{ inputs.game_folder }}
           PROD_KEYS_PATH: ${{ inputs.prod_keys_path }}
@@ -187,6 +188,7 @@ jobs:
 
           FINAL_IPA="$RUNNER_TEMP/${{ steps.verify-input.outputs.ipa_name }} A15 v${GAME_VERSION}.ipa"
           mv "$BASE_IPA" "$FINAL_IPA"
+          echo "ipa_path=$FINAL_IPA" >> "$GITHUB_OUTPUT"
           echo "Final IPA filename: $(basename "$FINAL_IPA")"
 
       - name: Upload IPA to a private release in myprivaterepo
@@ -197,6 +199,6 @@ jobs:
           tag_name: nxnative-build-${{ github.run_id }}
           name: nxnative iPhone 13 Pro Max build ${{ github.run_number }}
           body: "Unsigned IPA built from the nxnative fork. This release is in the private myprivaterepo repository."
-          files: ${{ runner.temp }}/${{ steps.verify-input.outputs.ipa_name }}.ipa
+          files: ${{ steps.build-ipa.outputs.ipa_path }}
           fail_on_unmatched_files: true
           make_latest: false
