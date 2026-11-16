@@ -460,21 +460,29 @@ private struct LauncherView: View {
             return LauncherTheme(name: (json["name"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? folder.lastPathComponent,
                                  path: folder.path)
         }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-        let path = UserDefaults.standard.string(forKey: "DmTouchControlThemePath")
+        let defaults = UserDefaults.standard
+        let path = defaults.string(forKey: "DmTouchControlThemePath")
         if let selected = themes.first(where: { $0.path == path }) {
             selectedTheme = selected.name
+        } else if defaults.bool(forKey: "DmTouchControlThemeExplicitlySelected") {
+            selectedTheme = "Classic"
+            if path != nil { defaults.removeObject(forKey: "DmTouchControlThemePath") }
+            defaults.set("Classic", forKey: "DmTouchControlThemeName")
+        } else if let animalWell = themes.first(where: {
+            URL(fileURLWithPath: $0.path).lastPathComponent.caseInsensitiveCompare("ANIMAL WELL") == .orderedSame
+        }) {
+            defaults.set(animalWell.path, forKey: "DmTouchControlThemePath")
+            defaults.set(animalWell.name, forKey: "DmTouchControlThemeName")
+            selectedTheme = animalWell.name
         } else {
             selectedTheme = "Classic"
-            if path != nil {
-                UserDefaults.standard.removeObject(forKey: "DmTouchControlThemePath")
-                UserDefaults.standard.set("Classic", forKey: "DmTouchControlThemeName")
-            }
         }
     }
 
     private func selectTheme(_ path: String?, name: String) {
         if let path { UserDefaults.standard.set(path, forKey: "DmTouchControlThemePath") }
         else { UserDefaults.standard.removeObject(forKey: "DmTouchControlThemePath") }
+        UserDefaults.standard.set(true, forKey: "DmTouchControlThemeExplicitlySelected")
         UserDefaults.standard.set(name, forKey: "DmTouchControlThemeName")
         selectedTheme = name
     }
