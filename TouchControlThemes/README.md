@@ -2,13 +2,16 @@
 
 These folders are imported into the app's Documents/TouchControlThemes folder. They are separate from the iOS app target, so adding or changing a theme does not require rebuilding the IPA.
 
-## Included themes
+## Built-in themes
 
-- Forest: a forest-green palette with gold outlines and per-button accents.
+- `ANIMAL WELL` — the default touch control theme.
+- `CLASSIC` — the classic neutral-gray theme.
+
+These are the only themes bundled with the app. Other themes can still be imported by the user.
 
 ## Installing a theme
 
-1. Open the launcher and choose **Import control skin…**, or open the in-game control editor and choose **Import Theme…**.
+1. Open the launcher and choose **Import touch controls theme**, or open the in-game control editor and choose **Import Theme…**.
 2. Select the individual theme folder (for example, `Forest`). You can also select this `TouchControlThemes` parent folder when it contains exactly one valid theme folder.
 3. Choose the installed theme from **Control skin** in the launcher, or from the in-game editor's **Theme** menu.
 
