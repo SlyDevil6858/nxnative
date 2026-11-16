@@ -17,6 +17,7 @@
 #import <GameController/GameController.h>
 #import <CoreMotion/CoreMotion.h>
 #import <CoreText/CoreText.h>
+#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 #include <pthread.h>
 #include "dm.h"
 #include "dm_input.h"
@@ -130,7 +131,7 @@ static const int k_btns[] = {B_ZL, B_L, B_ZR, B_R, B_MINUS, B_PLUS, B_LS, B_RS};
 static NSString *const k_layout_key = @"DmPadLayout";   // NSUserDefaults: 0 = 2D, 1 = 3D, 2 = Tap (DM_GAME_PAD_LAYOUT's numbers)
 int dm_opmode(void);   // hle_oe.c: 0 = handheld
 
-@interface DmGamepad : UIView <UIGestureRecognizerDelegate>
+@interface DmGamepad : UIView <UIGestureRecognizerDelegate, UIDocumentPickerDelegate>
 @end
 static __weak DmGamepad *g_view;
 static void pads_start(void);   // Physical controllers, below
@@ -152,6 +153,9 @@ static void pads_start(void);   // Physical controllers, below
     NSMutableDictionary<NSString *, CALayer *> *_skinItems; NSDictionary<NSString *, UIImage *> *_skinImages; BOOL _customSkin; // one image layer per control; native touch hit-testing stays unchanged
     BOOL _padOff;                                  // a physical controller is connected: every touch goes to the game
     BOOL _builtInSkinExportChecked;
+    NSDictionary<NSString *, UIColor *> *_themeButtonColors;
+    NSString *_themeName;
+    UIButton *_themeButton;
     NSMutableDictionary *_custom;
     DmPadProfiles *_profiles;
     BOOL _editing, _editWasTap;
@@ -169,33 +173,18 @@ static void pads_start(void);   // Physical controllers, below
 }
 
 static UIColor *k_idle, *k_on, *k_line, *k_ringFill, *k_text, *k_textOn;
-static BOOL g_forestTheme;
-static UIColor *forestColor(int b, BOOL pressed) {
-    UIColor *base;
-    if (b == B_A) base = [UIColor colorWithRed:0.08 green:0.43 blue:0.78 alpha:1];          // blue A
-    else if (b == B_B) base = [UIColor colorWithRed:0.13 green:0.48 blue:0.25 alpha:1];    // green B
-    else if (b == B_X || b == B_Y) base = [UIColor colorWithRed:0.82 green:0.61 blue:0.16 alpha:1]; // yellow X / Y
-    else if (b == B_PLUS) base = [UIColor colorWithRed:0.72 green:0.17 blue:0.15 alpha:1]; // red +
-    else if (b == B_L || b == B_R || b == B_ZL || b == B_ZR || b == B_LS || b == B_RS)
-        base = [UIColor colorWithRed:0.07 green:0.28 blue:0.17 alpha:1];                  // forest shoulders / clicks
-    else if (b >= B_LEFT) base = [UIColor colorWithRed:0.48 green:0.29 blue:0.15 alpha:1]; // bronze D-pad
-    else base = [UIColor colorWithRed:0.16 green:0.37 blue:0.25 alpha:1];                  // stick / minus
-    return [base colorWithAlphaComponent:pressed ? 0.92 : 0.36];
+static UIColor *themeHex(NSString *value) {
+    if (![value isKindOfClass:NSString.class]) return nil;
+    NSString *hex = [[value stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"# "]] uppercaseString];
+    if (hex.length != 6) return nil;
+    unsigned int rgb = 0; NSScanner *scanner = [NSScanner scannerWithString:hex];
+    if (![scanner scanHexInt:&rgb]) return nil;
+    return [UIColor colorWithRed:((rgb >> 16) & 255)/255.0 green:((rgb >> 8) & 255)/255.0 blue:(rgb & 255)/255.0 alpha:1];
 }
 static void theme_init(void) {
-    const char *theme = getenv("DM_PAD_THEME");
-    g_forestTheme = theme && !strcmp(theme, "forest");
-    if (g_forestTheme) {
-        k_idle = [UIColor colorWithRed:0.16 green:0.37 blue:0.25 alpha:0.36];
-        k_on = [UIColor colorWithRed:0.22 green:0.48 blue:0.30 alpha:0.92];
-        k_line = [UIColor colorWithRed:0.86 green:0.68 blue:0.31 alpha:0.88];
-        k_ringFill = [UIColor colorWithRed:0.13 green:0.31 blue:0.20 alpha:0.25];
-        k_text = [UIColor colorWithRed:0.98 green:0.91 blue:0.74 alpha:0.96];
-        k_textOn = [UIColor colorWithRed:0.07 green:0.17 blue:0.10 alpha:1];
-    } else {
-        k_idle = [UIColor colorWithWhite:1 alpha:0.14]; k_on = [UIColor colorWithWhite:1 alpha:0.45]; k_line = [UIColor colorWithWhite:1 alpha:0.38];
-        k_ringFill = [UIColor colorWithWhite:1 alpha:0.06]; k_text = [UIColor colorWithWhite:1 alpha:0.6]; k_textOn = [UIColor colorWithWhite:0 alpha:0.7];
-    }
+    k_idle = [UIColor colorWithWhite:1 alpha:0.14]; k_on = [UIColor colorWithWhite:1 alpha:0.45];
+    k_line = [UIColor colorWithWhite:1 alpha:0.38]; k_ringFill = [UIColor colorWithWhite:1 alpha:0.06];
+    k_text = [UIColor colorWithWhite:1 alpha:0.6]; k_textOn = [UIColor colorWithWhite:0 alpha:0.7];
 }
 static CAShapeLayer *shape(CALayer *parent) {
     CAShapeLayer *l = [CAShapeLayer layer];
@@ -220,10 +209,8 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
         }
         _owner = [NSMapTable strongToStrongObjectsMapTable]; _faceOf = [NSMapTable strongToStrongObjectsMapTable];
         static dispatch_once_t once;
-        dispatch_once(&once, ^{
-            // Theme colours are initialised once before any control layers are created.
-            theme_init();
-        });
+        dispatch_once(&once, ^{ theme_init(); });
+        [self loadSelectedTheme];
         _controls = [CALayer layer]; [self.layer addSublayer:_controls];
         _ring = shape(_controls); _ring.fillColor = k_ringFill.CGColor;
         _knob = shape(_controls);
@@ -762,7 +749,7 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     [CATransaction begin]; [CATransaction setDisableActions:YES];
     CGRect safe=self.safe;
     if (!CGRectEqualToRect(safe,_lastSafe)) { _lastSafe=safe; if (!_editing) [self reset]; }
-    _tools.frame=CGRectMake(CGRectGetMidX(safe)-160,CGRectGetMidY(safe)-112,320,224);
+    _tools.frame=CGRectMake(CGRectGetMidX(safe)-160,CGRectGetMidY(safe)-132,320,264);
     _controls.frame = self.layer.bounds;
     for (int b = B_A; b <= B_Y; b++) { CGPoint c = [self facePos:b]; setPath(_key[b], circlePath(c, [self faceRadius:b])); placeLabel(_label[b], c, 20 * u * [self scale:b]); }
     for (int i = 0; i < (int)(sizeof k_btns / sizeof *k_btns); i++) { int b = k_btns[i];
@@ -805,24 +792,145 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     [CATransaction begin]; [CATransaction setDisableActions:YES];
     for (int b = 0; b < B_N; b++) {
         BOOL on = (all >> b) & 1;
-        UIColor *idle = g_forestTheme ? forestColor(b, NO) : k_idle;
-        UIColor *pressed = g_forestTheme ? forestColor(b, YES) : k_on;
-        _key[b].fillColor = (on ? pressed : idle).CGColor;
+        _key[b].fillColor = [self themeColorForButton:b pressed:on].CGColor;
         _key[b].strokeColor = k_line.CGColor;
         _label[b].foregroundColor = (on ? k_textOn : k_text).CGColor;
         _key[b].opacity = [self opacity:(b >= B_LEFT ? 17 : b)];
     }
     _ring.opacity = _knob.opacity = [self opacity:16];
-    _ring.fillColor = g_forestTheme ? k_ringFill.CGColor : k_ringFill.CGColor;
+    _ring.fillColor = k_ringFill.CGColor;
     _ring.strokeColor = k_line.CGColor; _knob.strokeColor = k_line.CGColor;
-    UIColor *swapIdle = g_forestTheme ? [UIColor colorWithRed:0.16 green:0.37 blue:0.25 alpha:0.36] : k_idle;
-    UIColor *swapPressed = g_forestTheme ? [UIColor colorWithRed:0.22 green:0.48 blue:0.30 alpha:0.92] : k_on;
-    _swap.fillColor = (_swapHeld ? swapPressed : swapIdle).CGColor;
+    _swap.fillColor = [self themeColorForButton:B_N pressed:_swapHeld].CGColor;
     _swap.strokeColor = k_line.CGColor; _swapLabel.foregroundColor = (_swapHeld ? k_textOn : k_text).CGColor;
     CGPoint h = self.stickHome, o = [self knobOffset:0];
-    _knob.position = CGPointMake(h.x + o.x, h.y + o.y); _knob.fillColor = (_stick[0] ? (g_forestTheme ? forestColor(B_LS, YES) : k_on) : (g_forestTheme ? forestColor(B_LS, NO) : k_idle)).CGColor;
+    _knob.position = CGPointMake(h.x + o.x, h.y + o.y); _knob.fillColor = [self themeColorForButton:B_LS pressed:_stick[0] != nil].CGColor;
     [CATransaction commit];
 }
+
+
+static NSString *const k_theme_path_key = @"DmTouchControlThemePath";
+static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
+- (NSURL *)themesDirectoryCreating:(BOOL)create {
+    NSURL *docs=[NSFileManager.defaultManager URLForDirectory:NSDocumentDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:nil];
+    NSURL *dir=[docs URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES];
+    if (create && ![NSFileManager.defaultManager fileExistsAtPath:dir.path])
+        [NSFileManager.defaultManager createDirectoryAtURL:dir withIntermediateDirectories:YES attributes:nil error:nil];
+    return dir;
+}
+- (BOOL)loadThemeAtPath:(NSString *)path {
+    if (!path.length) return NO;
+    NSData *data=[NSData dataWithContentsOfFile:[path stringByAppendingPathComponent:@"theme.json"]];
+    if (!data) return NO;
+    NSDictionary *json=[NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+    if (![json isKindOfClass:NSDictionary.class]) return NO;
+    NSDictionary *palette=json[@"palette"], *buttons=json[@"buttons"];
+    if (![palette isKindOfClass:NSDictionary.class]) return NO;
+    UIColor *idle=themeHex(palette[@"idle"]), *pressed=themeHex(palette[@"pressed"]);
+    UIColor *outline=themeHex(palette[@"outline"]), *ring=themeHex(palette[@"ringFill"]);
+    UIColor *text=themeHex(palette[@"text"]), *pressedText=themeHex(palette[@"pressedText"]);
+    if (!idle || !pressed || !outline || !ring || !text || !pressedText) return NO;
+    NSMutableDictionary *parsed=[NSMutableDictionary dictionary];
+    if ([buttons isKindOfClass:NSDictionary.class]) for (NSString *key in buttons) {
+        UIColor *color=themeHex(buttons[key]); if (color) parsed[key]=color;
+    }
+    k_idle=[idle colorWithAlphaComponent:0.36]; k_on=[pressed colorWithAlphaComponent:0.92];
+    k_line=[outline colorWithAlphaComponent:0.88]; k_ringFill=[ring colorWithAlphaComponent:0.25];
+    k_text=[text colorWithAlphaComponent:0.96]; k_textOn=pressedText;
+    _themeButtonColors=parsed;
+    _themeName=[json[@"name"] isKindOfClass:NSString.class] && [json[@"name"] length] ? json[@"name"] : path.lastPathComponent;
+    return YES;
+}
+- (BOOL)loadSelectedTheme {
+    NSString *path=[NSUserDefaults.standardUserDefaults stringForKey:k_theme_path_key];
+    if (path.length && [self loadThemeAtPath:path]) return YES;
+    [NSUserDefaults.standardUserDefaults removeObjectForKey:k_theme_path_key];
+    [NSUserDefaults.standardUserDefaults setObject:@"Classic" forKey:k_theme_name_key];
+    _themeName=@"Classic"; _themeButtonColors=@{}; theme_init(); return NO;
+}
+- (UIColor *)themeColorForButton:(int)b pressed:(BOOL)pressed {
+    NSString *key=nil;
+    switch (b) {
+        case B_A:key=@"A";break; case B_B:key=@"B";break; case B_X:key=@"X";break; case B_Y:key=@"Y";break;
+        case B_LS:case B_RS:key=@"Stick";break; case B_L:key=@"L";break; case B_R:key=@"R";break;
+        case B_ZL:key=@"ZL";break; case B_ZR:key=@"ZR";break; case B_PLUS:key=@"Plus";break;
+        case B_MINUS:key=@"Minus";break; default:if (b>=B_LEFT) key=@"Dpad";break;
+    }
+    UIColor *base=key ? _themeButtonColors[key] : nil;
+    if (!base && b==B_N) base=_themeButtonColors[@"Layout"];
+    if (!base) return pressed ? k_on : k_idle;
+    return [base colorWithAlphaComponent:pressed ? 0.92 : 0.36];
+}
+- (void)applyThemePath:(NSString *)path name:(NSString *)name {
+    if (![self loadThemeAtPath:path]) return;
+    [NSUserDefaults.standardUserDefaults setObject:path forKey:k_theme_path_key];
+    [NSUserDefaults.standardUserDefaults setObject:_themeName ?: name forKey:k_theme_name_key];
+    [self refresh]; [self setNeedsLayout]; [self layoutIfNeeded]; [self updateEditor];
+}
+- (void)updateThemeMenu {
+    NSString *current=[NSUserDefaults.standardUserDefaults stringForKey:k_theme_name_key] ?: @"Classic";
+    [_themeButton setTitle:[NSString stringWithFormat:@"Theme: %@ ▾",current] forState:UIControlStateNormal];
+    NSMutableArray *items=[NSMutableArray array];
+    UIAction *classic=[UIAction actionWithTitle:@"Classic" image:nil identifier:nil handler:^(__unused UIAction *a) {
+        [NSUserDefaults.standardUserDefaults removeObjectForKey:k_theme_path_key];
+        [NSUserDefaults.standardUserDefaults setObject:@"Classic" forKey:k_theme_name_key];
+        self->_themeName=@"Classic"; self->_themeButtonColors=@{}; theme_init();
+        [self refresh]; [self updateEditor];
+    }];
+    classic.state=[current isEqualToString:@"Classic"]?UIMenuElementStateOn:UIMenuElementStateOff; [items addObject:classic];
+    NSArray<NSURL *> *folders=[NSFileManager.defaultManager contentsOfDirectoryAtURL:[self themesDirectoryCreating:YES]
+        includingPropertiesForKeys:nil options:NSDirectoryEnumerationSkipsHiddenFiles error:nil];
+    for (NSURL *folder in folders) {
+        BOOL isDir=NO; if (![NSFileManager.defaultManager fileExistsAtPath:folder.path isDirectory:&isDir] || !isDir) continue;
+        NSString *title=folder.lastPathComponent, *themePath=folder.path;
+        NSData *data=[NSData dataWithContentsOfFile:[themePath stringByAppendingPathComponent:@"theme.json"]];
+        NSDictionary *json=data?[NSJSONSerialization JSONObjectWithData:data options:0 error:nil]:nil;
+        if (![json isKindOfClass:NSDictionary.class] || ![json[@"palette"] isKindOfClass:NSDictionary.class]) continue;
+        UIAction *pick=[UIAction actionWithTitle:title image:nil identifier:nil handler:^(__unused UIAction *a) {
+            [self applyThemePath:themePath name:title];
+        }];
+        pick.state=[current isEqualToString:title]?UIMenuElementStateOn:UIMenuElementStateOff; [items addObject:pick];
+    }
+    _themeButton.menu=[UIMenu menuWithTitle:@"Touch Control Theme" children:items];
+    _themeButton.showsMenuAsPrimaryAction=YES;
+}
+- (void)importThemeFolder {
+    UIDocumentPickerViewController *picker=[[UIDocumentPickerViewController alloc] initForOpeningContentTypes:@[UTType.folder] asCopy:NO];
+    picker.delegate=self;
+    UIViewController *presenter=[self editorPresenter];
+    if (presenter) [presenter presentViewController:picker animated:YES completion:nil];
+}
+- (void)documentPicker:(UIDocumentPickerViewController *)controller didPickDocumentsAtURLs:(NSArray<NSURL *> *)urls {
+    (void)controller;
+    NSURL *source=urls.firstObject; if (!source) return;
+    BOOL scoped=[source startAccessingSecurityScopedResource];
+    @try {
+        NSData *data=[NSData dataWithContentsOfURL:[source URLByAppendingPathComponent:@"theme.json"]];
+        NSDictionary *json=data?[NSJSONSerialization JSONObjectWithData:data options:0 error:nil]:nil;
+        NSDictionary *palette=[json isKindOfClass:NSDictionary.class]?json[@"palette"]:nil;
+        NSArray *required=@[@"idle",@"pressed",@"outline",@"ringFill",@"text",@"pressedText"];
+        NSMutableArray *missing=[NSMutableArray array];
+        for (NSString *key in required) if (!themeHex(palette[key])) [missing addObject:key];
+        if (missing.count) {
+            UIAlertController *alert=[UIAlertController alertControllerWithTitle:@"Invalid Theme Folder"
+                message:@"The folder needs a valid theme.json with all six palette colors." preferredStyle:UIAlertControllerStyleAlert];
+            [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+            [[self editorPresenter] presentViewController:alert animated:YES completion:nil]; return;
+        }
+        NSString *folderName=[json[@"name"] isKindOfClass:NSString.class] && [json[@"name"] length]?json[@"name"]:source.lastPathComponent;
+        NSString *safeName=[[folderName componentsSeparatedByCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"/:"]] componentsJoinedByString:@"_"];
+        NSURL *destination=[[self themesDirectoryCreating:YES] URLByAppendingPathComponent:safeName isDirectory:YES];
+        NSFileManager *fm=NSFileManager.defaultManager; NSError *error=nil;
+        if ([fm fileExistsAtPath:destination.path]) [fm removeItemAtURL:destination error:nil];
+        if (![fm copyItemAtURL:source toURL:destination error:&error]) {
+            UIAlertController *alert=[UIAlertController alertControllerWithTitle:@"Theme Import Failed" message:error.localizedDescription
+                preferredStyle:UIAlertControllerStyleAlert];
+            [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+            [[self editorPresenter] presentViewController:alert animated:YES completion:nil]; return;
+        }
+        [self applyThemePath:destination.path name:safeName];
+    } @finally { if (scoped) [source stopAccessingSecurityScopedResource]; }
+}
+- (void)documentPickerWasCancelled:(UIDocumentPickerViewController *)controller { (void)controller; }
 
 // ---- In-game touch-control editor and named profiles ----
 - (UIButton *)editorButton:(NSString *)title action:(SEL)action frame:(CGRect)frame parent:(UIView *)parent {
@@ -863,9 +971,12 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     _editInfo=[[UILabel alloc] initWithFrame:CGRectMake(8,184,304,32)];
     _editInfo.numberOfLines=2; _editInfo.font=[UIFont systemFontOfSize:11];
     _editInfo.textColor=UIColor.whiteColor; [_tools addSubview:_editInfo];
+    _themeButton=[self editorButton:@"Theme: Classic ▾" action:NULL frame:CGRectMake(8,220,190,32) parent:_tools];
+    [self editorButton:@"Import Theme…" action:@selector(importThemeFolder) frame:CGRectMake(204,220,108,32) parent:_tools];
 }
 - (void)updateEditor {
     [self updateProfileMenu];
+    [self updateThemeMenu];
     [_chooseButton setTitle:[NSString stringWithFormat:@"%@ ▾",[self controlID:_selected]] forState:UIControlStateNormal];
     _sizeSlider.value=[self scale:_selected];
     NSNumber *alpha=_custom[[self controlID:_selected]][@"alpha"];
