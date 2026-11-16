@@ -91,6 +91,63 @@ private struct DocumentPicker: UIViewControllerRepresentable {
     }
 }
 
+
+/// Lets the user install or remove a folder-based touch-control skin before launching the game.
+private struct TouchControlSkinsSection: View {
+    @State private var importing = false
+    @State private var status = ""
+    @State private var activePath = UserDefaults.standard.string(forKey: "DmTouchControlSkinPath") ?? ""
+
+    var body: some View {
+        Section {
+            HStack {
+                Text("Touch control skin")
+                Spacer()
+                Text(activePath.isEmpty ? "Built-in" : "Custom").foregroundStyle(.secondary)
+            }
+            Button("Import a skin folder…") { importing = true }
+            Button("Use built-in controls", role: .destructive) {
+                UserDefaults.standard.removeObject(forKey: "DmTouchControlSkinPath")
+                activePath = ""
+                status = "Built-in touch controls will be used the next time the game starts."
+            }
+            .disabled(activePath.isEmpty)
+        } footer: {
+            Text(status.isEmpty
+                 ? "Import a folder containing skin-2d.png and skin-3d.png. Start with the supplied Photoshop-friendly SVG templates. Artwork does not change touch positions or button mappings."
+                 : status)
+        }
+        .fileImporter(isPresented: $importing, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
+            switch result {
+            case .success(let urls):
+                guard let source = urls.first else { return }
+                let scoped = source.startAccessingSecurityScopedResource()
+                defer { if scoped { source.stopAccessingSecurityScopedResource() } }
+                do {
+                    let fm = FileManager.default
+                    let twoD = source.appendingPathComponent("skin-2d.png")
+                    let threeD = source.appendingPathComponent("skin-3d.png")
+                    guard fm.fileExists(atPath: twoD.path), fm.fileExists(atPath: threeD.path) else {
+                        status = "That folder needs both skin-2d.png and skin-3d.png."
+                        return
+                    }
+                    let docs = try fm.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+                    let destination = docs.appendingPathComponent("TouchControlSkin", isDirectory: true)
+                    if fm.fileExists(atPath: destination.path) { try fm.removeItem(at: destination) }
+                    try fm.copyItem(at: source, to: destination)
+                    UserDefaults.standard.set(destination.path, forKey: "DmTouchControlSkinPath")
+                    activePath = destination.path
+                    status = "Custom skin imported. It will be used when the game starts."
+                } catch {
+                    status = "Could not import that folder: \(error.localizedDescription)"
+                }
+            case .failure(let error):
+                status = "Import failed: \(error.localizedDescription)"
+            }
+        }
+    }
+}
+
 private struct LauncherView: View {
     @ObservedObject var m: LauncherModel
     let play: () -> Void
@@ -129,6 +186,7 @@ private struct LauncherView: View {
                         Text("Brings back all settings this game was tested with.")
                     }
                     CloudSavesSection()
+                    TouchControlSkinsSection()
                     Section {
                         HStack {
                             Text("Memory available")
