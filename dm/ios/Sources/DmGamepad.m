@@ -216,7 +216,7 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
     if (!path.length) return;
     NSArray<NSString *> *names = @[@"a", @"b", @"x", @"y", @"stick-base", @"stick-knob",
         @"zl", @"l", @"zr", @"r", @"minus", @"plus", @"layout",
-        @"dpad-up", @"dpad-down", @"dpad-left", @"dpad-right", @"l3", @"r3"];
+        @"dpad-up", @"dpad-down", @"dpad-left", @"dpad-right", @"l3", @"r3", @"right-stick-base", @"right-stick-knob"];
     NSMutableDictionary *images = [NSMutableDictionary dictionary];
     for (NSString *name in names) {
         UIImage *image = [UIImage imageWithContentsOfFile:[path stringByAppendingPathComponent:[name stringByAppendingString:@".png"]]];
@@ -267,6 +267,10 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
     CGFloat dpadD = self.dpadR * 2; CGPoint dc = self.dpadCenter;
     for (NSString *name in @[@"dpad-up",@"dpad-down",@"dpad-left",@"dpad-right"])
         [self placeSkinItem:name center:dc size:CGSizeMake(dpadD,dpadD) hidden:_tap || !_full];
+    CGFloat rightD = [self stickR:1] * 2;
+    BOOL rightActive = _full && !_tap && _stick[1] != nil;
+    [self placeSkinItem:@"right-stick-base" center:_rCentre size:CGSizeMake(rightD,rightD) hidden:!rightActive];
+    [self placeSkinItem:@"right-stick-knob" center:_stickNow[1] size:CGSizeMake(knobD,knobD) hidden:!rightActive];
 }
 - (void)applyLayout {   // show / hide the controls for the current layout
     [CATransaction begin]; [CATransaction setDisableActions:YES];
@@ -515,6 +519,7 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     _swap.fillColor = (_swapHeld ? k_on : k_idle).CGColor; _swapLabel.foregroundColor = (_swapHeld ? k_textOn : k_text).CGColor;
     CGPoint h = self.stickHome, o = [self knobOffset:0];
     _knob.position = CGPointMake(h.x + o.x, h.y + o.y); _knob.fillColor = (_stick[0] ? k_on : k_idle).CGColor;
+    [self layoutSkinItems];
     [CATransaction commit];
 }
 
