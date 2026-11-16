@@ -228,9 +228,8 @@ private struct LauncherView: View {
                                             confirmingThemeDeletion = true
                                         }
                                     }
-                                    (Text("Quick tip: ").foregroundColor(accentColor).fontWeight(.semibold)
-                                     + Text("During gameplay, press and hold the 2D or 3D button, or hold Select on your controller, to open the in-game control menu."))
-                                        .foregroundColor(Color(white: 0.82))
+                                    Text("Quick tip: During gameplay, press and hold the 2D or 3D button, or hold Select on your controller, to open the in-game control menu.")
+                                        .foregroundStyle(Color(white: 0.58))
                                         .font(.footnote)
                                         .fixedSize(horizontal: false, vertical: true)
                                         .frame(maxWidth: .infinity, alignment: .leading)
