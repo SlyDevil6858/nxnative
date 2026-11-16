@@ -1241,8 +1241,14 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             if (distance<best) { best=distance; closest=b; }
         }
         if (closest<0) return;
-        _selected=(int)closest; _dragTouch=touch; _dragStart=start;
-        [self updateEditor]; _dragHome=[self controlCenter:_selected]; return;
+        BOOL allSelected=(_selected<0);
+        _dragTouch=touch; _dragStart=start; _dragHome=[self controlCenter:(int)closest];
+        if (allSelected) {
+            NSMutableDictionary *homes=[NSMutableDictionary dictionary];
+            for (int b=0;b<18;b++) if ([self editable:b]) homes[[self controlID:b]]=[NSValue valueWithCGPoint:[self controlCenter:b]];
+            _dragAllHomes=[homes copy];
+        } else { _selected=(int)closest; _dragAllHomes=nil; }
+        [self updateEditor]; return;
     }
     if (_dragTouch && [touches containsObject:_dragTouch]) {
         CGPoint point=[_dragTouch locationInView:self];
