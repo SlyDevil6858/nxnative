@@ -1562,6 +1562,15 @@ static BOOL pads_slotted(GCController *gone) {
     [super viewDidLayoutSubviews];
     _pad.frame=self.view.bounds;
     _closeButton.frame=CGRectMake(CGRectGetWidth(self.view.bounds)-88, self.view.safeAreaInsets.top+8, 76, 36);
+
+    // LauncherView's background is attached to its safe-area-sized GeometryReader and
+    // then ignores the safe area. Keep the image's center aligned to that same region
+    // instead of centering it on the editor's full-screen bounds.
+    UIEdgeInsets insets=self.view.safeAreaInsets;
+    _backgroundImageView.transform=CGAffineTransformMakeTranslation(
+        (insets.left-insets.right)*0.5,
+        (insets.top-insets.bottom)*0.5
+    );
 }
 - (void)viewDidAppear:(BOOL)animated {
     [super viewDidAppear:animated];
