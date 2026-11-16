@@ -172,6 +172,7 @@ static void pads_start(void);   // Physical controllers, below
     CGPoint _dragStart, _dragHome;
     CGRect _lastSafe;
     UIButton *_chooseButton, *_profileButton, *_saveAsButton;
+    UILabel *_menuTip;
     UILongPressGestureRecognizer *_editHold;
     UIView *_tools;
     UISlider *_sizeSlider, *_alphaSlider;
@@ -254,6 +255,30 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
         _editHold.minimumPressDuration=0.6; _editHold.cancelsTouchesInView=YES; _editHold.delegate=self;
         [self addGestureRecognizer:_editHold];
         [self applyLayout];
+        if (!g_launcher_preview && ![NSUserDefaults.standardUserDefaults boolForKey:@"DmPadMenuTipShown"]) {
+            // A one-time hint points out the 2D / 3D layout button without covering the game.
+            _menuTip=[UILabel new];
+            _menuTip.text=@"Tap 2D or 3D to open the in-game menu";
+            _menuTip.textColor=UIColor.whiteColor;
+            _menuTip.font=[UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
+            _menuTip.textAlignment=NSTextAlignmentCenter;
+            _menuTip.numberOfLines=2;
+            _menuTip.backgroundColor=[UIColor colorWithWhite:0.05 alpha:0.92];
+            _menuTip.layer.cornerRadius=9;
+            _menuTip.layer.masksToBounds=YES;
+            _menuTip.layer.borderWidth=1;
+            _menuTip.layer.borderColor=[UIColor colorWithWhite:1 alpha:0.22].CGColor;
+            _menuTip.alpha=0;
+            [self addSubview:_menuTip];
+            [NSUserDefaults.standardUserDefaults setBool:YES forKey:@"DmPadMenuTipShown"];
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [UIView animateWithDuration:0.25 animations:^{ self->_menuTip.alpha=1; }];
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(6 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                    [UIView animateWithDuration:0.35 animations:^{ self->_menuTip.alpha=0; }
+                                     completion:^(__unused BOOL finished) { [self->_menuTip removeFromSuperview]; self->_menuTip=nil; }];
+                });
+            });
+        }
         if (!g_launcher_preview) {
             NSNotificationCenter *nc = NSNotificationCenter.defaultCenter;
             [nc addObserver:self selector:@selector(padsChanged:) name:GCControllerDidConnectNotification object:nil];
@@ -768,6 +793,10 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     [super layoutSubviews];
     UIWindowScene *ws = self.window.windowScene; if (ws) atomic_store(&g_iface_orient, (int)ws.effectiveGeometry.interfaceOrientation);
     CGFloat u = self.u;
+    if (_menuTip) {
+        CGFloat tipWidth=MIN(300, self.bounds.size.width-32);
+        _menuTip.frame=CGRectMake((self.bounds.size.width-tipWidth)/2, self.safeAreaInsets.top+44, tipWidth, 42);
+    }
     [CATransaction begin]; [CATransaction setDisableActions:YES];
     CGRect safe=self.safe;
     if (!CGRectEqualToRect(safe,_lastSafe)) { _lastSafe=safe; if (!_editing) [self reset]; }
