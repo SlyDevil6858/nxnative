@@ -937,7 +937,18 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
         @"y":@((point.y-safe.origin.y)/safe.size.height),@"scale":@(_sizeSlider.value),@"alpha":@(_alphaSlider.value)};
     [self updateEditor]; [self setNeedsLayout];
 }
-- (void)adjustControl { [self storeControlAt:[self controlCenter:_selected]]; }
+- (void)adjustControl {
+    NSString *key=[self controlID:_selected];
+    float requestedScale=_sizeSlider.value;
+    // Scale is independent of position. Do not route slider changes through
+    // storeControlAt:, which also writes coordinates and can move untouched
+    // controls while the editor is being refreshed.
+    NSMutableDictionary *value=[_custom[key] mutableCopy] ?: [NSMutableDictionary dictionary];
+    value[@"scale"]=@(requestedScale);
+    _custom[key]=value;
+    _editInfo.text=[NSString stringWithFormat:@"Size %.0f%% · Opacity %.0f%%\nDrag a control to move it.",requestedScale*100,_alphaSlider.value*100];
+    [self refresh];
+}
 - (void)adjustOpacityControl {
     NSString *key=[self controlID:_selected];
     float requestedAlpha=_alphaSlider.value;
