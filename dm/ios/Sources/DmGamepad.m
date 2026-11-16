@@ -483,8 +483,10 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
 }
 
 
-// Export native artwork through a fresh off-screen layer tree for each PNG.
-// The live gamepad layers are never hidden, moved, recoloured or otherwise modified.
+// Export native artwork by rendering a copy of the complete control layer tree.
+// Individual CAShapeLayers rely on the parent coordinate space; archiving a single
+// shape layer loses that context and produces blank PNGs. Only the copied siblings
+// are hidden, never the live controls.
 - (void)exportBuiltInSkin {
     if (self.bounds.size.width <= 0 || self.bounds.size.height <= 0) return;
     [CATransaction flush];
@@ -521,10 +523,6 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     rects[@"dpad-down"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(dc.x-dr,dc.y,2*dr,dr+pad),-pad,-pad)];
     rects[@"dpad-left"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(dc.x-dr,dc.y-dr,dr+pad,2*dr),-pad,-pad)];
     rects[@"dpad-right"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(dc.x,dc.y-dr,dr+pad,2*dr),-pad,-pad)];
-    CGFloat rr=[self stickR:1], rkr=K_KNOB_R*self.u;
-    CGPoint rc=CGPointMake(CGRectGetMaxX(self.bounds)-rr-24*self.u,CGRectGetMidY(self.bounds));
-    rects[@"right-stick-base"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(rc.x-rr,rc.y-rr,2*rr,2*rr),-pad,-pad)];
-    rects[@"right-stick-knob"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(rc.x-rkr,rc.y-rkr,2*rkr,2*rkr),-pad,-pad)];
 
     NSMutableDictionary<NSString *, CALayer *> *sources=[NSMutableDictionary dictionary];
     for (int b=B_A; b<=B_Y; b++) sources[@[@"a", @"b", @"x", @"y"][b]]=_key[b];
@@ -534,7 +532,6 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     sources[@"dpad-up"]=_key[B_UP]; sources[@"dpad-down"]=_key[B_DOWN];
     sources[@"dpad-left"]=_key[B_LEFT]; sources[@"dpad-right"]=_key[B_RIGHT];
     sources[@"l3"]=_key[B_LS]; sources[@"r3"]=_key[B_RS];
-    sources[@"right-stick-base"]=_ring; sources[@"right-stick-knob"]=_knob;
 
     NSURL *docs=[NSFileManager.defaultManager URLForDirectory:NSDocumentDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:nil];
     NSURL *folder=[[docs URLByAppendingPathComponent:@"TouchControlSkins" isDirectory:YES] URLByAppendingPathComponent:@"Default" isDirectory:YES];
@@ -543,32 +540,40 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
         LOG("touch skin export: cannot create folder: %s", dirError.localizedDescription.UTF8String ?: "?");
         return;
     }
+    NSError *archiveError=nil;
+    NSData *archive=[NSKeyedArchiver archivedDataWithRootObject:_controls requiringSecureCoding:NO error:&archiveError];
+    if (!archive) {
+        LOG("touch skin export: could not copy control layer tree: %s", archiveError.localizedDescription.UTF8String ?: "?");
+        return;
+    }
+
     NSMutableArray<NSString *> *failed=[NSMutableArray array];
     CGFloat scale=UIScreen.mainScreen.scale;
     UIGraphicsImageRendererFormat *format=[UIGraphicsImageRendererFormat defaultFormat];
     format.scale=scale; format.opaque=NO;
 
     for (NSString *name in names) {
-        CALayer *source=sources[name];
-        CGRect cropRect=CGRectIntersection(rects[name].CGRectValue,self.bounds);
-        if (!source || CGRectIsEmpty(cropRect)) { [failed addObject:name]; continue; }
+        // The right stick uses the same native artwork as the left stick; it is
+        // normally gesture-driven and has no separately drawn native control.
+        NSString *renderName = [name isEqual:@"right-stick-base"] ? @"stick-base" :
+                               [name isEqual:@"right-stick-knob"] ? @"stick-knob" : name;
+        CALayer *source=sources[renderName];
+        NSUInteger index=[_controls.sublayers indexOfObjectIdenticalTo:source];
+        CGRect cropRect=CGRectIntersection(rects[renderName].CGRectValue,self.bounds);
+        if (!source || index==NSNotFound || CGRectIsEmpty(cropRect)) { [failed addObject:name]; continue; }
 
-        // Archiving the selected layer also preserves its nested text/inner-ring layers.
-        NSError *archiveError=nil;
-        NSData *archive=[NSKeyedArchiver archivedDataWithRootObject:source requiringSecureCoding:NO error:&archiveError];
-        CALayer *isolated=archive ? [NSKeyedUnarchiver unarchiveTopLevelObjectWithData:archive error:nil] : nil;
-        if (!isolated) { [failed addObject:name]; continue; }
-        isolated.hidden=NO;
-        if ([name hasPrefix:@"right-stick-"]) {
-            CGPoint target=rc;
-            isolated.affineTransform=CGAffineTransformMakeTranslation(target.x-sh.x,target.y-sh.y);
-        }
-
-        // This temporary canvas contains exactly one control; no neighbouring live
-        // control can appear in the resulting bitmap.
+        NSError *copyError=nil;
         CALayer *canvas=[CALayer layer];
         canvas.frame=self.bounds; canvas.bounds=self.bounds;
-        [canvas addSublayer:isolated];
+        CALayer *copiedRoot=[NSKeyedUnarchiver unarchiveTopLevelObjectWithData:archive error:&copyError];
+        if (!copiedRoot || index >= copiedRoot.sublayers.count) { [failed addObject:name]; continue; }
+        copiedRoot.frame=self.bounds; copiedRoot.bounds=self.bounds; copiedRoot.hidden=NO;
+        NSArray<CALayer *> *copiedChildren=[copiedRoot.sublayers copy];
+        CALayer *target=copiedChildren[index];
+        for (CALayer *sibling in copiedChildren) sibling.hidden = (sibling != target);
+        target.hidden=NO;
+        [canvas addSublayer:copiedRoot];
+
         UIImage *whole=[[[UIGraphicsImageRenderer alloc] initWithSize:self.bounds.size format:format] imageWithActions:^(UIGraphicsImageRendererContext *ctx) {
             [canvas renderInContext:ctx.CGContext];
         }];
@@ -592,7 +597,6 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     if (failed.count) LOG("touch skin export: failed controls: %s", [failed componentsJoinedByString:@", "].UTF8String);
     else LOG("touch skin export: wrote 21 isolated PNGs to Documents/TouchControlSkins/Default");
 }
-
 - (void)layoutSubviews {
     [super layoutSubviews];
     UIWindowScene *ws = self.window.windowScene; if (ws) atomic_store(&g_iface_orient, (int)ws.effectiveGeometry.interfaceOrientation);
