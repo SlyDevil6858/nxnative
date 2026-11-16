@@ -24,3 +24,6 @@ void dm_clear_cloud_saves(void);
 /// security scope held for the session. A DM_SAVE_SYNC from an env file or the launch environment
 /// wins. Turning cloud saves off in the launcher clears the one this set.
 void dm_cloud_saves_env(void);
+
+/// Present the touch-control layout editor over the launcher, saving edits to the selected per-game profile.
+void dm_gamepad_present_launcher_editor(void);
