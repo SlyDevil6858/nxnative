@@ -536,22 +536,44 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
     rects[@"right-stick-base"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(rc.x-rr,rc.y-rr,2*rr,2*rr),-pad,-pad)];
     rects[@"right-stick-knob"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(rc.x-rkr,rc.y-rkr,2*rkr,2*rkr),-pad,-pad)];
 
-    BOOL oldCustom=_customSkin;
-    _customSkin=NO; [self applyLayout]; [self layoutIfNeeded]; [CATransaction flush];
-    UIGraphicsImageRendererFormat *format=[UIGraphicsImageRendererFormat defaultFormat]; format.scale=UIScreen.mainScreen.scale; format.opaque=NO;
-    UIImage *whole=[[[UIGraphicsImageRenderer alloc] initWithSize:self.bounds.size format:format] imageWithActions:^(UIGraphicsImageRendererContext *ctx) {
-        [self.layer renderInContext:ctx.CGContext];
-    }];
-    CGImageRef full=whole.CGImage;
+    BOOL oldCustom=_customSkin, oldFull=_full, oldTap=_tap;
+    _customSkin=NO; _full=YES; _tap=NO;
+    [self applyLayout]; [self layoutIfNeeded]; [CATransaction flush];
+
+    // Map each PNG to exactly one native layer. For every export, all sibling
+    // controls are hidden so neighbouring buttons cannot bleed into the crop.
+    NSMutableDictionary<NSString *, CALayer *> *sourceLayers=[NSMutableDictionary dictionary];
+    for (int b=B_A; b<=B_Y; b++) sourceLayers[@[@"a",@"b",@"x",@"y"][b]]=_key[b];
+    sourceLayers[@"stick-base"]=_ring; sourceLayers[@"stick-knob"]=_knob;
+    sourceLayers[@"zl"]=_key[B_ZL]; sourceLayers[@"l"]=_key[B_L];
+    sourceLayers[@"zr"]=_key[B_ZR]; sourceLayers[@"r"]=_key[B_R];
+    sourceLayers[@"minus"]=_key[B_MINUS]; sourceLayers[@"plus"]=_key[B_PLUS];
+    sourceLayers[@"layout"]=_swap;
+    sourceLayers[@"dpad-up"]=_key[B_UP]; sourceLayers[@"dpad-down"]=_key[B_DOWN];
+    sourceLayers[@"dpad-left"]=_key[B_LEFT]; sourceLayers[@"dpad-right"]=_key[B_RIGHT];
+    sourceLayers[@"l3"]=_key[B_LS]; sourceLayers[@"r3"]=_key[B_RS];
+    sourceLayers[@"right-stick-base"]=_ring; sourceLayers[@"right-stick-knob"]=_knob;
+
+    UIGraphicsImageRendererFormat *format=[UIGraphicsImageRendererFormat defaultFormat];
+    format.scale=UIScreen.mainScreen.scale; format.opaque=NO;
     NSURL *docs=[NSFileManager.defaultManager URLForDirectory:NSDocumentDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:nil];
     NSURL *folder=[[docs URLByAppendingPathComponent:@"TouchControlSkins" isDirectory:YES] URLByAppendingPathComponent:@"Default" isDirectory:YES];
     [NSFileManager.defaultManager createDirectoryAtURL:folder withIntermediateDirectories:YES attributes:nil error:nil];
     NSMutableArray *failed=[NSMutableArray array];
-    CGFloat scale=whole.scale;
+    CGFloat scale=UIScreen.mainScreen.scale;
     for (NSString *name in names) {
+        CALayer *selected=sourceLayers[name];
+        if (!selected) { [failed addObject:name]; continue; }
+        for (CALayer *sibling in _controls.sublayers) sibling.hidden=YES;
+        _controls.hidden=NO;
+        selected.hidden=NO;
+        [CATransaction flush];
+        UIImage *whole=[[[UIGraphicsImageRenderer alloc] initWithSize:self.bounds.size format:format] imageWithActions:^(UIGraphicsImageRendererContext *ctx) {
+            [self.layer renderInContext:ctx.CGContext];
+        }];
         CGRect r=CGRectIntersection(rects[name].CGRectValue,self.bounds);
         CGRect pixels=CGRectMake(floor(r.origin.x*scale),floor((self.bounds.size.height-CGRectGetMaxY(r))*scale),ceil(r.size.width*scale),ceil(r.size.height*scale));
-        CGImageRef crop=CGImageCreateWithImageInRect(full,pixels);
+        CGImageRef crop=CGImageCreateWithImageInRect(whole.CGImage,pixels);
         if (!crop) { [failed addObject:name]; continue; }
         UIImage *piece=[UIImage imageWithCGImage:crop scale:1 orientation:UIImageOrientationUp]; CGImageRelease(crop);
         UIGraphicsImageRendererFormat *outFormat=[UIGraphicsImageRendererFormat defaultFormat]; outFormat.scale=1; outFormat.opaque=NO;
@@ -563,7 +585,10 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
         NSData *data=UIImagePNGRepresentation(png);
         if (![data writeToURL:[folder URLByAppendingPathComponent:[name stringByAppendingString:@".png"]] options:NSDataWritingAtomic error:nil]) [failed addObject:name];
     }
-    _customSkin=oldCustom; [self applyLayout]; [self setNeedsLayout]; [self refresh];
+    for (CALayer *sibling in _controls.sublayers) sibling.hidden=NO;
+    _controls.hidden=NO;
+    _customSkin=oldCustom; _full=oldFull; _tap=oldTap;
+    [self applyLayout]; [self setNeedsLayout]; [self refresh];
     NSString *message=failed.count ? [NSString stringWithFormat:@"Some images could not be exported: %@",[failed componentsJoinedByString:@", "]] :
         [NSString stringWithFormat:@"Exported 21 transparent PNGs (256×256) to Documents/TouchControlSkins/Default. You can import this folder as a skin.\n\nNote: the right stick is normally hidden, so its artwork is generated from the native stick geometry.",nil];
     UIAlertController *done=[UIAlertController alertControllerWithTitle:failed.count?@"Export Incomplete":@"Built-in Skin Exported" message:message preferredStyle:UIAlertControllerStyleAlert];
