@@ -84,8 +84,9 @@ private struct CloudSavesSection: View {
                 picking = true
             } label: {
                 Text(folder.isEmpty ? "Choose a folder in iCloud Drive…" : "Choose a different folder…")
-                    .foregroundStyle(launcherAccentColor())
+                    .foregroundColor(launcherAccentColor())
             }
+            .buttonStyle(.plain)
             if !folder.isEmpty {
                 Button("Turn off cloud saves", role: .destructive) {
                     dm_clear_cloud_saves(); refresh(); note = ""
