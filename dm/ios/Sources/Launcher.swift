@@ -169,8 +169,9 @@ private struct TouchControlSkinsSection: View {
                 importing = true
             } label: {
                 Text("Import a touch control skin folder…")
-                    .foregroundStyle(launcherAccentColor())
+                    .foregroundColor(launcherAccentColor())
             }
+            .buttonStyle(.plain)
             Button("Reset to Default", role: .destructive) {
                 UserDefaults.standard.removeObject(forKey: "DmTouchControlSkinPath")
                 activePath = ""
@@ -270,11 +271,13 @@ private struct LauncherView: View {
                         }
                     }
                 }
-                .listStyle(.insetGrouped)
+                .listStyle(.plain)
                 .listRowBackground(Color.black)
+                .background(Color.black)
                 .contentMargins(.horizontal, 12, for: .scrollContent)
                 .frame(width: geometry.size.width * 2 / 3)
                 .scrollContentBackground(.hidden)
+                .environment(\.colorScheme, .dark)
             }
             .background {
                 if let background = launcherBackground() {
