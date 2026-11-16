@@ -139,6 +139,7 @@ int dm_opmode(void);   // hle_oe.c: 0 = handheld
 - (void)beginLauncherEdit;
 - (void)toggleEditor;
 - (void)saveEdit;
+- (void)openMenuFromController;
 @end
 static __weak DmGamepad *g_view;
 static BOOL g_launcher_preview = NO;
@@ -173,7 +174,6 @@ static void pads_start(void);   // Physical controllers, below
     CGRect _lastSafe;
     UIButton *_chooseButton, *_profileButton, *_saveAsButton;
     UILabel *_menuTip;
-- (void)openMenuFromController;
     UILongPressGestureRecognizer *_editHold;
     UIView *_tools;
     UISlider *_sizeSlider, *_alphaSlider;
