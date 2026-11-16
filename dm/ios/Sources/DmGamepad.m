@@ -1573,7 +1573,7 @@ static BOOL pads_slotted(GCController *gone) {
     UIEdgeInsets insets=self.view.safeAreaInsets;
     _backgroundImageView.transform=CGAffineTransformMakeTranslation(
         (insets.left-insets.right)*0.5,
-        (insets.top-insets.bottom)*0.5
+        (insets.top-insets.bottom)*0.5 + 12.0
     );
 }
 - (void)viewDidAppear:(BOOL)animated {
