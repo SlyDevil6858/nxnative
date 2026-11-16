@@ -540,6 +540,14 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
         LOG("touch skin export: cannot create folder: %s", dirError.localizedDescription.UTF8String ?: "?");
         return;
     }
+    // Export once per version. This also regenerates the earlier blank PNGs, but
+    // never overwrites a Default skin that the user has already edited.
+    NSURL *versionURL=[folder URLByAppendingPathComponent:@".export-version"];
+    NSString *exportVersion=[NSString stringWithContentsOfURL:versionURL encoding:NSUTF8StringEncoding error:nil];
+    if ([exportVersion isEqualToString:@"2"]) {
+        LOG("touch skin export: Default PNGs already exported; preserving user edits");
+        return;
+    }
     NSError *archiveError=nil;
     NSData *archive=[NSKeyedArchiver archivedDataWithRootObject:_controls requiringSecureCoding:NO error:&archiveError];
     if (!archive) {
@@ -594,8 +602,12 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
         NSData *data=UIImagePNGRepresentation(png);
         if (!data || ![data writeToURL:[folder URLByAppendingPathComponent:[name stringByAppendingString:@".png"]] options:NSDataWritingAtomic error:nil]) [failed addObject:name];
     }
-    if (failed.count) LOG("touch skin export: failed controls: %s", [failed componentsJoinedByString:@", "].UTF8String);
-    else LOG("touch skin export: wrote 21 isolated PNGs to Documents/TouchControlSkins/Default");
+    if (failed.count) {
+        LOG("touch skin export: failed controls: %s", [failed componentsJoinedByString:@", "].UTF8String);
+    } else {
+        [@"2" writeToURL:versionURL atomically:YES encoding:NSUTF8StringEncoding error:nil];
+        LOG("touch skin export: wrote 21 isolated PNGs to Documents/TouchControlSkins/Default");
+    }
 }
 - (void)layoutSubviews {
     [super layoutSubviews];
