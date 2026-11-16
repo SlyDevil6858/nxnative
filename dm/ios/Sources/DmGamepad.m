@@ -129,7 +129,7 @@ static const int k_btns[] = {B_ZL, B_L, B_ZR, B_R, B_MINUS, B_PLUS, B_LS, B_RS};
 static NSString *const k_layout_key = @"DmPadLayout";   // NSUserDefaults: 0 = 2D, 1 = 3D, 2 = Tap (DM_GAME_PAD_LAYOUT's numbers)
 int dm_opmode(void);   // hle_oe.c: 0 = handheld
 
-@interface DmGamepad : UIView
+@interface DmGamepad : UIView <UIDocumentPickerDelegate>
 @end
 static __weak DmGamepad *g_view;
 static void pads_start(void);   // Physical controllers, below
@@ -150,6 +150,7 @@ static void pads_start(void);   // Physical controllers, below
     CALayer *_controls;                            // holds every control layer: hidden while a physical controller is connected (the view itself stays, for game touches)
     NSMutableDictionary<NSString *, CALayer *> *_skinItems; NSDictionary<NSString *, UIImage *> *_skinImages; BOOL _customSkin; // one image layer per control; native touch hit-testing stays unchanged
     BOOL _padOff;                                  // a physical controller is connected: every touch goes to the game
+    NSTimeInterval _swapBeganAt;                   // long-press the layout control to open touch-skin options
     UITouch *_game[16];                            // touches on the game's touch screen by finger slot
 }
 
@@ -212,7 +213,9 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
 }
 - (void)loadTouchSkin {
     NSString *path = [NSUserDefaults.standardUserDefaults stringForKey:@"DmTouchControlSkinPath"];
-    _customSkin = NO; [_skinItems removeAllObjects];
+    _customSkin = NO;
+    for (CALayer *layer in _skinItems.allValues) [layer removeFromSuperlayer];
+    [_skinItems removeAllObjects];
     if (!path.length) return;
     NSArray<NSString *> *names = @[@"a", @"b", @"x", @"y", @"stick-base", @"stick-knob",
         @"zl", @"l", @"zr", @"r", @"minus", @"plus", @"layout",
@@ -406,7 +409,7 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
         if (_padOff) { game |= [self gameBegin:t]; continue; }
         CGPoint p = [t locationInView:self]; int hit = _tap ? -1 : [self btnAt:p];
         if (hit >= 0) { [_owner setObject:@(C_BTN | (uint64_t)hit << 8) forKey:t]; continue; }
-        if ([self inSwap:p]) { [_owner setObject:@(C_SWAP) forKey:t]; continue; }
+        if ([self inSwap:p]) { _swapBeganAt = t.timestamp; [_owner setObject:@(C_SWAP) forKey:t]; continue; }
         if (_tap) { game |= [self gameBegin:t]; continue; }
         // diamond, D-pad, left stick: take the one with the smallest distance / grab radius, if it is <= 1
         CGFloat best = 1; int kind = C_NONE, idx = 0;
@@ -436,17 +439,83 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
     [self recompute];
 }
 - (void)endTouches:(NSSet<UITouch *> *)ts tapped:(BOOL)ended {
-    BOOL swap = NO, game = NO;
+    BOOL swap = NO, openSkinMenu = NO, game = NO;
     for (UITouch *t in ts) {
         uint64_t v = [_owner objectForKey:t].unsignedLongLongValue;
-        if (ended && (v & 0xff) == C_SWAP && [self inSwap:[t locationInView:self]]) swap = YES;   // layout button: counts only when released on the button
+        if (ended && (v & 0xff) == C_SWAP && [self inSwap:[t locationInView:self]]) {
+            if (t.timestamp - _swapBeganAt >= 0.65) openSkinMenu = YES;
+            else swap = YES;
+        }   // short tap changes layout; long press opens skin options
         if ((v & 0xff) == C_GAME && (v >> 8) < 16) { _game[v >> 8] = nil; game = YES; }
         [_owner removeObjectForKey:t]; [_faceOf removeObjectForKey:t]; for (int i = 0; i < 2; i++) if (t == _stick[i]) _stick[i] = nil;
     }
     if (game) [self pushGame];
     [self recompute];
     if (swap) [self nextLayout];
+    if (openSkinMenu) [self showTouchSkinMenu];
 }
+- (UIViewController *)topPresenter {
+    UIViewController *vc = self.window.rootViewController;
+    while (vc.presentedViewController) vc = vc.presentedViewController;
+    return vc;
+}
+- (void)showTouchSkinMenu {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIViewController *presenter = [self topPresenter];
+        if (!presenter || presenter.presentedViewController) return;
+        UIAlertController *menu = [UIAlertController alertControllerWithTitle:@"Touch Control Skin"
+            message:@"Choose a skin folder while the game is running, or restore the built-in controls."
+            preferredStyle:UIAlertControllerStyleActionSheet];
+        [menu addAction:[UIAlertAction actionWithTitle:@"Import Skin Folder…" style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *a) {
+            UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc] initForOpeningContentTypes:@[[UTType typeWithFilenameExtension:@"folder"]] asCopy:NO];
+            picker.delegate = self;
+            [presenter presentViewController:picker animated:YES completion:nil];
+        }]];
+        [menu addAction:[UIAlertAction actionWithTitle:@"Use Built-in Controls" style:UIAlertActionStyleDestructive handler:^(__unused UIAlertAction *a) {
+            [NSUserDefaults.standardUserDefaults removeObjectForKey:@"DmTouchControlSkinPath"];
+            [self loadTouchSkin]; [self setNeedsLayout]; [self refresh];
+        }]];
+        [menu addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+        menu.popoverPresentationController.sourceView = self;
+        menu.popoverPresentationController.sourceRect = CGRectMake(CGRectGetMidX(self.bounds), CGRectGetMidY(self.bounds), 1, 1);
+        [presenter presentViewController:menu animated:YES completion:nil];
+    });
+}
+- (void)documentPicker:(UIDocumentPickerViewController *)controller didPickDocumentsAtURLs:(NSArray<NSURL *> *)urls {
+    NSURL *source = urls.firstObject;
+    if (!source) return;
+    BOOL scoped = [source startAccessingSecurityScopedResource];
+    @try {
+        NSArray<NSString *> *names = @[@"a", @"b", @"x", @"y", @"stick-base", @"stick-knob", @"zl", @"l", @"zr", @"r", @"minus", @"plus", @"layout", @"dpad-up", @"dpad-down", @"dpad-left", @"dpad-right", @"l3", @"r3", @"right-stick-base", @"right-stick-knob"];
+        NSMutableArray<NSString *> *missing = [NSMutableArray array];
+        for (NSString *name in names) {
+            NSString *file = [[source URLByAppendingPathComponent:[name stringByAppendingString:@".png"]] path];
+            if (![UIImage imageWithContentsOfFile:file]) [missing addObject:[name stringByAppendingString:@".png"]];
+        }
+        if (missing.count) {
+            UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Invalid Skin Folder" message:[NSString stringWithFormat:@"Missing valid PNGs: %@", [missing componentsJoinedByString:@", "]] preferredStyle:UIAlertControllerStyleAlert];
+            [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+            [[self topPresenter] presentViewController:alert animated:YES completion:nil];
+            return;
+        }
+        NSFileManager *fm = NSFileManager.defaultManager;
+        NSURL *docs = [fm URLForDirectory:NSDocumentDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:nil];
+        NSURL *destination = [docs URLByAppendingPathComponent:@"TouchControlSkin" isDirectory:YES];
+        if ([fm fileExistsAtPath:destination.path]) [fm removeItemAtURL:destination error:nil];
+        NSError *error = nil;
+        if (![fm copyItemAtURL:source toURL:destination error:&error]) {
+            UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Skin Import Failed" message:error.localizedDescription preferredStyle:UIAlertControllerStyleAlert];
+            [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+            [[self topPresenter] presentViewController:alert animated:YES completion:nil];
+            return;
+        }
+        [NSUserDefaults.standardUserDefaults setObject:destination.path forKey:@"DmTouchControlSkinPath"];
+        [self loadTouchSkin]; [self setNeedsLayout]; [self refresh];
+    } @finally {
+        if (scoped) [source stopAccessingSecurityScopedResource];
+    }
+}
+- (void)documentPickerWasCancelled:(UIDocumentPickerViewController *)controller { (void)controller; }
 - (void)touchesEnded:(NSSet<UITouch *> *)ts withEvent:(UIEvent *)e { [self endTouches:ts tapped:YES]; }
 - (void)touchesCancelled:(NSSet<UITouch *> *)ts withEvent:(UIEvent *)e { [self endTouches:ts tapped:NO]; }
 - (void)reset { [_owner removeAllObjects]; [_faceOf removeAllObjects]; _stick[0] = _stick[1] = nil; for (int i = 0; i < 16; i++) _game[i] = nil; [self pushGame]; [self recompute]; }
