@@ -58,15 +58,9 @@ private extension UIImage {
 }
 
 
-/// A slightly lighter accent for secondary actions; Play keeps the original icon colour.
+/// The original dominant app-icon colour, shared by the launcher buttons.
 private func launcherAccentColor() -> Color {
-    let base = UIImage(named: "AppIcon")?.dominantColor() ?? .systemBlue
-    var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 1
-    base.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
-    let lift: CGFloat = 0.16
-    return Color(red: red + (1 - red) * lift,
-                 green: green + (1 - green) * lift,
-                 blue: blue + (1 - blue) * lift)
+    Color(uiColor: UIImage(named: "AppIcon")?.dominantColor() ?? .systemBlue)
 }
 
 
@@ -86,9 +80,12 @@ private struct CloudSavesSection: View {
                 Text(folder.isEmpty ? "Off" : (folder as NSString).lastPathComponent)
                     .foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             }
-            Button(folder.isEmpty ? "Choose a folder in iCloud Drive…" : "Choose a different folder…") { picking = true }
-                .buttonStyle(.borderedProminent)
-                .tint(launcherAccentColor())
+            Button {
+                picking = true
+            } label: {
+                Text(folder.isEmpty ? "Choose a folder in iCloud Drive…" : "Choose a different folder…")
+                    .foregroundStyle(launcherAccentColor())
+            }
             if !folder.isEmpty {
                 Button("Turn off cloud saves", role: .destructive) {
                     dm_clear_cloud_saves(); refresh(); note = ""
@@ -168,9 +165,12 @@ private struct TouchControlSkinsSection: View {
                 Spacer()
                 Text(activePath.isEmpty ? "Built-in" : (activeName.isEmpty ? URL(fileURLWithPath: activePath).lastPathComponent : activeName)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             }
-            Button("Import a touch control skin folder…") { importing = true }
-                .buttonStyle(.borderedProminent)
-                .tint(launcherAccentColor())
+            Button {
+                importing = true
+            } label: {
+                Text("Import a touch control skin folder…")
+                    .foregroundStyle(launcherAccentColor())
+            }
             Button("Reset to Default", role: .destructive) {
                 UserDefaults.standard.removeObject(forKey: "DmTouchControlSkinPath")
                 activePath = ""
@@ -271,6 +271,7 @@ private struct LauncherView: View {
                     }
                 }
                 .listStyle(.insetGrouped)
+                .listRowBackground(Color.black)
                 .contentMargins(.horizontal, 12, for: .scrollContent)
                 .frame(width: geometry.size.width * 2 / 3)
                 .scrollContentBackground(.hidden)
