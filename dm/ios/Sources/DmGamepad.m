@@ -364,6 +364,10 @@ static CGPoint side(CGRect s, int right, CGFloat dx, CGFloat y) { return CGPoint
     NSDictionary *value = _custom[[self controlID:b]];
     CGRect safe = self.safe;
     CGFloat margin = (b == 16 ? K_STICK_R : b == 17 ? K_DPAD_R : isDrop(b) ? 38 : isClick(b) ? 22 : 28) * self.u * [self scale:b];
+    // An opacity-only entry can exist from earlier buggy builds. It has no saved
+    // coordinates, so treat it as an untouched control instead of interpreting
+    // missing x/y as zero (which teleports it to the safe area's top-left).
+    if (![value[@"x"] isKindOfClass:NSNumber.class] || ![value[@"y"] isKindOfClass:NSNumber.class]) value=nil;
     return dm_pad_position(value, base, safe, margin);
 }
 - (CGFloat)faceRadius:(int)b { return self.faceR * [self scale:b]; }
@@ -814,8 +818,10 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     _sizeSlider.minimumValue=0.5; _sizeSlider.maximumValue=2;
     _alphaSlider=[[UISlider alloc] initWithFrame:CGRectMake(78,152,230,30)];
     _alphaSlider.minimumValue=0; _alphaSlider.maximumValue=1;
-    _sizeSlider.minimumTrackTintColor=[self editorAccentColor]; _sizeSlider.thumbTintColor=[self editorAccentColor];
-    _alphaSlider.minimumTrackTintColor=[self editorAccentColor]; _alphaSlider.thumbTintColor=[self editorAccentColor];
+    UIColor *accent=[self editorAccentColor];
+    // Match SwiftUI Slider.tint(accentColor): tint only the filled track.
+    _sizeSlider.minimumTrackTintColor=accent;
+    _alphaSlider.minimumTrackTintColor=accent;
     [_sizeSlider addTarget:self action:@selector(adjustControl) forControlEvents:UIControlEventValueChanged];
     [_alphaSlider addTarget:self action:@selector(adjustOpacityControl) forControlEvents:UIControlEventValueChanged];
     [_tools addSubview:_sizeSlider]; [_tools addSubview:_alphaSlider];
@@ -933,10 +939,18 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
 }
 - (void)adjustControl { [self storeControlAt:[self controlCenter:_selected]]; }
 - (void)adjustOpacityControl {
-    NSString *key=[self controlID:_selected]; NSMutableDictionary *value=[_custom[key] mutableCopy] ?: [NSMutableDictionary dictionary];
+    NSString *key=[self controlID:_selected];
+    NSMutableDictionary *value=[_custom[key] mutableCopy];
+    // Create a complete position/scale record before changing opacity. This is
+    // essential for untouched controls, which otherwise only had an alpha key.
+    if (![value[@"x"] isKindOfClass:NSNumber.class] || ![value[@"y"] isKindOfClass:NSNumber.class]) {
+        [self storeControlAt:[self controlCenter:_selected]];
+        value=[_custom[key] mutableCopy] ?: [NSMutableDictionary dictionary];
+    }
     value[@"alpha"]=@(_alphaSlider.value); _custom[key]=value;
     _editInfo.text=[NSString stringWithFormat:@"Size %.0f%% · Opacity %.0f%%\nDrag a control to move it.",_sizeSlider.value*100,_alphaSlider.value*100];
-    [self setNeedsLayout]; [self refresh];
+    // Only redraw layers; do not trigger layoutSubviews or rewrite coordinates.
+    [self refresh];
 }
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch {
     if (gestureRecognizer!=_editHold || _padOff || _editing || !_full || _tap) return NO;
@@ -946,20 +960,41 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     if (gesture.state==UIGestureRecognizerStateBegan && !_padOff && _full && !_tap && !_editing) [self toggleEditor];
 }
 - (UIColor *)editorAccentColor {
-    UIImage *icon=[UIImage imageNamed:@"AppIcon"]; CGImageRef cg=icon.CGImage; if (!cg) return UIColor.systemBlueColor;
-    const size_t w=32,h=32,bpp=4,bpr=w*bpp; uint8_t pixels[h*bpr]; memset(pixels,0,sizeof pixels);
-    CGColorSpaceRef space=CGColorSpaceCreateDeviceRGB(); CGContextRef ctx=CGBitmapContextCreate(pixels,w,h,8,bpr,space,kCGImageAlphaPremultipliedLast|kCGBitmapByteOrder32Big);
-    CGColorSpaceRelease(space); if (!ctx) return UIColor.systemBlueColor;
-    CGContextSetInterpolationQuality(ctx,kCGInterpolationLow); CGContextDrawImage(ctx,CGRectMake(0,0,w,h),cg); CGContextRelease(ctx);
-    NSMutableDictionary<NSNumber *,NSMutableArray<NSNumber *> *> *buckets=[NSMutableDictionary dictionary];
-    for (NSUInteger i=0;i<w*h;i++) { int r=pixels[i*4],g=pixels[i*4+1],b=pixels[i*4+2],a=pixels[i*4+3]; int brightness=(r*299+g*587+b*114)/1000;
-        if(a<=64||brightness<=18||brightness>=248||MAX(r,MAX(g,b))-MIN(r,MIN(g,b))<=18) continue;
-        int k=((r>>3)<<10)|((g>>3)<<5)|(b>>3); NSNumber *key=@(k); NSMutableArray *v=buckets[key]; if(!v){v=[NSMutableArray arrayWithObjects:@0,@0,@0,@0,nil];buckets[key]=v;}
-        for(int c=0;c<3;c++) v[c]=@([v[c] intValue]+(c==0?r:c==1?g:b)); v[3]=@([v[3] intValue]+1);
+    UIImage *icon=[UIImage imageNamed:@"AppIcon"];
+    if (!icon) {
+        NSDictionary *icons=[NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleIcons"];
+        NSDictionary *primary=icons[@"CFBundlePrimaryIcon"];
+        NSArray *files=primary[@"CFBundleIconFiles"];
+        if (files.count) icon=[UIImage imageNamed:files.lastObject];
     }
-    NSArray *best=nil; for(NSArray *v in buckets.allValues) if(!best||[v[3] intValue]>[best[3] intValue]) best=v;
-    if(!best||![best[3] intValue]) return UIColor.systemBlueColor;
-    CGFloat n=[best[3] doubleValue]*255; return [UIColor colorWithRed:[best[0] doubleValue]/n green:[best[1] doubleValue]/n blue:[best[2] doubleValue]/n alpha:1];
+    CGImageRef cg=icon.CGImage; if (!cg) return [UIColor colorWithRed:0.25 green:0.48 blue:0.85 alpha:1];
+    const size_t width=32,height=32,bpp=4,bpr=width*bpp;
+    uint8_t pixels[height*bpr]; memset(pixels,0,sizeof pixels);
+    CGColorSpaceRef space=CGColorSpaceCreateDeviceRGB();
+    CGContextRef context=CGBitmapContextCreate(pixels,width,height,8,bpr,space,kCGImageAlphaPremultipliedLast);
+    CGColorSpaceRelease(space); if (!context) return [UIColor colorWithRed:0.25 green:0.48 blue:0.85 alpha:1];
+    CGContextSetInterpolationQuality(context,kCGInterpolationLow);
+    CGContextDrawImage(context,CGRectMake(0,0,width,height),cg); CGContextRelease(context);
+    NSMutableDictionary<NSNumber *,NSMutableArray<NSNumber *> *> *buckets=[NSMutableDictionary dictionary];
+    for (NSUInteger offset=0;offset<sizeof pixels;offset+=bpp) {
+        int alpha=pixels[offset+3]; if(alpha<=64) continue;
+        int red=pixels[offset],green=pixels[offset+1],blue=pixels[offset+2];
+        int brightness=(red*299+green*587+blue*114)/1000;
+        int maximum=MAX(red,MAX(green,blue)),minimum=MIN(red,MIN(green,blue));
+        if(brightness<=18||brightness>=248||maximum-minimum<=18) continue;
+        int key=((red>>3)<<10)|((green>>3)<<5)|(blue>>3);
+        NSNumber *bucketKey=@(key); NSMutableArray *bucket=buckets[bucketKey];
+        if(!bucket){bucket=[NSMutableArray arrayWithObjects:@0,@0,@0,@0,nil];buckets[bucketKey]=bucket;}
+        bucket[0]=@([bucket[0] intValue]+red); bucket[1]=@([bucket[1] intValue]+green);
+        bucket[2]=@([bucket[2] intValue]+blue); bucket[3]=@([bucket[3] intValue]+1);
+    }
+    NSArray *dominant=nil;
+    for(NSArray *bucket in buckets.allValues) if(!dominant||[bucket[3] intValue]>[dominant[3] intValue]) dominant=bucket;
+    if(!dominant||![dominant[3] intValue]) return [UIColor colorWithRed:0.25 green:0.48 blue:0.85 alpha:1];
+    CGFloat divisor=[dominant[3] doubleValue]*255.0;
+    return [UIColor colorWithRed:[dominant[0] doubleValue]/divisor
+                           green:[dominant[1] doubleValue]/divisor
+                            blue:[dominant[2] doubleValue]/divisor alpha:1];
 }
 - (void)editTouches:(NSSet<UITouch *> *)touches began:(BOOL)began {
     if (began && !_dragTouch) {
