@@ -239,7 +239,7 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
         _customSkin = NO; // Native vector controls are used; the PNG skin system is retired.
         _editHighlight = [CAShapeLayer layer];
         _editHighlight.fillColor = UIColor.clearColor.CGColor;
-        _editHighlight.strokeColor = UIColor.systemOrangeColor.CGColor;
+        _editHighlight.strokeColor = [self editorAccentColor].CGColor;
         _editHighlight.lineWidth = 2.5;
         _editHighlight.hidden = YES;
         [_controls addSublayer:_editHighlight];
