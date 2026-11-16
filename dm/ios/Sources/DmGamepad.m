@@ -133,6 +133,7 @@ int dm_opmode(void);   // hle_oe.c: 0 = handheld
 
 @interface DmGamepad : UIView <UIGestureRecognizerDelegate, UIDocumentPickerDelegate>
 - (void)beginLauncherEdit;
+- (void)toggleEditor;
 - (void)saveEdit;
 @end
 static __weak DmGamepad *g_view;
