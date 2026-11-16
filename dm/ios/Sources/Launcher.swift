@@ -177,6 +177,7 @@ private struct LauncherView: View {
     @State private var themes: [LauncherTheme] = []
     @State private var selectedTheme = UserDefaults.standard.string(forKey: "DmTouchControlThemeName") ?? "Classic"
     @State private var pickingTheme = false
+    @State private var confirmingThemeDeletion = false
 
     var body: some View {
         GeometryReader { geometry in
@@ -221,6 +222,12 @@ private struct LauncherView: View {
                                         .foregroundStyle(accentColor)
                                     Button("Import touch controls skin…") { pickingTheme = true }
                                         .foregroundStyle(accentColor)
+                                    if let selected = themes.first(where: { $0.name == selectedTheme }),
+                                       !isBundledTheme(selected) {
+                                        Button("Delete imported touch control theme…", role: .destructive) {
+                                            confirmingThemeDeletion = true
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -267,6 +274,12 @@ private struct LauncherView: View {
                 pickingTheme = false
                 importTheme(from: url)
             } onCancel: { pickingTheme = false }
+        }
+        .confirmationDialog("Delete imported touch control theme?", isPresented: $confirmingThemeDeletion, titleVisibility: .visible) {
+            Button("Delete \(selectedTheme)", role: .destructive) { deleteSelectedTheme() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This permanently deletes the imported theme folder from this device.")
         }
         .onAppear(perform: refreshThemes)
         .task {
@@ -328,6 +341,26 @@ private struct LauncherView: View {
             }
         }
         return directory
+    }
+
+    private func isBundledTheme(_ theme: LauncherTheme) -> Bool {
+        guard let bundledRoot = Bundle.main.resourceURL?.appendingPathComponent("TouchControlThemes", isDirectory: true) else {
+            return false
+        }
+        let folderName = URL(fileURLWithPath: theme.path).lastPathComponent
+        return FileManager.default.fileExists(atPath: bundledRoot.appendingPathComponent(folderName, isDirectory: true).path)
+    }
+
+    private func deleteSelectedTheme() {
+        guard let theme = themes.first(where: { $0.name == selectedTheme }),
+              !isBundledTheme(theme) else { return }
+        do {
+            try FileManager.default.removeItem(at: URL(fileURLWithPath: theme.path))
+            selectTheme(nil, name: "Classic")
+            refreshThemes()
+        } catch {
+            NSLog("Touch theme deletion failed: %@", error.localizedDescription)
+        }
     }
 
     private func themeJSON(in folder: URL) -> [String: Any]? {
