@@ -751,6 +751,14 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
         LOG("touch skin export: wrote 21 isolated PNGs to Documents/TouchControlSkins/Default");
     }
 }
+- (CGFloat)editHighlightRadiusForControl:(int)b {
+    if (b == 16) return [self stickR:0];
+    if (b == 17) return self.dpadR;
+    if (b < 4) return [self faceRadius:b];
+    if (isDrop(b)) return [self dropR:b] * K_DROP_TIP;
+    if (isClick(b)) return K_CLICK_R * self.u * [self scale:b];
+    return MAX([self pillRect:b].size.width, [self pillRect:b].size.height) / 2;
+}
 - (void)layoutSubviews {
     [super layoutSubviews];
     UIWindowScene *ws = self.window.windowScene; if (ws) atomic_store(&g_iface_orient, (int)ws.effectiveGeometry.interfaceOrientation);
@@ -781,16 +789,28 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     CAShapeLayer *in = (CAShapeLayer *)_knob.sublayers.firstObject; CGPathRef ip = circlePath(CGPointMake(k, k), k * 0.62);
     in.frame = _knob.bounds; in.path = ip; CGPathRelease(ip);
     [self layoutSkinItems];
-    if (_editing && _selected>=0) {
-        CGPoint center=[self controlCenter:_selected];
-        CGFloat radius=_selected==16?[self stickR:0]:_selected==17?self.dpadR:
-            _selected<4?[self faceRadius:_selected]:isDrop(_selected)?[self dropR:_selected]*K_DROP_TIP:
-            isClick(_selected)?K_CLICK_R*u*[self scale:_selected]:
-            MAX([self pillRect:_selected].size.width,[self pillRect:_selected].size.height)/2;
-        CGPathRef outline=CGPathCreateWithEllipseInRect(CGRectMake(center.x-radius-7*u,center.y-radius-7*u,
-                                                                     2*(radius+7*u),2*(radius+7*u)),NULL);
-        _editHighlight.path=outline; CGPathRelease(outline); _editHighlight.hidden=NO;
-    } else _editHighlight.hidden=YES;
+    if (_editing) {
+        CGMutablePathRef outlines = CGPathCreateMutable();
+        if (_selected < 0) {
+            // "All controls" uses the same circular selection halo around every editable control.
+            for (int b = 0; b < 18; b++) if ([self editable:b]) {
+                CGPoint center = [self controlCenter:b];
+                CGFloat radius = [self editHighlightRadiusForControl:b] + 7 * u;
+                CGPathAddEllipseInRect(outlines, NULL,
+                    CGRectMake(center.x - radius, center.y - radius, 2 * radius, 2 * radius));
+            }
+        } else {
+            CGPoint center = [self controlCenter:_selected];
+            CGFloat radius = [self editHighlightRadiusForControl:_selected] + 7 * u;
+            CGPathAddEllipseInRect(outlines, NULL,
+                CGRectMake(center.x - radius, center.y - radius, 2 * radius, 2 * radius));
+        }
+        _editHighlight.path = outlines;
+        CGPathRelease(outlines);
+        _editHighlight.hidden = NO;
+    } else {
+        _editHighlight.hidden = YES;
+    }
     [CATransaction commit];
     [self refresh];
 
@@ -1015,7 +1035,11 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _editInfo.numberOfLines=2; _editInfo.font=[UIFont systemFontOfSize:11];
     _editInfo.textColor=UIColor.whiteColor; [_tools addSubview:_editInfo];
     _themeButton=[self editorButton:@"Theme: Classic ▾" action:NULL frame:CGRectMake(8,220,190,32) parent:_tools];
-    [self editorButton:@"Import Theme…" action:@selector(importThemeFolder) frame:CGRectMake(204,220,108,32) parent:_tools];
+    UIButton *importThemeButton=[self editorButton:@"Import Theme…" action:@selector(importThemeFolder) frame:CGRectMake(204,220,108,32) parent:_tools];
+    importThemeButton.titleLabel.font=[UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
+    importThemeButton.titleLabel.adjustsFontSizeToFitWidth=YES;
+    importThemeButton.titleLabel.minimumScaleFactor=0.8;
+    importThemeButton.titleLabel.lineBreakMode=NSLineBreakByClipping;
 }
 - (void)updateEditor {
     [self updateProfileMenu];
