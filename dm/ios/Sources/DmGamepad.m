@@ -173,16 +173,19 @@ static void pads_start(void);   // Physical controllers, below
     UISlider *_sizeSlider, *_alphaSlider;
     UILabel *_editInfo;
     CAShapeLayer *_editHighlight;
+    NSDictionary<NSString *, NSValue *> *_dragAllHomes;
     UITouch *_game[16];                            // touches on the game's touch screen by finger slot
 }
 
 static UIColor *k_idle, *k_on, *k_line, *k_ringFill, *k_text, *k_textOn;
 static UIColor *themeHex(NSString *value) {
     if (![value isKindOfClass:NSString.class]) return nil;
-    NSString *hex = [[value stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"# "]] uppercaseString];
+    NSString *hex = [[value stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet] uppercaseString];
+    if ([hex hasPrefix:@"#"]) hex=[hex substringFromIndex:1];
     if (hex.length != 6) return nil;
     unsigned int rgb = 0; NSScanner *scanner = [NSScanner scannerWithString:hex];
-    if (![scanner scanHexInt:&rgb]) return nil;
+    scanner.charactersToBeSkipped=nil;
+    if (![scanner scanHexInt:&rgb] || !scanner.isAtEnd) return nil;
     return [UIColor colorWithRed:((rgb >> 16) & 255)/255.0 green:((rgb >> 8) & 255)/255.0 blue:(rgb & 255)/255.0 alpha:1];
 }
 static void theme_init(void) {
