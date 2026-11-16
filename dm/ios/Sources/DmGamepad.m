@@ -169,6 +169,34 @@ static void pads_start(void);   // Physical controllers, below
 }
 
 static UIColor *k_idle, *k_on, *k_line, *k_ringFill, *k_text, *k_textOn;
+static BOOL g_forestTheme;
+static UIColor *forestColor(int b, BOOL pressed) {
+    UIColor *base;
+    if (b == B_A) base = [UIColor colorWithRed:0.08 green:0.43 blue:0.78 alpha:1];          // blue A
+    else if (b == B_B) base = [UIColor colorWithRed:0.13 green:0.48 blue:0.25 alpha:1];    // green B
+    else if (b == B_X || b == B_Y) base = [UIColor colorWithRed:0.82 green:0.61 blue:0.16 alpha:1]; // yellow X / Y
+    else if (b == B_PLUS) base = [UIColor colorWithRed:0.72 green:0.17 blue:0.15 alpha:1]; // red +
+    else if (b == B_L || b == B_R || b == B_ZL || b == B_ZR || b == B_LS || b == B_RS)
+        base = [UIColor colorWithRed:0.07 green:0.28 blue:0.17 alpha:1];                  // forest shoulders / clicks
+    else if (b >= B_LEFT) base = [UIColor colorWithRed:0.48 green:0.29 blue:0.15 alpha:1]; // bronze D-pad
+    else base = [UIColor colorWithRed:0.16 green:0.37 blue:0.25 alpha:1];                  // stick / minus
+    return [base colorWithAlphaComponent:pressed ? 0.92 : 0.36];
+}
+static void theme_init(void) {
+    const char *theme = getenv("DM_PAD_THEME");
+    g_forestTheme = theme && !strcmp(theme, "forest");
+    if (g_forestTheme) {
+        k_idle = [UIColor colorWithRed:0.16 green:0.37 blue:0.25 alpha:0.36];
+        k_on = [UIColor colorWithRed:0.22 green:0.48 blue:0.30 alpha:0.92];
+        k_line = [UIColor colorWithRed:0.86 green:0.68 blue:0.31 alpha:0.88];
+        k_ringFill = [UIColor colorWithRed:0.13 green:0.31 blue:0.20 alpha:0.25];
+        k_text = [UIColor colorWithRed:0.98 green:0.91 blue:0.74 alpha:0.96];
+        k_textOn = [UIColor colorWithRed:0.07 green:0.17 blue:0.10 alpha:1];
+    } else {
+        k_idle = [UIColor colorWithWhite:1 alpha:0.14]; k_on = [UIColor colorWithWhite:1 alpha:0.45]; k_line = [UIColor colorWithWhite:1 alpha:0.38];
+        k_ringFill = [UIColor colorWithWhite:1 alpha:0.06]; k_text = [UIColor colorWithWhite:1 alpha:0.6]; k_textOn = [UIColor colorWithWhite:0 alpha:0.7];
+    }
+}
 static CAShapeLayer *shape(CALayer *parent) {
     CAShapeLayer *l = [CAShapeLayer layer];
     l.fillColor = k_idle.CGColor; l.strokeColor = k_line.CGColor; l.lineWidth = 1.5;
@@ -193,9 +221,8 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
         _owner = [NSMapTable strongToStrongObjectsMapTable]; _faceOf = [NSMapTable strongToStrongObjectsMapTable];
         static dispatch_once_t once;
         dispatch_once(&once, ^{
-            // each colour carries its own low opacity instead of lowering the whole view's alpha (that would add an off-screen pass for the full-screen layer)
-            k_idle = [UIColor colorWithWhite:1 alpha:0.14]; k_on = [UIColor colorWithWhite:1 alpha:0.45]; k_line = [UIColor colorWithWhite:1 alpha:0.38];
-            k_ringFill = [UIColor colorWithWhite:1 alpha:0.06]; k_text = [UIColor colorWithWhite:1 alpha:0.6]; k_textOn = [UIColor colorWithWhite:0 alpha:0.7];
+            // Theme colours are initialised once before any control layers are created.
+            theme_init();
         });
         _controls = [CALayer layer]; [self.layer addSublayer:_controls];
         _ring = shape(_controls); _ring.fillColor = k_ringFill.CGColor;
@@ -209,7 +236,7 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
         }
         _swap = shape(_controls); _swapLabel = label(_swap, @"");
         _skinItems = [NSMutableDictionary dictionary];
-        [self loadTouchSkin];
+        _customSkin = NO; // Native vector controls are used; the PNG skin system is retired.
         _editHighlight = [CAShapeLayer layer];
         _editHighlight.fillColor = UIColor.clearColor.CGColor;
         _editHighlight.strokeColor = UIColor.systemOrangeColor.CGColor;
@@ -313,11 +340,10 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
 }
 - (void)applyLayout {   // show / hide the controls for the current layout
     [CATransaction begin]; [CATransaction setDisableActions:YES];
-    for (int b = 0; b < B_N; b++) _key[b].hidden = _tap || _customSkin || (fullOnly(b) && !_full);
-    _ring.hidden = _knob.hidden = _tap || _customSkin;
-    _swap.hidden = _swapLabel.hidden = _customSkin && !_tap;
+    for (int b = 0; b < B_N; b++) _key[b].hidden = _tap || (fullOnly(b) && !_full);
+    _ring.hidden = _knob.hidden = _tap;
+    _swap.hidden = _swapLabel.hidden = NO;
     _swapLabel.string = _tap ? @"Tap" : _full ? @"3D" : @"2D";
-    [self layoutSkinItems];
     [CATransaction commit];
 }
 - (void)nextLayout {   // 2D → 3D (→ Tap in handheld mode) → 2D: release every touch first (no key stays held), save, lay out again
@@ -771,10 +797,7 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     } else _editHighlight.hidden=YES;
     [CATransaction commit];
     [self refresh];
-    if (!_builtInSkinExportChecked) {
-        _builtInSkinExportChecked = YES;
-        dispatch_async(dispatch_get_main_queue(), ^{ [self exportBuiltInSkin]; });
-    }
+
 }
 - (void)safeAreaInsetsDidChange { [super safeAreaInsetsDidChange]; [self setNeedsLayout]; }
 - (void)refresh {   // pressed state → fill, sticks → knob position
@@ -782,15 +805,22 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     [CATransaction begin]; [CATransaction setDisableActions:YES];
     for (int b = 0; b < B_N; b++) {
         BOOL on = (all >> b) & 1;
-        _key[b].fillColor = (on ? k_on : k_idle).CGColor;
+        UIColor *idle = g_forestTheme ? forestColor(b, NO) : k_idle;
+        UIColor *pressed = g_forestTheme ? forestColor(b, YES) : k_on;
+        _key[b].fillColor = (on ? pressed : idle).CGColor;
+        _key[b].strokeColor = k_line.CGColor;
         _label[b].foregroundColor = (on ? k_textOn : k_text).CGColor;
         _key[b].opacity = [self opacity:(b >= B_LEFT ? 17 : b)];
     }
     _ring.opacity = _knob.opacity = [self opacity:16];
-    _swap.fillColor = (_swapHeld ? k_on : k_idle).CGColor; _swapLabel.foregroundColor = (_swapHeld ? k_textOn : k_text).CGColor;
+    _ring.fillColor = g_forestTheme ? k_ringFill.CGColor : k_ringFill.CGColor;
+    _ring.strokeColor = k_line.CGColor; _knob.strokeColor = k_line.CGColor;
+    UIColor *swapIdle = g_forestTheme ? [UIColor colorWithRed:0.16 green:0.37 blue:0.25 alpha:0.36] : k_idle;
+    UIColor *swapPressed = g_forestTheme ? [UIColor colorWithRed:0.22 green:0.48 blue:0.30 alpha:0.92] : k_on;
+    _swap.fillColor = (_swapHeld ? swapPressed : swapIdle).CGColor;
+    _swap.strokeColor = k_line.CGColor; _swapLabel.foregroundColor = (_swapHeld ? k_textOn : k_text).CGColor;
     CGPoint h = self.stickHome, o = [self knobOffset:0];
-    _knob.position = CGPointMake(h.x + o.x, h.y + o.y); _knob.fillColor = (_stick[0] ? k_on : k_idle).CGColor;
-    [self layoutSkinItems];
+    _knob.position = CGPointMake(h.x + o.x, h.y + o.y); _knob.fillColor = (_stick[0] ? (g_forestTheme ? forestColor(B_LS, YES) : k_on) : (g_forestTheme ? forestColor(B_LS, NO) : k_idle)).CGColor;
     [CATransaction commit];
 }
 
