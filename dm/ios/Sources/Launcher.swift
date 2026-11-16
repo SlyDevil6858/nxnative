@@ -232,7 +232,7 @@ private struct LauncherView: View {
                                         Label("Quick tip", systemImage: "lightbulb.fill")
                                             .font(.caption.weight(.semibold))
                                             .foregroundStyle(accentColor)
-                                        Text("During gameplay, tap the 2D or 3D button, or hold Select on your controller, to open the in-game control menu.")
+                                        Text("During gameplay, press and hold the 2D or 3D button, or hold Select on your controller, to open the in-game control menu.")
                                             .font(.footnote)
                                             .foregroundStyle(Color(white: 0.82))
                                             .fixedSize(horizontal: false, vertical: true)
