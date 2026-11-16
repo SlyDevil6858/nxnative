@@ -136,6 +136,7 @@ static NSString *const k_layout_key = @"DmPadLayout";   // NSUserDefaults: 0 = 2
 int dm_opmode(void);   // hle_oe.c: 0 = handheld
 
 @interface DmGamepad : UIView <UIGestureRecognizerDelegate, UIDocumentPickerDelegate>
+- (UIColor *)editorAccentColor;
 - (void)beginLauncherEdit;
 - (void)toggleEditor;
 - (void)saveEdit;
@@ -1484,7 +1485,7 @@ static BOOL pads_slotted(GCController *gone) {
     _closeButton.frame=CGRectMake(0,0,76,36);
     _closeButton.autoresizingMask=UIViewAutoresizingFlexibleLeftMargin|UIViewAutoresizingFlexibleBottomMargin;
     [_closeButton setTitle:@"Done" forState:UIControlStateNormal];
-    UIColor *doneAccent=[self editorAccentColor];
+    UIColor *doneAccent=[_pad editorAccentColor];
     CGFloat red=0, green=0, blue=0, alpha=1;
     [doneAccent getRed:&red green:&green blue:&blue alpha:&alpha];
     CGFloat luminance=0.2126*red+0.7152*green+0.0722*blue;
