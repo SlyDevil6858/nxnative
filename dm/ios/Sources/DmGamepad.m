@@ -130,7 +130,7 @@ static const int k_btns[] = {B_ZL, B_L, B_ZR, B_R, B_MINUS, B_PLUS, B_LS, B_RS};
 static NSString *const k_layout_key = @"DmPadLayout";   // NSUserDefaults: 0 = 2D, 1 = 3D, 2 = Tap (DM_GAME_PAD_LAYOUT's numbers)
 int dm_opmode(void);   // hle_oe.c: 0 = handheld
 
-@interface DmGamepad : UIView
+@interface DmGamepad : UIView <UIGestureRecognizerDelegate>
 @end
 static __weak DmGamepad *g_view;
 static void pads_start(void);   // Physical controllers, below
@@ -159,7 +159,8 @@ static void pads_start(void);   // Physical controllers, below
     UITouch *_dragTouch;
     CGPoint _dragStart, _dragHome;
     CGRect _lastSafe;
-    UIButton *_editButton, *_chooseButton, *_profileButton, *_saveAsButton;
+    UIButton *_chooseButton, *_profileButton, *_saveAsButton;
+    UILongPressGestureRecognizer *_editHold;
     UIView *_tools;
     UISlider *_sizeSlider, *_alphaSlider;
     UILabel *_editInfo;
@@ -223,6 +224,9 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
                                                        game:@DM_GAME_ID];
         [self loadControls];
         [self setupEditor];
+        _editHold=[[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleEditHold:)];
+        _editHold.minimumPressDuration=0.6; _editHold.cancelsTouchesInView=YES; _editHold.delegate=self;
+        [self addGestureRecognizer:_editHold];
         [self applyLayout];
         NSNotificationCenter *nc = NSNotificationCenter.defaultCenter;
         [nc addObserver:self selector:@selector(padsChanged:) name:GCControllerDidConnectNotification object:nil];
@@ -728,7 +732,6 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     [CATransaction begin]; [CATransaction setDisableActions:YES];
     CGRect safe=self.safe;
     if (!CGRectEqualToRect(safe,_lastSafe)) { _lastSafe=safe; if (!_editing) [self reset]; }
-    _editButton.frame=CGRectMake(CGRectGetMidX(safe)-65,CGRectGetMinY(safe)+54,130,32);
     _tools.frame=CGRectMake(CGRectGetMidX(safe)-160,CGRectGetMidY(safe)-112,320,224);
     _controls.frame = self.layer.bounds;
     for (int b = B_A; b <= B_Y; b++) { CGPoint c = [self facePos:b]; setPath(_key[b], circlePath(c, [self faceRadius:b])); placeLabel(_label[b], c, 20 * u * [self scale:b]); }
@@ -797,7 +800,6 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     [parent addSubview:button]; return button;
 }
 - (void)setupEditor {
-    _editButton=[self editorButton:@"Edit controls" action:@selector(toggleEditor) frame:CGRectZero parent:self];
     _tools=[UIView new]; _tools.backgroundColor=[UIColor colorWithWhite:0 alpha:0.92]; _tools.layer.cornerRadius=10;
     [self addSubview:_tools]; _tools.hidden=YES;
     _profileButton=[self editorButton:@"Profile" action:NULL frame:CGRectMake(8,8,192,32) parent:_tools];
@@ -812,10 +814,11 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     _sizeSlider.minimumValue=0.5; _sizeSlider.maximumValue=2;
     _alphaSlider=[[UISlider alloc] initWithFrame:CGRectMake(78,152,230,30)];
     _alphaSlider.minimumValue=0; _alphaSlider.maximumValue=1;
-    for (UISlider *slider in @[_sizeSlider,_alphaSlider]) {
-        [slider addTarget:self action:@selector(adjustControl) forControlEvents:UIControlEventValueChanged];
-        [_tools addSubview:slider];
-    }
+    _sizeSlider.minimumTrackTintColor=[self editorAccentColor]; _sizeSlider.thumbTintColor=[self editorAccentColor];
+    _alphaSlider.minimumTrackTintColor=[self editorAccentColor]; _alphaSlider.thumbTintColor=[self editorAccentColor];
+    [_sizeSlider addTarget:self action:@selector(adjustControl) forControlEvents:UIControlEventValueChanged];
+    [_alphaSlider addTarget:self action:@selector(adjustOpacityControl) forControlEvents:UIControlEventValueChanged];
+    [_tools addSubview:_sizeSlider]; [_tools addSubview:_alphaSlider];
     for (int i=0;i<2;i++) {
         UILabel *labelView=[[UILabel alloc] initWithFrame:CGRectMake(8,120+32*i,70,30)];
         labelView.text=i?@"Opacity":@"Size"; labelView.textColor=UIColor.whiteColor;
@@ -908,14 +911,12 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     _editWasTap=_tap;
     if (_tap) { _tap=NO; [self loadControls]; [self applyLayout]; }
     [self reset]; _editing=YES; _controls.hidden=NO; _selected=B_A; _tools.hidden=NO;
-    [_editButton setTitle:@"Show / hide tools" forState:UIControlStateNormal];
     [self updateEditor]; [self setNeedsLayout];
 }
 - (void)finishEdit {
     [self reset]; _editing=NO;
     if (_editWasTap) { _tap=YES; [self applyLayout]; }
     _tools.hidden=YES; _controls.hidden=_padOff;
-    [_editButton setTitle:@"Edit controls" forState:UIControlStateNormal];
     _editHighlight.hidden=YES; [self setNeedsLayout];
 }
 - (void)saveEdit { [_profiles save:_custom layout:self.controlsLayout slot:_profiles.selected]; [self finishEdit]; }
@@ -931,6 +932,35 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     [self updateEditor]; [self setNeedsLayout];
 }
 - (void)adjustControl { [self storeControlAt:[self controlCenter:_selected]]; }
+- (void)adjustOpacityControl {
+    NSString *key=[self controlID:_selected]; NSMutableDictionary *value=[_custom[key] mutableCopy] ?: [NSMutableDictionary dictionary];
+    value[@"alpha"]=@(_alphaSlider.value); _custom[key]=value;
+    _editInfo.text=[NSString stringWithFormat:@"Size %.0f%% · Opacity %.0f%%\nDrag a control to move it.",_sizeSlider.value*100,_alphaSlider.value*100];
+    [self setNeedsLayout]; [self refresh];
+}
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch {
+    if (gestureRecognizer!=_editHold || _padOff || _editing || !_full || _tap) return NO;
+    return [self inSwap:[touch locationInView:self]];
+}
+- (void)handleEditHold:(UILongPressGestureRecognizer *)gesture {
+    if (gesture.state==UIGestureRecognizerStateBegan && !_padOff && _full && !_tap && !_editing) [self toggleEditor];
+}
+- (UIColor *)editorAccentColor {
+    UIImage *icon=[UIImage imageNamed:@"AppIcon"]; CGImageRef cg=icon.CGImage; if (!cg) return UIColor.systemBlueColor;
+    const size_t w=32,h=32,bpp=4,bpr=w*bpp; uint8_t pixels[h*bpr]; memset(pixels,0,sizeof pixels);
+    CGColorSpaceRef space=CGColorSpaceCreateDeviceRGB(); CGContextRef ctx=CGBitmapContextCreate(pixels,w,h,8,bpr,space,kCGImageAlphaPremultipliedLast|kCGBitmapByteOrder32Big);
+    CGColorSpaceRelease(space); if (!ctx) return UIColor.systemBlueColor;
+    CGContextSetInterpolationQuality(ctx,kCGInterpolationLow); CGContextDrawImage(ctx,CGRectMake(0,0,w,h),cg); CGContextRelease(ctx);
+    NSMutableDictionary<NSNumber *,NSMutableArray<NSNumber *> *> *buckets=[NSMutableDictionary dictionary];
+    for (NSUInteger i=0;i<w*h;i++) { int r=pixels[i*4],g=pixels[i*4+1],b=pixels[i*4+2],a=pixels[i*4+3]; int brightness=(r*299+g*587+b*114)/1000;
+        if(a<=64||brightness<=18||brightness>=248||MAX(r,MAX(g,b))-MIN(r,MIN(g,b))<=18) continue;
+        int k=((r>>3)<<10)|((g>>3)<<5)|(b>>3); NSNumber *key=@(k); NSMutableArray *v=buckets[key]; if(!v){v=[NSMutableArray arrayWithObjects:@0,@0,@0,@0,nil];buckets[key]=v;}
+        for(int c=0;c<3;c++) v[c]=@([v[c] intValue]+(c==0?r:c==1?g:b)); v[3]=@([v[3] intValue]+1);
+    }
+    NSArray *best=nil; for(NSArray *v in buckets.allValues) if(!best||[v[3] intValue]>[best[3] intValue]) best=v;
+    if(!best||![best[3] intValue]) return UIColor.systemBlueColor;
+    CGFloat n=[best[3] doubleValue]*255; return [UIColor colorWithRed:[best[0] doubleValue]/n green:[best[1] doubleValue]/n blue:[best[2] doubleValue]/n alpha:1];
+}
 - (void)editTouches:(NSSet<UITouch *> *)touches began:(BOOL)began {
     if (began && !_dragTouch) {
         UITouch *touch=touches.anyObject; CGPoint start=[touch locationInView:self];
@@ -1020,7 +1050,7 @@ static BOOL pads_slotted(GCController *gone) {
     if (c && (!c.extendedGamepad || g_merge)) LOG("controller %s: %s%s", gone ? "disconnected" : "connected", pad_name(c), c.extendedGamepad ? "" : " (no extended gamepad profile: not used)");
     BOOL any = g_merge ? pads_merged(gone) : pads_slotted(gone);
     dispatch_async(dispatch_get_main_queue(), ^{
-        self->_padOff=any; self->_controls.hidden=any; self->_editButton.hidden=any;
+        self->_padOff=any; self->_controls.hidden=any;
         if (any && self->_editing) [self finishEdit];
         [self reset];
     });   // the touch gamepad hides while any controller is in use
