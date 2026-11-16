@@ -476,6 +476,9 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
             picker.delegate = self;
             [presenter presentViewController:picker animated:YES completion:nil];
         }]];
+        [menu addAction:[UIAlertAction actionWithTitle:@"Export Built-in Skin (PNG)" style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *a) {
+            [self exportBuiltInSkin];
+        }]];
         [menu addAction:[UIAlertAction actionWithTitle:@"Use Built-in Controls" style:UIAlertActionStyleDestructive handler:^(__unused UIAlertAction *a) {
             [NSUserDefaults.standardUserDefaults removeObjectForKey:@"DmTouchControlSkinPath"];
             [NSUserDefaults.standardUserDefaults removeObjectForKey:@"DmTouchControlSkinName"];
@@ -486,6 +489,83 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
         menu.popoverPresentationController.sourceRect = CGRectMake(CGRectGetMidX(self.bounds), CGRectGetMidY(self.bounds), 1, 1);
         [presenter presentViewController:menu animated:YES completion:nil];
     });
+}
+// Export the real native CAShapeLayer/CATextLayer artwork as transparent PNGs.
+// Each crop is taken from the rendered native controller, so the paths, strokes,
+// shadows and labels come from the same layers used by the built-in controls.
+- (void)exportBuiltInSkin {
+    [self setNeedsLayout]; [self layoutIfNeeded];
+    [CATransaction flush];
+    NSArray<NSString *> *names = @[@"a", @"b", @"x", @"y", @"stick-base", @"stick-knob", @"zl", @"l", @"zr", @"r", @"minus", @"plus", @"layout", @"dpad-up", @"dpad-down", @"dpad-left", @"dpad-right", @"l3", @"r3", @"right-stick-base", @"right-stick-knob"];
+    NSMutableDictionary<NSString *, NSValue *> *rects = [NSMutableDictionary dictionary];
+    CGFloat pad = 5 * self.u;
+    for (int b = B_A; b <= B_Y; b++) {
+        CGPoint p = [self facePos:b]; CGFloat r = self.faceR;
+        rects[@[@"a",@"b",@"x",@"y"][b]] = [NSValue valueWithCGRect:CGRectInset(CGRectMake(p.x-r,p.y-r,2*r,2*r),-pad,-pad)];
+    }
+    CGPoint sh = self.stickHome; CGFloat sr = [self stickR:0];
+    rects[@"stick-base"] = [NSValue valueWithCGRect:CGRectInset(CGRectMake(sh.x-sr,sh.y-sr,2*sr,2*sr),-pad,-pad)];
+    CGFloat kr = K_KNOB_R * self.u; CGPoint ko = [self knobOffset:0];
+    CGPoint kc = CGPointMake(sh.x+ko.x,sh.y+ko.y);
+    rects[@"stick-knob"] = [NSValue valueWithCGRect:CGRectInset(CGRectMake(kc.x-kr,kc.y-kr,2*kr,2*kr),-pad,-pad)];
+    for (NSString *name in @[@"zl",@"l",@"zr",@"r"]) {
+        int b = [name isEqual:@"zl"]?B_ZL:[name isEqual:@"l"]?B_L:[name isEqual:@"zr"]?B_ZR:B_R;
+        CGPoint p=[self dropCenter:b]; CGFloat r=[self dropR:b]*K_DROP_TIP;
+        rects[name]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(p.x-r,p.y-r,2*r,2*r),-pad,-pad)];
+    }
+    for (NSString *name in @[@"minus",@"plus"]) {
+        int b=[name isEqual:@"plus"]?B_PLUS:B_MINUS; rects[name]=[NSValue valueWithCGRect:CGRectInset([self pillRect:b],-pad,-pad)];
+    }
+    CGFloat swapR=K_SWAP_R*self.u; CGPoint sp=self.swapCenter;
+    rects[@"layout"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(sp.x-swapR,sp.y-swapR,2*swapR,2*swapR),-pad,-pad)];
+    CGFloat clickR=K_CLICK_R*self.u;
+    for (NSString *name in @[@"l3",@"r3"]) {
+        CGPoint p=[self clickCenter:[name isEqual:@"l3"]?B_LS:B_RS];
+        rects[name]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(p.x-clickR,p.y-clickR,2*clickR,2*clickR),-pad,-pad)];
+    }
+    CGFloat dr=self.dpadR; CGPoint dc=self.dpadCenter;
+    for (NSString *name in @[@"dpad-up",@"dpad-down",@"dpad-left",@"dpad-right"])
+        rects[name]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(dc.x-dr,dc.y-dr,2*dr,2*dr),-pad,-pad)];
+    // The right stick is normally invisible. Its native ring/knob artwork is the same
+    // geometry as the left stick, captured at the right-stick dimensions.
+    CGFloat rr=[self stickR:1], rkr=K_KNOB_R*self.u;
+    CGPoint rc=CGPointMake(CGRectGetMaxX(self.bounds)-rr-24*self.u,CGRectGetMidY(self.bounds));
+    rects[@"right-stick-base"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(rc.x-rr,rc.y-rr,2*rr,2*rr),-pad,-pad)];
+    rects[@"right-stick-knob"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(rc.x-rkr,rc.y-rkr,2*rkr,2*rkr),-pad,-pad)];
+
+    BOOL oldCustom=_customSkin;
+    _customSkin=NO; [self applyLayout]; [self layoutIfNeeded]; [CATransaction flush];
+    UIGraphicsImageRendererFormat *format=[UIGraphicsImageRendererFormat defaultFormat]; format.scale=UIScreen.mainScreen.scale; format.opaque=NO;
+    UIImage *whole=[[UIGraphicsImageRenderer alloc] initWithSize:self.bounds.size format:format] imageWithActions:^(UIGraphicsImageRendererContext *ctx) {
+        [self.layer renderInContext:ctx.CGContext];
+    }];
+    CGImageRef full=whole.CGImage;
+    NSURL *docs=[NSFileManager.defaultManager URLForDirectory:NSDocumentDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:nil];
+    NSURL *folder=[[docs URLByAppendingPathComponent:@"TouchControlSkins" isDirectory:YES] URLByAppendingPathComponent:@"Default" isDirectory:YES];
+    [NSFileManager.defaultManager createDirectoryAtURL:folder withIntermediateDirectories:YES attributes:nil error:nil];
+    NSMutableArray *failed=[NSMutableArray array];
+    CGFloat scale=whole.scale;
+    for (NSString *name in names) {
+        CGRect r=CGRectIntersection(rects[name].CGRectValue,self.bounds);
+        CGRect pixels=CGRectMake(floor(r.origin.x*scale),floor((self.bounds.size.height-CGRectGetMaxY(r))*scale),ceil(r.size.width*scale),ceil(r.size.height*scale));
+        CGImageRef crop=CGImageCreateWithImageInRect(full,pixels);
+        if (!crop) { [failed addObject:name]; continue; }
+        UIImage *piece=[UIImage imageWithCGImage:crop scale:1 orientation:UIImageOrientationUp]; CGImageRelease(crop);
+        UIGraphicsImageRendererFormat *outFormat=[UIGraphicsImageRendererFormat defaultFormat]; outFormat.scale=1; outFormat.opaque=NO;
+        UIImage *png=[[UIGraphicsImageRenderer alloc] initWithSize:CGSizeMake(256,256) format:outFormat] imageWithActions:^(UIGraphicsImageRendererContext *ctx) {
+            CGFloat factor=MIN(256.0/piece.size.width,256.0/piece.size.height);
+            CGSize size=CGSizeMake(piece.size.width*factor,piece.size.height*factor);
+            [piece drawInRect:CGRectMake((256-size.width)/2,(256-size.height)/2,size.width,size.height)];
+        }];
+        NSData *data=UIImagePNGRepresentation(png);
+        if (![data writeToURL:[folder URLByAppendingPathComponent:[name stringByAppendingString:@".png"]] options:NSDataWritingAtomic error:nil]) [failed addObject:name];
+    }
+    _customSkin=oldCustom; [self applyLayout]; [self setNeedsLayout]; [self refresh];
+    NSString *message=failed.count ? [NSString stringWithFormat:@"Some images could not be exported: %@",[failed componentsJoinedByString:@", "]] :
+        [NSString stringWithFormat:@"Exported 21 transparent PNGs (256×256) to Documents/TouchControlSkins/Default. You can import this folder as a skin.\n\nNote: the right stick is normally hidden, so its artwork is generated from the native stick geometry.",nil];
+    UIAlertController *done=[UIAlertController alertControllerWithTitle:failed.count?@"Export Incomplete":@"Built-in Skin Exported" message:message preferredStyle:UIAlertControllerStyleAlert];
+    [done addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+    [[self topPresenter] presentViewController:done animated:YES completion:nil];
 }
 - (void)documentPicker:(UIDocumentPickerViewController *)controller didPickDocumentsAtURLs:(NSArray<NSURL *> *)urls {
     NSURL *source = urls.firstObject;
