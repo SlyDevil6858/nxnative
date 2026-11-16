@@ -204,8 +204,7 @@ uint64_t mtl_present_count(void);
 static UILabel *g_fps_label;
 static UILabel *front_ios_fps_label(void) {
     if (g_fps_label) return g_fps_label;
-    const char *e = getenv("DM_SHOW_FPS");
-    if (!(e ? atoi(e) != 0 : [[NSBundle.mainBundle objectForInfoDictionaryKey:@"DMShowFPS"] boolValue])) return nil;
+    if (!front_ios_runtime_fps_enabled()) return nil;
     UILabel *l = [UILabel new];
     g_fps_label = l;
     l.font = [UIFont monospacedDigitSystemFontOfSize:13 weight:UIFontWeightSemibold]; l.textColor = UIColor.whiteColor; l.textAlignment = NSTextAlignmentCenter;
@@ -223,7 +222,10 @@ static UILabel *front_ios_fps_label(void) {
 
 BOOL front_ios_runtime_fps_enabled(void) {
     const char *e=getenv("DM_SHOW_FPS");
-    return e ? atoi(e)!=0 : [[NSBundle.mainBundle objectForInfoDictionaryKey:@"DMShowFPS"] boolValue];
+    if (e) return atoi(e)!=0;
+    NSUserDefaults *defaults=NSUserDefaults.standardUserDefaults;
+    if ([defaults objectForKey:@"DmRuntimeFPSEnabled"]!=nil) return [defaults boolForKey:@"DmRuntimeFPSEnabled"];
+    return NO;
 }
 BOOL front_ios_runtime_metal_hud_enabled(void) {
     // The in-game switch is a runtime preference, so keep its last choice across launches.
@@ -235,6 +237,7 @@ BOOL front_ios_runtime_metal_hud_enabled(void) {
 void front_ios_set_runtime_hud(BOOL fps, BOOL metalHUD) {
     setenv("DM_SHOW_FPS", fps ? "1" : "0", 1);
     setenv("DM_METAL_HUD", metalHUD ? "1" : "0", 1);
+    [[NSUserDefaults standardUserDefaults] setBool:fps forKey:@"DmRuntimeFPSEnabled"];
     [[NSUserDefaults standardUserDefaults] setBool:metalHUD forKey:@"DmRuntimeMetalHUDEnabled"];
     dispatch_async(dispatch_get_main_queue(), ^{
         if (fps) {
