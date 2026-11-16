@@ -6,8 +6,16 @@
 
 static inline BOOL dm_pad_entry_valid(id value) {
     if (![value isKindOfClass:NSDictionary.class]) return NO;
+
+    // Editor operations may update only one property at a time: scale-only,
+    // opacity-only, or position-only (x/y). Keep those partial records valid.
+    BOOL hasX = value[@"x"] != nil, hasY = value[@"y"] != nil;
+    BOOL hasScale = value[@"scale"] != nil, hasAlpha = value[@"alpha"] != nil;
+    if (hasX != hasY || (!hasX && !hasScale && !hasAlpha)) return NO;
+
     for (NSString *key in @[@"x", @"y", @"scale", @"alpha"]) {
         id number = value[key];
+        if (!number) continue;
         BOOL scale = [key isEqual:@"scale"];
         if (![number isKindOfClass:NSNumber.class] ||
             CFGetTypeID((__bridge CFTypeRef)number) == CFBooleanGetTypeID()) return NO;
