@@ -217,9 +217,9 @@ private struct LauncherView: View {
                                     }
                                     .pickerStyle(.menu)
                                     .tint(accentColor)
-                                    Button("Import control skin…") { pickingTheme = true }
-                                        .foregroundStyle(accentColor)
                                     Button("Edit touch controls layout…") { dm_gamepad_present_launcher_editor() }
+                                        .foregroundStyle(accentColor)
+                                    Button("Import touch controls skin…") { pickingTheme = true }
                                         .foregroundStyle(accentColor)
                                 }
                             }
@@ -277,8 +277,21 @@ private struct LauncherView: View {
         }
     }
 
+    private var accentTextColor: Color {
+        let ui = UIColor(accentColor)
+        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 1
+        if ui.getRed(&red, green: &green, blue: &blue, alpha: &alpha) {
+            let luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue
+            return luminance > 0.58 ? .black : .white
+        }
+        return .white
+    }
+
     @ViewBuilder var playButton: some View {
-        let button = Button(action: play) { Text("Play").font(.title3.weight(.semibold)).frame(maxWidth: 220) }.controlSize(.large).tint(accentColor)
+        let button = Button(action: play) {
+            Text("Play").font(.title3.weight(.semibold)).frame(maxWidth: 220)
+                .foregroundStyle(accentTextColor)
+        }.controlSize(.large).tint(accentColor)
         if #available(iOS 26.0, *) { button.buttonStyle(.glassProminent) } else { button.buttonStyle(.borderedProminent) }
     }
 
