@@ -1018,12 +1018,27 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 - (void)updateEditor {
     [self updateProfileMenu];
     [self updateThemeMenu];
-    [_chooseButton setTitle:[NSString stringWithFormat:@"%@ ▾",[self controlID:_selected]] forState:UIControlStateNormal];
-    _sizeSlider.value=[self scale:_selected];
-    NSNumber *alpha=_custom[[self controlID:_selected]][@"alpha"];
-    _alphaSlider.value=alpha?alpha.floatValue:1;
+    if (_selected<0) {
+        CGFloat scale=0,alpha=0; NSInteger count=0;
+        for (int b=0;b<18;b++) if ([self editable:b]) {
+            scale += [self scale:b];
+            NSNumber *saved=_custom[[self controlID:b]][@"alpha"];
+            alpha += saved ? saved.floatValue : 1.0;
+            count++;
+        }
+        _sizeSlider.value=count?scale/count:1;
+        _alphaSlider.value=count?alpha/count:1;
+        [_chooseButton setTitle:@"All controls ▾" forState:UIControlStateNormal];
+    } else {
+        [_chooseButton setTitle:[NSString stringWithFormat:@"%@ ▾",[self controlID:_selected]] forState:UIControlStateNormal];
+        _sizeSlider.value=[self scale:_selected];
+        NSNumber *alpha=_custom[[self controlID:_selected]][@"alpha"];
+        _alphaSlider.value=alpha?alpha.floatValue:1;
+    }
     _editInfo.text=[NSString stringWithFormat:@"Size %.0f%% · Opacity %.0f%%\nDrag a control to move it.",_sizeSlider.value*100,_alphaSlider.value*100];
     NSMutableArray *actions=[NSMutableArray array];
+    [actions addObject:[UIAction actionWithTitle:@"All controls" image:nil identifier:nil
+        handler:^(__kindof UIAction *action) { (void)action; self->_selected=-1; [self updateEditor]; }]];
     for (int b=0;b<18;b++) if ([self editable:b]) {
         int selected=b;
         [actions addObject:[UIAction actionWithTitle:[self controlID:b] image:nil identifier:nil
