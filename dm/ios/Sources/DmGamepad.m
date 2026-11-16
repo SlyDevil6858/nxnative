@@ -833,6 +833,8 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     innerRing.strokeColor=k_line.CGColor;
     _swap.fillColor = [self themeColorForButton:B_N pressed:_swapHeld].CGColor;
     _swap.strokeColor = k_line.CGColor; _swapLabel.foregroundColor = (_swapHeld ? k_textOn : k_text).CGColor;
+    // Keep the 2D / 3D / TAP layout control above every other touch-control layer.
+    [_controls addSublayer:_swap];
     CGPoint h = self.stickHome, o = [self knobOffset:0];
     _knob.position = CGPointMake(h.x + o.x, h.y + o.y); _knob.fillColor = [self themeColorForButton:B_LS pressed:_stick[0] != nil].CGColor;
     [CATransaction commit];
@@ -1400,8 +1402,12 @@ static BOOL pads_slotted(GCController *gone) {
     _closeButton.frame=CGRectMake(0,0,76,36);
     _closeButton.autoresizingMask=UIViewAutoresizingFlexibleLeftMargin|UIViewAutoresizingFlexibleBottomMargin;
     [_closeButton setTitle:@"Done" forState:UIControlStateNormal];
-    [_closeButton setTitleColor:UIColor.whiteColor forState:UIControlStateNormal];
-    _closeButton.backgroundColor=[UIColor colorWithWhite:0.10 alpha:0.95];
+    UIColor *doneAccent=[self editorAccentColor];
+    CGFloat red=0, green=0, blue=0, alpha=1;
+    [doneAccent getRed:&red green:&green blue:&blue alpha:&alpha];
+    CGFloat luminance=0.2126*red+0.7152*green+0.0722*blue;
+    [_closeButton setTitleColor:(luminance>0.58?UIColor.blackColor:UIColor.whiteColor) forState:UIControlStateNormal];
+    _closeButton.backgroundColor=doneAccent;
     _closeButton.layer.cornerRadius=7;
     [_closeButton addTarget:self action:@selector(closeEditor) forControlEvents:UIControlEventTouchUpInside];
     [self.view addSubview:_closeButton];
