@@ -9,6 +9,54 @@ import os
 
 private func info(_ key: String) -> Any? { Bundle.main.object(forInfoDictionaryKey: key) }
 
+/// A lightweight dominant-colour estimate for tinting the launcher from the game's app icon.
+private extension UIImage {
+    func dominantColor() -> UIColor? {
+        guard let cgImage else { return nil }
+        let width = 32, height = 32
+        let bytesPerPixel = 4
+        let bytesPerRow = width * bytesPerPixel
+        var pixels = [UInt8](repeating: 0, count: height * bytesPerRow)
+        let rendered = pixels.withUnsafeMutableBytes { buffer -> Bool in
+            guard let context = CGContext(data: buffer.baseAddress, width: width, height: height,
+                                          bitsPerComponent: 8, bytesPerRow: bytesPerRow,
+                                          space: CGColorSpaceCreateDeviceRGB(),
+                                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+            context.interpolationQuality = .low
+            context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+            return true
+        }
+        guard rendered else { return nil }
+
+        struct Bucket {
+            var count = 0
+            var red = 0
+            var green = 0
+            var blue = 0
+        }
+        var buckets: [Int: Bucket] = [:]
+        for offset in stride(from: 0, to: pixels.count, by: bytesPerPixel) {
+            let alpha = Int(pixels[offset + 3])
+            guard alpha > 64 else { continue }
+            let red = Int(pixels[offset]), green = Int(pixels[offset + 1]), blue = Int(pixels[offset + 2])
+            let brightness = (red * 299 + green * 587 + blue * 114) / 1000
+            let maximum = max(red, green, blue), minimum = min(red, green, blue)
+            guard brightness > 18, brightness < 248, maximum - minimum > 18 else { continue }
+            let key = ((red >> 3) << 10) | ((green >> 3) << 5) | (blue >> 3)
+            var bucket = buckets[key, default: Bucket()]
+            bucket.count += 1
+            bucket.red += red; bucket.green += green; bucket.blue += blue
+            buckets[key] = bucket
+        }
+        guard let dominant = buckets.values.max(by: { $0.count < $1.count }), dominant.count > 0 else {
+            return UIColor(red: 0.25, green: 0.48, blue: 0.85, alpha: 1)
+        }
+        return UIColor(red: CGFloat(dominant.red) / CGFloat(dominant.count * 255),
+                       green: CGFloat(dominant.green) / CGFloat(dominant.count * 255),
+                       blue: CGFloat(dominant.blue) / CGFloat(dominant.count * 255), alpha: 1)
+    }
+}
+
 
 /// Cloud saves: an iCloud Drive folder shared with the Mac app (chosen in its settings window's
 /// Cloud saves too). The host brings the save in from there when the game starts and
@@ -180,7 +228,7 @@ private struct LauncherView: View {
                         let rows = m.rows(in: section)
                         if !rows.isEmpty {
                             Section(section) {
-                                ForEach(rows) { SettingRow(s: $0, m: m) }
+                                ForEach(rows) { SettingRow(s: $0, m: m, accentColor: accentColor) }
                             }
                         }
                     }
@@ -223,13 +271,17 @@ private struct LauncherView: View {
     }
 
     @ViewBuilder var playButton: some View {
-        let button = Button(action: play) { Text("Play").font(.title3.weight(.semibold)).frame(maxWidth: 220) }.controlSize(.large)
+        let button = Button(action: play) { Text("Play").font(.title3.weight(.semibold)).frame(maxWidth: 220) }.controlSize(.large).tint(accentColor)
         if #available(iOS 26.0, *) { button.buttonStyle(.glassProminent) } else { button.buttonStyle(.borderedProminent) }
     }
 
     private func launcherBackground() -> UIImage? {
         guard let url = Bundle.main.resourceURL?.appendingPathComponent("dm/launcher-custom-background.png") else { return nil }
         return UIImage(contentsOfFile: url.path)
+    }
+
+    private var accentColor: Color {
+        Color(uiColor: appIcon()?.dominantColor() ?? .systemBlue)
     }
 
     private func appIcon() -> UIImage? {
