@@ -112,7 +112,7 @@ jobs:
                   "alongside any update/DLC files."
               )
           rom_name = candidates[0].stem
-          if not rom_name.strip() or any(c in rom_name for c in "\\r\\n"):
+          if not rom_name.strip() or any(c in rom_name for c in "\r\n"):
               raise SystemExit("The base ROM filename is empty or invalid.")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
               output.write(f"ipa_name={rom_name}\n")
