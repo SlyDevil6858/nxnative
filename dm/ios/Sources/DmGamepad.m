@@ -148,7 +148,7 @@ static void pads_start(void);   // Physical controllers, below
     BOOL _stickShown;                              // the left stick was held at the last refresh
     BOOL _full, _tap;                              // the 3D layout / the Tap layout is current
     CALayer *_controls;                            // holds every control layer: hidden while a physical controller is connected (the view itself stays, for game touches)
-    CALayer *_skinLayer; UIImage *_skin2D, *_skin3D; BOOL _customSkin; // optional artwork; native touch hit-testing stays unchanged
+    NSMutableDictionary<NSString *, CALayer *> *_skinItems; NSDictionary<NSString *, UIImage *> *_skinImages; BOOL _customSkin; // one image layer per control; native touch hit-testing stays unchanged
     BOOL _padOff;                                  // a physical controller is connected: every touch goes to the game
     UITouch *_game[16];                            // touches on the game's touch screen by finger slot
 }
@@ -193,7 +193,7 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
             if (names[b]) _label[b] = label(_key[b], names[b]);   // the D-pad arms carry no label
         }
         _swap = shape(_controls); _swapLabel = label(_swap, @"");
-        _skinLayer = [CALayer layer]; _skinLayer.contentsGravity = kCAGravityResize; [_controls addSublayer:_skinLayer];
+        _skinItems = [NSMutableDictionary dictionary];
         [self loadTouchSkin];
         NSNumber *saved = [NSUserDefaults.standardUserDefaults objectForKey:k_layout_key];
         int l = saved ? (int)saved.integerValue : DM_GAME_PAD_LAYOUT;
@@ -212,22 +212,69 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
 }
 - (void)loadTouchSkin {
     NSString *path = [NSUserDefaults.standardUserDefaults stringForKey:@"DmTouchControlSkinPath"];
-    _skin2D = _skin3D = nil; _customSkin = NO;
-    if (path.length) {
-        _skin2D = [UIImage imageWithContentsOfFile:[path stringByAppendingPathComponent:@"skin-2d.png"]];
-        _skin3D = [UIImage imageWithContentsOfFile:[path stringByAppendingPathComponent:@"skin-3d.png"]];
-        _customSkin = _skin2D.CGImage && _skin3D.CGImage;
+    _customSkin = NO; [_skinItems removeAllObjects];
+    if (!path.length) return;
+    NSArray<NSString *> *names = @[@"a", @"b", @"x", @"y", @"stick-base", @"stick-knob",
+        @"zl", @"l", @"zr", @"r", @"minus", @"plus", @"layout",
+        @"dpad-up", @"dpad-down", @"dpad-left", @"dpad-right", @"l3", @"r3"];
+    NSMutableDictionary *images = [NSMutableDictionary dictionary];
+    for (NSString *name in names) {
+        UIImage *image = [UIImage imageWithContentsOfFile:[path stringByAppendingPathComponent:[name stringByAppendingString:@".png"]]];
+        if (image.CGImage) images[name] = image;
     }
+    // A skin is accepted only when it has every image needed by both layouts.
+    if (images.count != names.count) return;
+    _skinImages = images; _customSkin = YES;
+    for (NSString *name in names) {
+        CALayer *layer = [CALayer layer]; layer.contents = (__bridge id)images[name].CGImage;
+        layer.contentsGravity = kCAGravityResize; layer.contentsScale = UIScreen.mainScreen.scale;
+        [_controls addSublayer:layer]; _skinItems[name] = layer;
+    }
+}
+- (void)placeSkinItem:(NSString *)name center:(CGPoint)c size:(CGSize)size hidden:(BOOL)hidden {
+    CALayer *layer = _skinItems[name]; if (!layer) return;
+    layer.frame = CGRectMake(c.x - size.width / 2, c.y - size.height / 2, size.width, size.height);
+    layer.hidden = hidden;
+}
+- (void)layoutSkinItems {
+    if (!_customSkin) return;
+    CGFloat u = self.u;
+    for (int b = B_A; b <= B_Y; b++) {
+        NSString *name = @[@"a", @"b", @"x", @"y"][b];
+        CGFloat d = self.faceR * 2;
+        [self placeSkinItem:name center:[self facePos:b] size:CGSizeMake(d,d) hidden:_tap];
+    }
+    CGFloat stickD = [self stickR:0] * 2;
+    [self placeSkinItem:@"stick-base" center:self.stickHome size:CGSizeMake(stickD,stickD) hidden:_tap];
+    CGFloat knobD = K_KNOB_R * u * 2; CGPoint offset = [self knobOffset:0];
+    [self placeSkinItem:@"stick-knob" center:CGPointMake(self.stickHome.x+offset.x,self.stickHome.y+offset.y)
+        size:CGSizeMake(knobD,knobD) hidden:_tap];
+    for (NSString *name in @[@"zl",@"l",@"zr",@"r"]) {
+        int b = [name isEqualToString:@"zl"] ? B_ZL : [name isEqualToString:@"l"] ? B_L :
+                [name isEqualToString:@"zr"] ? B_ZR : B_R;
+        CGFloat d = [self dropR:b] * K_DROP_TIP * 2;
+        [self placeSkinItem:name center:[self dropCenter:b] size:CGSizeMake(d,d) hidden:_tap];
+    }
+    for (NSString *name in @[@"minus",@"plus"]) {
+        int b = [name isEqualToString:@"plus"] ? B_PLUS : B_MINUS; CGRect rc = [self pillRect:b];
+        [self placeSkinItem:name center:CGPointMake(CGRectGetMidX(rc),CGRectGetMidY(rc)) size:rc.size hidden:_tap];
+    }
+    CGFloat swapD = K_SWAP_R * u * 2;
+    [self placeSkinItem:@"layout" center:self.swapCenter size:CGSizeMake(swapD,swapD) hidden:_tap];
+    CGFloat clickD = K_CLICK_R * u * 2;
+    [self placeSkinItem:@"l3" center:[self clickCenter:B_LS] size:CGSizeMake(clickD,clickD) hidden:_tap || !_full];
+    [self placeSkinItem:@"r3" center:[self clickCenter:B_RS] size:CGSizeMake(clickD,clickD) hidden:_tap || !_full];
+    CGFloat dpadD = self.dpadR * 2; CGPoint dc = self.dpadCenter;
+    for (NSString *name in @[@"dpad-up",@"dpad-down",@"dpad-left",@"dpad-right"])
+        [self placeSkinItem:name center:dc size:CGSizeMake(dpadD,dpadD) hidden:_tap || !_full];
 }
 - (void)applyLayout {   // show / hide the controls for the current layout
     [CATransaction begin]; [CATransaction setDisableActions:YES];
     for (int b = 0; b < B_N; b++) _key[b].hidden = _tap || _customSkin || (fullOnly(b) && !_full);
     _ring.hidden = _knob.hidden = _tap || _customSkin;
     _swap.hidden = _swapLabel.hidden = _customSkin && !_tap;
-    UIImage *skin = _full ? _skin3D : _skin2D;
-    _skinLayer.contents = _customSkin && !_tap ? (__bridge id)skin.CGImage : nil;
-    _skinLayer.hidden = !_customSkin || _tap;
     _swapLabel.string = _tap ? @"Tap" : _full ? @"3D" : @"2D";
+    [self layoutSkinItems];
     [CATransaction commit];
 }
 - (void)nextLayout {   // 2D → 3D (→ Tap in handheld mode) → 2D: release every touch first (no key stays held), save, lay out again
@@ -434,7 +481,7 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     UIWindowScene *ws = self.window.windowScene; if (ws) atomic_store(&g_iface_orient, (int)ws.effectiveGeometry.interfaceOrientation);
     CGFloat u = self.u;
     [CATransaction begin]; [CATransaction setDisableActions:YES];
-    _controls.frame = self.layer.bounds; _skinLayer.frame = self.layer.bounds;
+    _controls.frame = self.layer.bounds;
     for (int b = B_A; b <= B_Y; b++) { CGPoint c = [self facePos:b]; setPath(_key[b], circlePath(c, self.faceR)); placeLabel(_label[b], c, 20 * u); }
     for (int i = 0; i < (int)(sizeof k_btns / sizeof *k_btns); i++) { int b = k_btns[i];
         if (isDrop(b)) {
@@ -455,6 +502,7 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     setPath(_knob, circlePath(CGPointMake(k, k), k));
     CAShapeLayer *in = (CAShapeLayer *)_knob.sublayers.firstObject; CGPathRef ip = circlePath(CGPointMake(k, k), k * 0.62);
     in.frame = _knob.bounds; in.path = ip; CGPathRelease(ip);
+    [self layoutSkinItems];
     [CATransaction commit];
     [self refresh];
 }
