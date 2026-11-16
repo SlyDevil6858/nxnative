@@ -220,7 +220,7 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
         if (l == 2 && dm_opmode() != 0) l = 0;   // Tap only in handheld mode (env.txt's DM_OPMODE may have changed it)
         _full = l == 1; _tap = l == 2;
         _profiles = [[DmPadProfiles alloc] initWithDefaults:NSUserDefaults.standardUserDefaults
-                                                       game:NSBundle.mainBundle.bundleIdentifier ?: @"default"];
+                                                       game:@DM_GAME_ID];
         [self loadControls];
         [self setupEditor];
         [self applyLayout];
@@ -740,7 +740,7 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
             CGPoint c = [self clickCenter:b]; setPath(_key[b], circlePath(c, K_CLICK_R * u * [self scale:b])); placeLabel(_label[b], c, 13 * u * [self scale:b]);
         } else {
             CGRect rc = [self pillRect:b];
-            setPath(_key[b], CGPathCreateWithRoundedRect(rc, rc.size.height / 2, rc.size.height / 2, NULL)); placeLabel(_label[b], CGPointMake(CGRectGetMidX(rc), CGRectGetMidY(rc)), 18 * u);
+            setPath(_key[b], CGPathCreateWithRoundedRect(rc, rc.size.height / 2, rc.size.height / 2, NULL)); placeLabel(_label[b], CGPointMake(CGRectGetMidX(rc), CGRectGetMidY(rc)), 18 * u * [self scale:b]);
         }
     }
     static const struct { int b; CGFloat angle; } arms[] = {{B_UP, 0}, {B_RIGHT, M_PI_2}, {B_DOWN, M_PI}, {B_LEFT, -M_PI_2}};   // the same arm in 90° steps
