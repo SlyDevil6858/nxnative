@@ -978,6 +978,7 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     _custom[key]=value;
     _editInfo.text=[NSString stringWithFormat:@"Size %.0f%% · Opacity %.0f%%\nDrag a control to move it.",requestedScale*100,_alphaSlider.value*100];
     [self setNeedsLayout];
+    [self layoutIfNeeded]; // Apply the new control geometry immediately while the slider is moving.
     [self refresh];
 }
 - (void)adjustOpacityControl {
