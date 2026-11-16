@@ -106,10 +106,13 @@ private struct TouchControlSkinsSection: View {
                 Text(activePath.isEmpty ? "Built-in" : "Custom").foregroundStyle(.secondary)
             }
             Button("Import a skin folder…") { importing = true }
+            Button("Reset to Default skin") {
+                resetToDefaultSkin()
+            }
             Button("Use built-in controls", role: .destructive) {
                 UserDefaults.standard.removeObject(forKey: "DmTouchControlSkinPath")
                 activePath = ""
-                status = "Built-in touch controls will be used the next time the game starts."
+                status = "Original built-in touch controls will be used the next time the game starts."
             }
             .disabled(activePath.isEmpty)
         } footer: {
@@ -148,6 +151,27 @@ private struct TouchControlSkinsSection: View {
             case .failure(let error):
                 status = "Import failed: \(error.localizedDescription)"
             }
+        }
+    }
+
+    private func resetToDefaultSkin() {
+        do {
+            let fm = FileManager.default
+            guard let bundledDefault = Bundle.main.url(forResource: "Default-PNG", withExtension: nil) else {
+                status = "Default skin files are missing from this build. Rebuild the IPA with the updated project."
+                return
+            }
+            let docs = try fm.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+            let destination = docs.appendingPathComponent("TouchControlSkin", isDirectory: true)
+            if fm.fileExists(atPath: destination.path) {
+                try fm.removeItem(at: destination)
+            }
+            try fm.copyItem(at: bundledDefault, to: destination)
+            UserDefaults.standard.set(destination.path, forKey: "DmTouchControlSkinPath")
+            activePath = destination.path
+            status = "Default skin restored. It will be used the next time the game starts."
+        } catch {
+            status = "Could not restore the Default skin: \\(error.localizedDescription)"
         }
     }
 }
