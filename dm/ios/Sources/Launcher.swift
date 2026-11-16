@@ -302,7 +302,8 @@ private struct LauncherView: View {
     private func themeJSON(in folder: URL) -> [String: Any]? {
         let file = folder.appendingPathComponent("theme.json")
         guard let data = try? Data(contentsOf: file),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let object = try? JSONSerialization.jsonObject(with: data),
+              let json = object as? [String: Any],
               let palette = json["palette"] as? [String: Any] else { return nil }
         let required = ["idle", "pressed", "outline", "ringFill", "text", "pressedText"]
         for key in required {
@@ -323,8 +324,15 @@ private struct LauncherView: View {
                                  path: folder.path)
         }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         let path = UserDefaults.standard.string(forKey: "DmTouchControlThemePath")
-        if let selected = themes.first(where: { $0.path == path }) { selectedTheme = selected.name }
-        else if path == nil { selectedTheme = "Classic" }
+        if let selected = themes.first(where: { $0.path == path }) {
+            selectedTheme = selected.name
+        } else {
+            selectedTheme = "Classic"
+            if path != nil {
+                UserDefaults.standard.removeObject(forKey: "DmTouchControlThemePath")
+                UserDefaults.standard.set("Classic", forKey: "DmTouchControlThemeName")
+            }
+        }
     }
 
     private func selectTheme(_ path: String?, name: String) {
