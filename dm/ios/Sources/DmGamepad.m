@@ -536,7 +536,7 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
     rects[@"right-stick-base"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(sh.x-sr,sh.y-sr,2*sr,2*sr),-pad,-pad)];
     rects[@"right-stick-knob"]=[NSValue valueWithCGRect:CGRectInset(CGRectMake(kc.x-kr,kc.y-kr,2*kr,2*kr),-pad,-pad)];
 
-    BOOL oldCustom=_customSkin, oldFull=_full, oldTap=_tap;
+    BOOL oldCustom=_customSkin, oldFull=_full, oldTap=_tap, oldControlsHidden=_controls.hidden;
     _customSkin=NO; _full=YES; _tap=NO;
     [self applyLayout]; [self layoutIfNeeded]; [CATransaction flush];
 
@@ -586,7 +586,7 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
         if (![data writeToURL:[folder URLByAppendingPathComponent:[name stringByAppendingString:@".png"]] options:NSDataWritingAtomic error:nil]) [failed addObject:name];
     }
     for (CALayer *sibling in _controls.sublayers) sibling.hidden=NO;
-    _controls.hidden=NO;
+    _controls.hidden=oldControlsHidden;
     _customSkin=oldCustom; _full=oldFull; _tap=oldTap;
     [self applyLayout]; [self setNeedsLayout]; [self refresh];
     NSString *message=failed.count ? [NSString stringWithFormat:@"Some images could not be exported: %@",[failed componentsJoinedByString:@", "]] :
