@@ -1614,32 +1614,47 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         [self updateThemeMenu];
         [self updateEditor];
     }]];
-    UIViewController *presenter=[self editorPresenter];
-    if (!presenter) {
-        LOG("touch controls: rename prompt has no active view controller");
-        return;
-    }
-    if (presenter.isBeingDismissed || presenter.isBeingPresented) {
-        // The theme selector can be used while the launcher/editor is transitioning.
-        // Retry on the next run-loop turn rather than silently dropping the rename.
-        dispatch_async(dispatch_get_main_queue(), ^{
-            UIViewController *retryPresenter=[self editorPresenter];
-            if (!retryPresenter || retryPresenter.isBeingDismissed || retryPresenter.isBeingPresented) {
-                LOG("touch controls: rename prompt presenter is still transitioning");
-                return;
-            }
-            [retryPresenter presentViewController:prompt animated:YES completion:^{
-                [prompt.textFields.firstObject becomeFirstResponder];
-            }];
-        });
-        return;
-    }
+    // Resolve the actual visible controller from this view's window first. The
+    // responder chain can point at a stale controller while the launcher editor
+    // is being presented or dismissed.
+    __block void (^attemptPresentation)(NSUInteger);
+    attemptPresentation = ^(NSUInteger attempt) {
+        if (attempt > 20) {
+            LOG("touch controls: rename prompt could not find a stable presenter");
+            return;
+        }
 
-    // Explicitly focus the field after presentation so the software keyboard
-    // appears in both the pre-launch and live editors.
-    [presenter presentViewController:prompt animated:YES completion:^{
-        [prompt.textFields.firstObject becomeFirstResponder];
-    }];
+        UIWindow *window=self.window;
+        if (!window || !window.windowScene || window.windowScene.activationState!=UISceneActivationStateForegroundActive) {
+            for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+                if (![scene isKindOfClass:UIWindowScene.class] || scene.activationState!=UISceneActivationStateForegroundActive) continue;
+                for (UIWindow *candidate in ((UIWindowScene *)scene).windows) {
+                    if (candidate.isKeyWindow) { window=candidate; break; }
+                }
+                if (window) break;
+            }
+        }
+
+        UIViewController *presenter=window.rootViewController ?: [self editorPresenter];
+        while (presenter.presentedViewController) presenter=presenter.presentedViewController;
+        if (!presenter || !presenter.viewIfLoaded.window ||
+            presenter.isBeingDismissed || presenter.isBeingPresented ||
+            presenter.transitionCoordinator) {
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.15 * NSEC_PER_SEC)),
+                           dispatch_get_main_queue(), ^{
+                attemptPresentation(attempt+1);
+            });
+            return;
+        }
+
+        [presenter presentViewController:prompt animated:YES completion:^{
+            [prompt.textFields.firstObject becomeFirstResponder];
+            attemptPresentation=nil;
+        }];
+    };
+    dispatch_async(dispatch_get_main_queue(), ^{
+        attemptPresentation(0);
+    });
 }
 - (void)confirmDeleteThemeAtPath:(NSString *)path name:(NSString *)name {
     NSURL *documentsRoot=[self themesDirectoryCreating:YES];
