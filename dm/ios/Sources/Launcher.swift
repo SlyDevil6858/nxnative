@@ -181,6 +181,9 @@ private struct LauncherView: View {
     @State private var showingThemeMenu = false
     @State private var confirmingThemeDeletion = false
     @State private var themeToDelete: LauncherTheme?
+    @State private var showingThemeRename = false
+    @State private var themeToRename: LauncherTheme?
+    @State private var themeRenameText = ""
     @State private var showingThemeImportAlert = false
     @State private var themeImportMessage = ""
 
@@ -225,46 +228,71 @@ private struct LauncherView: View {
                                     }
                                     .buttonStyle(.plain)
                                     .popover(isPresented: $showingThemeMenu, arrowEdge: .trailing) {
-                                        VStack(alignment: .leading, spacing: 0) {
-                                            ForEach(themes) { theme in
-                                                Divider()
-                                                HStack(spacing: 12) {
-                                                    Button {
-                                                        selectTheme(theme.path, name: theme.name)
-                                                        showingThemeMenu = false
-                                                    } label: {
-                                                        HStack {
-                                                            Text(theme.name)
-                                                            Spacer()
-                                                            if selectedTheme == theme.name {
-                                                                Image(systemName: "checkmark")
-                                                                    .foregroundStyle(.white)
-                                                            }
-                                                        }
-                                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                                        .contentShape(Rectangle())
-                                                    }
-                                                    .buttonStyle(.plain)
-                                                    if canDeleteTheme(theme) {
-                                                        Button(role: .destructive) {
+                                        ScrollView {
+                                            VStack(spacing: 0) {
+                                                ForEach(themes) { theme in
+                                                    HStack(spacing: 0) {
+                                                        Button {
+                                                            selectTheme(theme.path, name: theme.name)
                                                             showingThemeMenu = false
-                                                            themeToDelete = theme
-                                                            confirmingThemeDeletion = true
                                                         } label: {
-                                                            Image(systemName: "trash")
-                                                                .foregroundStyle(Color(red: 0.55, green: 0.08, blue: 0.08))
-                                                                .frame(width: 32, height: 32)
-                                                                .contentShape(Rectangle())
+                                                            HStack(spacing: 8) {
+                                                                Text(theme.name)
+                                                                    .lineLimit(1)
+                                                                Spacer(minLength: 4)
+                                                                if selectedTheme == theme.name {
+                                                                    Image(systemName: "checkmark")
+                                                                        .foregroundStyle(.white)
+                                                                }
+                                                            }
+                                                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                                                            .padding(.horizontal, 8)
+                                                            .contentShape(Rectangle())
                                                         }
                                                         .buttonStyle(.plain)
-                                                        .accessibilityLabel("Delete \(theme.name)")
+                                                        if canDeleteTheme(theme) {
+                                                            Button {
+                                                                showingThemeMenu = false
+                                                                themeToRename = theme
+                                                                themeRenameText = theme.name
+                                                                showingThemeRename = true
+                                                            } label: {
+                                                                Image(systemName: "pencil")
+                                                                    .foregroundStyle(.white.opacity(0.82))
+                                                                    .frame(width: 32, height: 32)
+                                                                    .contentShape(Rectangle())
+                                                            }
+                                                            .buttonStyle(.plain)
+                                                            .accessibilityLabel("Rename \(theme.name)")
+                                                            Button(role: .destructive) {
+                                                                showingThemeMenu = false
+                                                                themeToDelete = theme
+                                                                confirmingThemeDeletion = true
+                                                            } label: {
+                                                                Image(systemName: "trash")
+                                                                    .foregroundStyle(Color(red: 0.55, green: 0.08, blue: 0.08))
+                                                                    .frame(width: 32, height: 32)
+                                                                    .contentShape(Rectangle())
+                                                            }
+                                                            .buttonStyle(.plain)
+                                                            .accessibilityLabel("Delete \(theme.name)")
+                                                        }
                                                     }
+                                                    .frame(height: 40)
+                                                    Rectangle()
+                                                        .fill(Color.white.opacity(0.12))
+                                                        .frame(height: 0.5)
                                                 }
-                                                .padding(.vertical, 4)
                                             }
                                         }
-                                        .padding(12)
-                                        .frame(minWidth: 240)
+                                        .frame(width: 288)
+                                        .frame(maxHeight: 240)
+                                        .padding(8)
+                                        .background(Color(red: 0.035, green: 0.035, blue: 0.035))
+                                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                                        .overlay(RoundedRectangle(cornerRadius: 10)
+                                            .stroke(Color.white.opacity(0.16), lineWidth: 1))
+                                        .presentationBackground(Color(red: 0.035, green: 0.035, blue: 0.035))
                                         .presentationCompactAdaptation(.popover)
                                     }
                                     Button("Edit touch controls layout…") { dm_gamepad_present_launcher_editor() }
@@ -334,6 +362,16 @@ private struct LauncherView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(themeImportMessage)
+        }
+        .alert("Rename theme", isPresented: $showingThemeRename) {
+            TextField("Theme name", text: $themeRenameText)
+            Button("Cancel", role: .cancel) { themeToRename = nil }
+            Button("Rename") {
+                if let theme = themeToRename { renameTheme(theme, to: themeRenameText) }
+                themeToRename = nil
+            }
+        } message: {
+            Text("Choose a new name for this custom theme.")
         }
         .confirmationDialog("Delete imported touch control theme?", isPresented: $confirmingThemeDeletion, titleVisibility: .visible) {
             Button("Delete \(themeToDelete?.name ?? "theme")", role: .destructive) {
@@ -439,6 +477,24 @@ private struct LauncherView: View {
               theme.name.caseInsensitiveCompare("CLASSIC") != .orderedSame else { return false }
         let documentsRoot = themesDirectory().standardizedFileURL.path + "/"
         return URL(fileURLWithPath: theme.path).standardizedFileURL.path.hasPrefix(documentsRoot)
+    }
+
+    private func renameTheme(_ theme: LauncherTheme, to proposedName: String) {
+        guard canDeleteTheme(theme) else { return }
+        let newName = proposedName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !newName.isEmpty, let json = themeJSON(in: URL(fileURLWithPath: theme.path)) else { return }
+        var updated = json
+        updated["name"] = newName
+        do {
+            let data = try JSONSerialization.data(withJSONObject: updated, options: [.prettyPrinted])
+            try data.write(to: URL(fileURLWithPath: theme.path).appendingPathComponent("theme.json"), options: .atomic)
+            if selectedTheme == theme.name {
+                UserDefaults.standard.set(newName, forKey: "DmTouchControlThemeName")
+            }
+            refreshThemes()
+        } catch {
+            NSLog("Touch theme rename failed: %@", error.localizedDescription)
+        }
     }
 
     private func deleteTheme(_ theme: LauncherTheme) {
