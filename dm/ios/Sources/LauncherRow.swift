@@ -88,7 +88,7 @@ struct SettingRow: View {
         }
         .padding(.top, 4)
     }
-
+    #endif
 
     private var locked: Bool { m.fixed.contains(s.env) }
     private var note: String {
