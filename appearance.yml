@@ -1,11 +1,7 @@
-# Optional launcher appearance overrides
-# Leave either value empty to keep the original appearance.
-# Paths are relative to the nxnative repository root.
-
-appearance:
-  custom_icon: "assets/custom-icon.png"
-  custom_background: "assets/custom-background.png"
-
-  # Example:
-  # custom_icon: "assets/custom-icon.png"
-  # custom_background: "assets/custom-background.png"
+# Launcher appearance overrides are selected in the
+# "Build nxnative IPA" workflow using the override_folder input.
+# Each folder inside OVERRIDES/ must contain:
+#   custom-icon.png
+#   custom-background.png
+#
+# The default workflow selection is OVERRIDES/ANIMAL WELL.
