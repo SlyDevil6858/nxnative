@@ -182,7 +182,9 @@ int dm_opmode(void);   // hle_oe.c: 0 = handheld
     // Reduce the floating panel by the same amount that the embedded picker
     // content is shifted upward, keeping the actual color controls visible.
     CGFloat height=MIN(340,MAX(260,bounds.size.height-100));
-    return CGRectMake(CGRectGetMidX(bounds)-width/2,CGRectGetMidY(bounds)-height/2,width,height);
+    // Lift the compact panel slightly so the bottom of the color spectrum
+    // remains clear of the lower edge while keeping the panel centered horizontally.
+    return CGRectMake(CGRectGetMidX(bounds)-width/2,CGRectGetMidY(bounds)-height/2-20,width,height);
 }
 - (void)containerViewWillLayoutSubviews {
     [super containerViewWillLayoutSubviews];
