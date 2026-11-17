@@ -319,16 +319,29 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
             _menuTipBubble.lineWidth=1.5;
             _menuTipBubble.lineJoin=kCALineJoinRound;
             _menuTipBubble.frame=self.bounds;
-            _menuTipBubble.opacity=1;
+            _menuTipBubble.opacity=0;
             _menuTip.alpha=0;
             [self.layer addSublayer:_menuTipBubble];
             [self addSubview:_menuTip];
             [NSUserDefaults.standardUserDefaults setBool:YES forKey:@"DmPadMenuTipShown"];
             dispatch_async(dispatch_get_main_queue(), ^{
-                [UIView animateWithDuration:0.25 animations:^{ self->_menuTip.alpha=1; self->_menuTipBubble.opacity=1; }];
+                [UIView animateWithDuration:0.25 animations:^{ self->_menuTip.alpha=1; }];
+                CABasicAnimation *showBubble=[CABasicAnimation animationWithKeyPath:@"opacity"];
+                showBubble.fromValue=@0; showBubble.toValue=@1; showBubble.duration=0.25;
+                showBubble.timingFunction=[CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseOut];
+                self->_menuTipBubble.opacity=1;
+                [self->_menuTipBubble addAnimation:showBubble forKey:@"bubbleFade"];
                 dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(6 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                    [UIView animateWithDuration:0.35 animations:^{ self->_menuTip.alpha=0; self->_menuTipBubble.opacity=0; }
-                                     completion:^(__unused BOOL finished) { [self->_menuTip removeFromSuperview]; [self->_menuTipBubble removeFromSuperlayer]; self->_menuTip=nil; self->_menuTipBubble=nil; }];
+                    [UIView animateWithDuration:0.35 animations:^{ self->_menuTip.alpha=0; }];
+                    CABasicAnimation *hideBubble=[CABasicAnimation animationWithKeyPath:@"opacity"];
+                    hideBubble.fromValue=@1; hideBubble.toValue=@0; hideBubble.duration=0.35;
+                    hideBubble.timingFunction=[CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseIn];
+                    self->_menuTipBubble.opacity=0;
+                    [self->_menuTipBubble addAnimation:hideBubble forKey:@"bubbleFade"];
+                    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.36 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                        [self->_menuTip removeFromSuperview]; [self->_menuTipBubble removeFromSuperlayer];
+                        self->_menuTip=nil; self->_menuTipBubble=nil;
+                    });
                 });
             });
         }
