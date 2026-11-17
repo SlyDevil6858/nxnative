@@ -401,7 +401,9 @@ private struct LauncherView: View {
         // FOREST is shipped in the bundle, then installed as a deletable, Files-visible copy in Documents.
         let forestSource = bundledRoot?.appendingPathComponent("FOREST", isDirectory: true)
         let forestDestination = directory.appendingPathComponent("FOREST", isDirectory: true)
-        if let forestSource, !FileManager.default.fileExists(atPath: forestDestination.path) {
+        let forestDeletionMarker = directory.appendingPathComponent(".FOREST.deleted")
+        if let forestSource, !FileManager.default.fileExists(atPath: forestDestination.path),
+           !FileManager.default.fileExists(atPath: forestDeletionMarker.path) {
             try? FileManager.default.copyItem(at: forestSource, to: forestDestination)
         }
         // Remove identical legacy copies of the other bundled themes, but preserve editable FOREST.
@@ -442,6 +444,10 @@ private struct LauncherView: View {
     private func deleteTheme(_ theme: LauncherTheme) {
         guard canDeleteTheme(theme) else { return }
         do {
+            if URL(fileURLWithPath: theme.path).lastPathComponent.caseInsensitiveCompare("FOREST") == .orderedSame {
+                let marker = themesDirectory().appendingPathComponent(".FOREST.deleted")
+                FileManager.default.createFile(atPath: marker.path, contents: Data())
+            }
             try FileManager.default.removeItem(at: URL(fileURLWithPath: theme.path))
             if selectedTheme == theme.name,
                let animalWell = themes.first(where: { URL(fileURLWithPath: $0.path).lastPathComponent.caseInsensitiveCompare("ANIMAL WELL") == .orderedSame }) {
@@ -474,11 +480,13 @@ private struct LauncherView: View {
         let bundledFolders = bundledRoot.flatMap { try? FileManager.default.contentsOfDirectory(at: $0, includingPropertiesForKeys: [.isDirectoryKey]) } ?? []
         let importedFolders = (try? FileManager.default.contentsOfDirectory(at: documentsRoot, includingPropertiesForKeys: [.isDirectoryKey])) ?? []
         // When a bundled FOREST exists, show only its writable Documents copy.
+        let forestDeletionMarker = documentsRoot.appendingPathComponent(".FOREST.deleted")
+        let forestWasDeleted = FileManager.default.fileExists(atPath: forestDeletionMarker.path)
         let hasDocumentsForest = importedFolders.contains {
             $0.lastPathComponent.caseInsensitiveCompare("FOREST") == .orderedSame
         }
         let visibleBundled = bundledFolders.filter {
-            !(hasDocumentsForest && $0.lastPathComponent.caseInsensitiveCompare("FOREST") == .orderedSame)
+            !((hasDocumentsForest || forestWasDeleted) && $0.lastPathComponent.caseInsensitiveCompare("FOREST") == .orderedSame)
         }
         let folders = visibleBundled + importedFolders
         themes = folders.compactMap { folder in
