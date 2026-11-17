@@ -300,9 +300,19 @@ int dm_opmode(void);   // hle_oe.c: 0 = handheld
             [description containsString:@"pick a color from"] ||
             [description containsString:@"screen color"] ||
             [description containsString:@"color sampler"];
+        // UIColorPickerViewController's eyedropper is a small icon-only control
+        // anchored at the upper-left of the picker. Its private UIKit class and
+        // accessibility metadata vary by iOS version, so also identify it by
+        // its stable position and compact size within the picker view.
+        CGRect frame=child.frame;
+        BOOL isTopLeftPickerButton=[child isKindOfClass:UIControl.class] &&
+            CGRectGetMinX(frame)>=-2 && CGRectGetMinX(frame)<100 &&
+            CGRectGetMinY(frame)>=-2 && CGRectGetMinY(frame)<100 &&
+            CGRectGetWidth(frame)>=32 && CGRectGetWidth(frame)<=100 &&
+            CGRectGetHeight(frame)>=32 && CGRectGetHeight(frame)<=100;
         BOOL isColorsTitle=[visibleText isEqualToString:@"colors"] ||
             [visibleText isEqualToString:@"color"];
-        if (isEyedropper && [child isKindOfClass:UIControl.class]) {
+        if ((isEyedropper || isTopLeftPickerButton) && [child isKindOfClass:UIControl.class]) {
             child.hidden=YES;
             child.userInteractionEnabled=NO;
             child.accessibilityElementsHidden=YES;
