@@ -81,6 +81,7 @@ struct LauncherDisclosureGroupStyle: DisclosureGroupStyle {
         // which can cause the abrupt jump during expansion and collapse.
         if configuration.isExpanded {
             configuration.content
+                .transition(.move(edge: .top).combined(with: .opacity))
         }
     }
 }
@@ -104,7 +105,9 @@ struct SettingRow: View {
                 if option.count >= 2 {
                     Button {
                         m.values[s.env] = option[0]
-                        showingChoiceList = false
+                        withAnimation(.easeInOut(duration: 0.24)) {
+                            showingChoiceList = false
+                        }
                     } label: {
                         HStack(spacing: 8) {
                             Text(option[1])
