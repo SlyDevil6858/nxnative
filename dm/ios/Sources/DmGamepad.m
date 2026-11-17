@@ -1140,10 +1140,17 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             [title caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame;
         // Compare canonical filesystem paths so the Documents copy is reliably recognized.
         NSString *standardFolderPath=folder.standardizedURL.path;
-        NSString *standardDocumentsPath=documentsRoot.standardizedURL.path;
-        NSString *standardDocumentsPrefix=[standardDocumentsPath stringByAppendingString:@"/"];
-        BOOL writable=[standardFolderPath hasPrefix:standardDocumentsPrefix] ||
-            [folder.path hasPrefix:documentsPrefix];
+        // Determine writability by membership in the actual Documents directory listing,
+        // not by URL prefix checks (which can fail when iOS returns differently
+        // standardized container URLs). This guarantees the copied FOREST theme gets
+        // its delete action while bundled-only themes remain protected.
+        BOOL writable=NO;
+        for (NSURL *importedFolder in importedFolders) {
+            if ([importedFolder.standardizedURL.path isEqualToString:standardFolderPath]) {
+                writable=YES;
+                break;
+            }
+        }
         if (writable && !protectedTheme) {
             UIAction *remove=[UIAction actionWithTitle:[NSString stringWithFormat:@"Delete %@",title]
                 image:[UIImage systemImageNamed:@"trash.fill"] identifier:nil handler:^(__unused UIAction *a) {
