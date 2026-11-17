@@ -1423,7 +1423,10 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [parent addSubview:button]; return button;
 }
 - (void)setupEditor {
-    _tools=[UIView new]; _tools.backgroundColor=[UIColor colorWithWhite:0 alpha:0.92]; _tools.layer.cornerRadius=10;
+    _tools=[UIView new];
+    _tools.overrideUserInterfaceStyle=UIUserInterfaceStyleDark;
+    _tools.backgroundColor=UIColor.systemBackgroundColor;
+    _tools.layer.cornerRadius=10;
     [self addSubview:_tools]; _tools.hidden=YES;
     _profileButton=[self editorButton:@"Profile" action:NULL frame:CGRectMake(8,8,220,32) parent:_tools];
     _profileButton.titleLabel.adjustsFontSizeToFitWidth=YES; _profileButton.titleLabel.minimumScaleFactor=0.75;
@@ -1434,6 +1437,11 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _chooseButton=[self editorButton:@"A ▾" action:NULL frame:CGRectMake(8,86,120,30) parent:_tools];
     _colorWell=[[UIColorWell alloc] initWithFrame:CGRectMake(136,86,100,30)];
     _colorWell.title=@"Control Color";
+    _colorWell.overrideUserInterfaceStyle=UIUserInterfaceStyleDark;
+    _colorWell.backgroundColor=[UIColor colorWithWhite:0.12 alpha:0.96];
+    _colorWell.tintColor=UIColor.whiteColor;
+    _colorWell.layer.cornerRadius=6;
+    _colorWell.clipsToBounds=YES;
     _colorWell.supportsAlpha=NO;
     _colorWell.supportsEyedropper=YES;
     _colorWell.accessibilityLabel=@"Choose control color";
