@@ -218,10 +218,10 @@ private struct LauncherView: View {
                                     DisclosureGroup(isExpanded: $showingThemeList) {
                                         themeMenuContent
                                     } label: {
-                                        HStack {
+                                        HStack(spacing: 6) {
                                             Text("Touch controls theme")
                                                 .foregroundStyle(.white)
-                                            Spacer()
+                                            Spacer(minLength: 6)
                                             Text(selectedTheme)
                                                 .foregroundStyle(accentColor)
                                                 .lineLimit(1)
