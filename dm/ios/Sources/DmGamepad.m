@@ -334,9 +334,12 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
             _menuTipArrow.strokeColor=tipBorder.CGColor;
             _menuTipArrow.lineWidth=1.5;
             _menuTipArrow.lineJoin=kCALineJoinRound;
-            [_menuTip.layer addSublayer:_menuTipArrow];
+            // Keep the arrow above the box. Its fill covers the box's top border,
+            // while the open stroke draws only the two sloping sides, making one
+            // continuous speech-bubble outline without a seam across the arrow base.
             _menuTip.alpha=0;
             [self addSubview:_menuTip];
+            [self.layer addSublayer:_menuTipArrow];
             [NSUserDefaults.standardUserDefaults setBool:YES forKey:@"DmPadMenuTipShown"];
             dispatch_async(dispatch_get_main_queue(), ^{
                 [UIView animateWithDuration:0.25 animations:^{ self->_menuTip.alpha=1; }];
@@ -864,13 +867,15 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
         CGFloat tipWidth=MIN(340, MAX(0,self.bounds.size.width-32));
         CGSize tipSize=[_menuTip sizeThatFits:CGSizeMake(tipWidth,CGFLOAT_MAX)];
         _menuTip.frame=CGRectMake((self.bounds.size.width-tipWidth)/2, self.safeAreaInsets.top+44, tipWidth, tipSize.height);
-        CGFloat arrowX=tipWidth/2;
+        CGFloat arrowX=CGRectGetMidX(_menuTip.frame);
+        CGFloat arrowBaseY=CGRectGetMinY(_menuTip.frame)+0.5;
         UIBezierPath *arrow=[UIBezierPath bezierPath];
-        [arrow moveToPoint:CGPointMake(arrowX-10,0)];
-        [arrow addLineToPoint:CGPointMake(arrowX, -11)];
-        [arrow addLineToPoint:CGPointMake(arrowX+10,0)];
-        [arrow closePath];
-        _menuTipArrow.frame=_menuTip.bounds;
+        [arrow moveToPoint:CGPointMake(arrowX-10,arrowBaseY)];
+        [arrow addLineToPoint:CGPointMake(arrowX,arrowBaseY-11)];
+        [arrow addLineToPoint:CGPointMake(arrowX+10,arrowBaseY)];
+        // Leave the path open: Core Animation implicitly closes it for the fill,
+        // but the stroke follows only the two sides of the arrow.
+        _menuTipArrow.frame=self.bounds;
         _menuTipArrow.path=arrow.CGPath;
     }
     [CATransaction begin]; [CATransaction setDisableActions:YES];
