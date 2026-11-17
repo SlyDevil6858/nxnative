@@ -12,14 +12,14 @@ private struct LauncherToggleStyle: ToggleStyle {
     let isLocked: Bool
     let label: String
 
-    /// Match the one-time helper bubble: darken each dominant-accent RGB channel to 72%.
+    /// Match the one-time helper bubble border: blend each dominant-accent RGB channel 22% toward white.
     private var thumbFillColor: Color {
         let uiColor = UIColor(accentColor)
         var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 1
         guard uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha) else {
             return Color(white: 0.72)
         }
-        return Color(uiColor: UIColor(red: red * 0.72, green: green * 0.72, blue: blue * 0.72, alpha: alpha))
+        return Color(uiColor: UIColor(red: red + (1.0 - red) * 0.22, green: green + (1.0 - green) * 0.22, blue: blue + (1.0 - blue) * 0.22, alpha: alpha))
     }
 
     func makeBody(configuration: Configuration) -> some View {
