@@ -491,7 +491,10 @@ private struct LauncherView: View {
     private func renameTheme(_ theme: LauncherTheme, to proposedName: String) {
         guard canDeleteTheme(theme) else { return }
         let newName = proposedName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !newName.isEmpty, let json = themeJSON(in: URL(fileURLWithPath: theme.path)) else { return }
+        guard !newName.isEmpty,
+              newName.caseInsensitiveCompare("ANIMAL WELL") != .orderedSame,
+              newName.caseInsensitiveCompare("CLASSIC") != .orderedSame,
+              let json = themeJSON(in: URL(fileURLWithPath: theme.path)) else { return }
         var updated = json
         updated["name"] = newName
         do {
