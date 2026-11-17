@@ -174,6 +174,7 @@ private struct LauncherView: View {
     @ObservedObject var m: LauncherModel
     let play: () -> Void
     @State private var memory = os_proc_available_memory()
+    @State private var isControlLayoutEditing = false
     @State private var themes: [LauncherTheme] = []
     @State private var selectedTheme = UserDefaults.standard.string(forKey: "DmTouchControlThemeName") ?? "Classic"
     @State private var pickingTheme = false
@@ -326,6 +327,8 @@ private struct LauncherView: View {
                 .scrollContentBackground(.hidden)
                 .environment(\.colorScheme, .dark)
             }
+            .opacity(isControlLayoutEditing ? 0 : 1)
+            .allowsHitTesting(!isControlLayoutEditing)
             .background {
                 if let background = launcherBackground() {
                     Image(uiImage: background).resizable().scaledToFill()
@@ -349,6 +352,9 @@ private struct LauncherView: View {
             Button("Cancel", role: .cancel) { themeToDelete = nil }
         } message: {
             Text("This permanently deletes the imported theme folder from this device.")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("DmPadLauncherEditorVisibilityChanged"))) { notification in
+            isControlLayoutEditing = (notification.userInfo?["editing"] as? Bool) ?? false
         }
         .onAppear(perform: refreshThemes)
         .task {
