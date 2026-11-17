@@ -1569,15 +1569,17 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         NSURL *manifestURL=[self themeJSONURLInFolder:folder];
         BOOL manifestExists=manifestURL && [NSFileManager.defaultManager fileExistsAtPath:manifestURL.path];
         if (isImportedTheme && manifestExists && !protectedTheme) {
+            UIImageSymbolConfiguration *actionSymbol=[UIImageSymbolConfiguration configurationWithPointSize:17 weight:UIImageSymbolWeightSemibold];
             if (!editingThisTheme) {
-                UIImageSymbolConfiguration *actionSymbol=[UIImageSymbolConfiguration configurationWithPointSize:17 weight:UIImageSymbolWeightSemibold];
                 UIButton *rename=[UIButton buttonWithType:UIButtonTypeCustom]; rename.frame=CGRectMake(216,row*rowHeight+8,32,32);
                 [rename setImage:[[UIImage systemImageNamed:@"pencil" withConfiguration:actionSymbol] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate] forState:UIControlStateNormal];
                 rename.tintColor=[UIColor colorWithWhite:1 alpha:0.82]; rename.accessibilityLabel=[NSString stringWithFormat:@"Rename %@",title];
                 NSString *renamePath=[path copy];
                 [rename addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; weakSelf->_themeRenamePath=renamePath; weakSelf->_themeRenameField=nil; [weakSelf updateThemeMenu]; }] forControlEvents:UIControlEventTouchUpInside];
                 [_themeMenuScroll addSubview:rename];
-            }            UIButton *remove=[UIButton buttonWithType:UIButtonTypeCustom];
+            }
+            if (!editingThisTheme) {
+            UIButton *remove=[UIButton buttonWithType:UIButtonTypeCustom];
             remove.frame=CGRectMake(252,row*rowHeight+8,32,32);
             remove.backgroundColor=UIColor.clearColor;
             [remove setImage:[[UIImage systemImageNamed:@"trash" withConfiguration:actionSymbol] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate]
@@ -1594,6 +1596,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
                 [weakSelf confirmDeleteThemeAtPath:deletePath name:deleteName];
             }] forControlEvents:UIControlEventTouchUpInside];
             [_themeMenuScroll addSubview:remove];
+            }
         }
         UIView *separator=[[UIView alloc] initWithFrame:CGRectMake(0,(row+1)*rowHeight-1,288,0.5)];
         separator.backgroundColor=[UIColor colorWithWhite:1 alpha:0.12];
