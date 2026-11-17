@@ -174,6 +174,7 @@ private struct LauncherView: View {
     @ObservedObject var m: LauncherModel
     let play: () -> Void
     @State private var memory = os_proc_available_memory()
+    @State private var isControlLayoutEditing = false
     @State private var themes: [LauncherTheme] = []
     @State private var selectedTheme = UserDefaults.standard.string(forKey: "DmTouchControlThemeName") ?? "ANIMAL WELL"
     @State private var pickingTheme = false
@@ -228,75 +229,7 @@ private struct LauncherView: View {
                                     }
                                     .buttonStyle(.plain)
                                     .popover(isPresented: $showingThemeMenu, arrowEdge: .trailing) {
-                                        ScrollView {
-                                            VStack(spacing: 0) {
-                                                ForEach(themes) { theme in
-                                                    HStack(spacing: 0) {
-                                                        Button {
-                                                            selectTheme(theme.path, name: theme.name)
-                                                            showingThemeMenu = false
-                                                        } label: {
-                                                            HStack(spacing: 8) {
-                                                                Text(theme.name)
-                                                                    .lineLimit(1)
-                                                                Spacer(minLength: 4)
-                                                                if selectedTheme == theme.name {
-                                                                    Image(systemName: "checkmark")
-                                                                        .foregroundStyle(.white)
-                                                                }
-                                                            }
-                                                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                                                            .padding(.horizontal, 8)
-                                                            .contentShape(Rectangle())
-                                                        }
-                                                        .buttonStyle(.plain)
-                                                        if canDeleteTheme(theme) {
-                                                            Button {
-                                                                showingThemeMenu = false
-                                                                themeToRename = theme
-                                                                themeRenameText = theme.name
-                                                                showingThemeRename = true
-                                                            } label: {
-                                                                Image(systemName: "pencil")
-                                                                    .foregroundStyle(.white.opacity(0.82))
-                                                                    .frame(width: 32, height: 32)
-                                                                    .contentShape(Rectangle())
-                                                            }
-                                                            .buttonStyle(.plain)
-                                                            .accessibilityLabel("Rename \(theme.name)")
-                                                            Button(role: .destructive) {
-                                                                showingThemeMenu = false
-                                                                themeToDelete = theme
-                                                                confirmingThemeDeletion = true
-                                                            } label: {
-                                                                Image(systemName: "trash")
-                                                                    .foregroundStyle(Color(red: 0.55, green: 0.08, blue: 0.08))
-                                                                    .frame(width: 32, height: 32)
-                                                                    .contentShape(Rectangle())
-                                                            }
-                                                            .buttonStyle(.plain)
-                                                            .accessibilityLabel("Delete \(theme.name)")
-                                                        }
-                                                    }
-                                                    .frame(height: 40)
-                                                    Rectangle()
-                                                        .fill(Color.white.opacity(0.12))
-                                                        .frame(height: 0.5)
-                                                }
-                                            }
-                                        }
-                                        // Keep the scrolling list's corners tighter than the
-                                        // surrounding popover so it cannot protrude past its frame.
-                                        .clipShape(RoundedRectangle(cornerRadius: 2))
-                                        .frame(width: 288)
-                                        .frame(maxHeight: 240)
-                                        .padding(8)
-                                        .background(Color(red: 0.035, green: 0.035, blue: 0.035))
-                                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                                        .overlay(RoundedRectangle(cornerRadius: 10)
-                                            .stroke(Color.white.opacity(0.16), lineWidth: 1))
-                                        .presentationBackground(Color(red: 0.035, green: 0.035, blue: 0.035))
-                                        .presentationCompactAdaptation(.popover)
+                                        themeMenuPopover
                                     }
                                     Button("Edit touch controls layout…") {
                                         dm_gamepad_present_launcher_editor()
@@ -408,6 +341,79 @@ private struct LauncherView: View {
                 try? await Task.sleep(for: .seconds(2))
             }
         }
+    }
+
+    private var themeMenuPopover: some View {
+        
+                                                ScrollView {
+                                                    VStack(spacing: 0) {
+                                                        ForEach(themes) { theme in
+                                                            HStack(spacing: 0) {
+                                                                Button {
+                                                                    selectTheme(theme.path, name: theme.name)
+                                                                    showingThemeMenu = false
+                                                                } label: {
+                                                                    HStack(spacing: 8) {
+                                                                        Text(theme.name)
+                                                                            .lineLimit(1)
+                                                                        Spacer(minLength: 4)
+                                                                        if selectedTheme == theme.name {
+                                                                            Image(systemName: "checkmark")
+                                                                                .foregroundStyle(.white)
+                                                                        }
+                                                                    }
+                                                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                                                                    .padding(.horizontal, 8)
+                                                                    .contentShape(Rectangle())
+                                                                }
+                                                                .buttonStyle(.plain)
+                                                                if canDeleteTheme(theme) {
+                                                                    Button {
+                                                                        showingThemeMenu = false
+                                                                        themeToRename = theme
+                                                                        themeRenameText = theme.name
+                                                                        showingThemeRename = true
+                                                                    } label: {
+                                                                        Image(systemName: "pencil")
+                                                                            .foregroundStyle(.white.opacity(0.82))
+                                                                            .frame(width: 32, height: 32)
+                                                                            .contentShape(Rectangle())
+                                                                    }
+                                                                    .buttonStyle(.plain)
+                                                                    .accessibilityLabel("Rename \(theme.name)")
+                                                                    Button(role: .destructive) {
+                                                                        showingThemeMenu = false
+                                                                        themeToDelete = theme
+                                                                        confirmingThemeDeletion = true
+                                                                    } label: {
+                                                                        Image(systemName: "trash")
+                                                                            .foregroundStyle(Color(red: 0.55, green: 0.08, blue: 0.08))
+                                                                            .frame(width: 32, height: 32)
+                                                                            .contentShape(Rectangle())
+                                                                    }
+                                                                    .buttonStyle(.plain)
+                                                                    .accessibilityLabel("Delete \(theme.name)")
+                                                                }
+                                                            }
+                                                            .frame(height: 40)
+                                                            Rectangle()
+                                                                .fill(Color.white.opacity(0.12))
+                                                                .frame(height: 0.5)
+                                                        }
+                                                    }
+                                                }
+                                                // Keep the scrolling list's corners tighter than the
+                                                // surrounding popover so it cannot protrude past its frame.
+                                                .clipShape(RoundedRectangle(cornerRadius: 2))
+                                                .frame(width: 288)
+                                                .frame(maxHeight: 240)
+                                                .padding(8)
+                                                .background(Color(red: 0.035, green: 0.035, blue: 0.035))
+                                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                                                .overlay(RoundedRectangle(cornerRadius: 10)
+                                                    .stroke(Color.white.opacity(0.16), lineWidth: 1))
+                                                .presentationBackground(Color(red: 0.035, green: 0.035, blue: 0.035))
+                                                .presentationCompactAdaptation(.popover)
     }
 
     private var accentTextColor: Color {
