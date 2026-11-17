@@ -1181,7 +1181,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _editInfo=[[UILabel alloc] initWithFrame:CGRectMake(8,184,304,32)];
     _editInfo.numberOfLines=2; _editInfo.font=[UIFont systemFontOfSize:11];
     _editInfo.textColor=UIColor.whiteColor; [_tools addSubview:_editInfo];
-    _themeButton=[self editorButton:@"Theme: Classic ▾" action:NULL frame:CGRectMake(8,220,190,32) parent:_tools];
+    _themeButton=[self editorButton:@"Theme: ANIMAL WELL ▾" action:NULL frame:CGRectMake(8,220,190,32) parent:_tools];
     UIButton *importThemeButton=[self editorButton:@"Import Theme…" action:@selector(importThemeFolder) frame:CGRectMake(204,220,108,32) parent:_tools];
     importThemeButton.titleLabel.font=[UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
     importThemeButton.titleLabel.adjustsFontSizeToFitWidth=YES;
