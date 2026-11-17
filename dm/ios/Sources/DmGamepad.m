@@ -276,14 +276,40 @@ int dm_opmode(void);   // hle_oe.c: 0 = handheld
         NSString *label=child.accessibilityLabel.lowercaseString ?: @"";
         NSString *hint=child.accessibilityHint.lowercaseString ?: @"";
         NSString *identifier=child.accessibilityIdentifier.lowercaseString ?: @"";
-        NSString *description=[NSString stringWithFormat:@"%@ %@ %@",label,hint,identifier];
+        NSString *className=NSStringFromClass(child.class).lowercaseString ?: @"";
+        NSString *title=@"";
+        NSString *imageDescription=@"";
+        NSString *visibleText=@"";
+        if ([child isKindOfClass:UIButton.class]) {
+            UIButton *button=(UIButton *)child;
+            title=[button titleForState:UIControlStateNormal].lowercaseString ?: @"";
+            UIImage *image=[button imageForState:UIControlStateNormal] ?: button.currentImage;
+            imageDescription=image.description.lowercaseString ?: @"";
+        }
+        if ([child isKindOfClass:UILabel.class]) {
+            visibleText=((UILabel *)child).text.lowercaseString ?: @"";
+        } else if ([child isKindOfClass:UIButton.class]) {
+            visibleText=[(UIButton *)child titleForState:UIControlStateNormal].lowercaseString ?: @"";
+        }
+        NSString *description=[NSString stringWithFormat:@"%@ %@ %@ %@ %@ %@ %@",
+            label,hint,identifier,className,title,imageDescription,child.description.lowercaseString ?: @""];
         BOOL isEyedropper=[description containsString:@"eyedropper"] ||
+            [description containsString:@"eye dropper"] ||
+            [description containsString:@"dropper"] ||
             [description containsString:@"sample color"] ||
             [description containsString:@"pick a color from"] ||
-            [description containsString:@"screen color"];
+            [description containsString:@"screen color"] ||
+            [description containsString:@"color sampler"];
+        BOOL isColorsTitle=[visibleText isEqualToString:@"colors"] ||
+            [visibleText isEqualToString:@"color"];
         if (isEyedropper && [child isKindOfClass:UIControl.class]) {
             child.hidden=YES;
             child.userInteractionEnabled=NO;
+            child.accessibilityElementsHidden=YES;
+            continue;
+        }
+        if (isColorsTitle && ([child isKindOfClass:UILabel.class] || [child isKindOfClass:UIButton.class])) {
+            child.hidden=YES;
             child.accessibilityElementsHidden=YES;
             continue;
         }
