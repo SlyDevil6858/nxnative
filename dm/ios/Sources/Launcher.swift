@@ -280,11 +280,12 @@ private struct LauncherView: View {
                 .environment(\.colorScheme, .dark)
                 .onChange(of: themeRenamePath) { path in
                     guard let path else { return }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                        themeScrollProxy.scrollTo("launcher-theme-\(path)", anchor: .center)
-                        themeRenameFocused = true
+                    themeRenameFocused = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            themeScrollProxy.scrollTo("launcher-theme-\\(path)", anchor: .center)
+                        }
                     }
-                }
                 }
             }
             .opacity(isControlLayoutEditing ? 0 : 1)
