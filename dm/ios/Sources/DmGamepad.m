@@ -181,7 +181,7 @@ int dm_opmode(void);   // hle_oe.c: 0 = handheld
     // The picker header (eyedropper and "Colors" title) is removed below.
     // Reduce the floating panel by the same amount that the embedded picker
     // content is shifted upward, keeping the actual color controls visible.
-    CGFloat height=MIN(396,MAX(276,bounds.size.height-100));
+    CGFloat height=MIN(340,MAX(260,bounds.size.height-100));
     return CGRectMake(CGRectGetMidX(bounds)-width/2,CGRectGetMidY(bounds)-height/2,width,height);
 }
 - (void)containerViewWillLayoutSubviews {
@@ -1905,7 +1905,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     // Put the picker inside a plain host controller. Presenting UIColorPickerViewController
     // directly adds a system title/Done header; embedding it removes that chrome entirely.
     DmColorPickerHostController *host=[[DmColorPickerHostController alloc] initWithPicker:picker];
-    host.preferredContentSize=CGSizeMake(340, 396);
+    host.preferredContentSize=CGSizeMake(340, 340);
     host.overrideUserInterfaceStyle=UIUserInterfaceStyleDark;
     host.modalPresentationStyle=UIModalPresentationCustom;
     host.modalTransitionStyle=UIModalTransitionStyleCrossDissolve;
