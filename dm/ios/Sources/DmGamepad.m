@@ -215,6 +215,10 @@ static void pads_start(void);   // Physical controllers, below
     UIButton *_themeMenuOverlay;
     UIView *_themeMenuPanel;
     UIScrollView *_themeMenuScroll;
+    UIButton *_editorPopupOverlay;
+    UIView *_editorPopupPanel;
+    UIScrollView *_editorPopupScroll;
+    UILabel *_editorPopupTitle;
     UILabel *_editInfo;
     CAShapeLayer *_editHighlight;
     NSDictionary<NSString *, NSValue *> *_dragAllHomes;
@@ -1618,13 +1622,13 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _tools.backgroundColor=UIColor.systemBackgroundColor;
     _tools.layer.cornerRadius=10;
     [self addSubview:_tools]; _tools.hidden=YES;
-    _profileButton=[self editorButton:@"Profile" action:NULL frame:CGRectMake(8,8,220,32) parent:_tools];
+    _profileButton=[self editorButton:@"Profile" action:@selector(showProfilePopup) frame:CGRectMake(8,8,220,32) parent:_tools];
     _profileButton.titleLabel.adjustsFontSizeToFitWidth=YES; _profileButton.titleLabel.minimumScaleFactor=0.75;
-    _saveAsButton=[self editorButton:@"Save as…" action:NULL frame:CGRectMake(236,8,116,32) parent:_tools];
+    _saveAsButton=[self editorButton:@"Save as…" action:@selector(showSaveAsPopup) frame:CGRectMake(236,8,116,32) parent:_tools];
     [self editorButton:@"Save" action:@selector(saveEdit) frame:CGRectMake(8,48,90,32) parent:_tools];
     [self editorButton:@"Cancel" action:@selector(cancelEdit) frame:CGRectMake(110,48,132,32) parent:_tools];
     [self editorButton:@"Reset all" action:@selector(resetAllControls) frame:CGRectMake(252,48,100,32) parent:_tools];
-    _chooseButton=[self editorButton:@"A ▾" action:NULL frame:CGRectMake(8,86,120,30) parent:_tools];
+    _chooseButton=[self editorButton:@"A ▾" action:@selector(showControlPopup) frame:CGRectMake(8,86,120,30) parent:_tools];
     _colorWell=[[UIColorWell alloc] initWithFrame:CGRectMake(136,86,100,30)];
     _colorWell.title=@"Control Color";
     _colorWell.overrideUserInterfaceStyle=UIUserInterfaceStyleDark;
@@ -1720,6 +1724,30 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _themeMenuScroll=[UIScrollView new];
     _themeMenuScroll.showsVerticalScrollIndicator=YES;
     [_themeMenuPanel addSubview:_themeMenuScroll];
+
+    // Match the theme selector's dark, bordered, rounded appearance for editor popups.
+    _editorPopupOverlay=[UIButton buttonWithType:UIButtonTypeCustom];
+    _editorPopupOverlay.backgroundColor=UIColor.clearColor;
+    _editorPopupOverlay.hidden=YES;
+    [_editorPopupOverlay addTarget:self action:@selector(closeEditorPopup) forControlEvents:UIControlEventTouchUpInside];
+    [self addSubview:_editorPopupOverlay];
+    _editorPopupPanel=[UIView new];
+    _editorPopupPanel.backgroundColor=[UIColor colorWithWhite:0.035 alpha:0.98];
+    _editorPopupPanel.layer.cornerRadius=10;
+    _editorPopupPanel.layer.borderWidth=1;
+    _editorPopupPanel.layer.borderColor=[UIColor colorWithWhite:1 alpha:0.16].CGColor;
+    _editorPopupPanel.clipsToBounds=YES;
+    _editorPopupPanel.userInteractionEnabled=YES;
+    [_editorPopupOverlay addSubview:_editorPopupPanel];
+    _editorPopupTitle=[UILabel new];
+    _editorPopupTitle.textColor=UIColor.whiteColor;
+    _editorPopupTitle.font=[UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
+    _editorPopupTitle.frame=CGRectMake(12,6,280,30);
+    [_editorPopupPanel addSubview:_editorPopupTitle];
+    _editorPopupScroll=[UIScrollView new];
+    _editorPopupScroll.showsVerticalScrollIndicator=YES;
+    [_editorPopupPanel addSubview:_editorPopupScroll];
+
     UIButton *importThemeButton=[self editorButton:@"Import…" action:@selector(importThemeFolder) frame:CGRectMake(260,220,92,32) parent:_tools];
     importThemeButton.titleLabel.font=[UIFont systemFontOfSize:11 weight:UIFontWeightMedium];
     UIButton *createThemeButton=[self editorButton:@"Create theme" action:@selector(createCustomTheme)
@@ -1775,6 +1803,78 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [_touchFeedback impactOccurredWithIntensity:0.6]; [_touchFeedback prepare];
     [self refreshHUDToggleButtons];
 }
+- (void)closeEditorPopup { _editorPopupOverlay.hidden=YES; }
+- (void)showEditorPopupWithTitle:(NSString *)title items:(NSArray<NSDictionary *> *)items {
+    for (UIView *view in _editorPopupScroll.subviews) [view removeFromSuperview];
+    _editorPopupTitle.text=title;
+    CGFloat rowHeight=40, width=304, contentHeight=items.count*rowHeight;
+    CGFloat visibleHeight=MIN(contentHeight,240);
+    _editorPopupPanel.frame=CGRectMake(0,0,width,visibleHeight+50);
+    _editorPopupTitle.frame=CGRectMake(12,6,width-24,30);
+    _editorPopupScroll.frame=CGRectMake(8,40,width-16,visibleHeight);
+    _editorPopupScroll.contentSize=CGSizeMake(width-16,contentHeight);
+    [items enumerateObjectsUsingBlock:^(NSDictionary *item, NSUInteger idx, BOOL *stop) {
+        (void)stop;
+        UIButton *row=[UIButton buttonWithType:UIButtonTypeSystem];
+        row.frame=CGRectMake(0,idx*rowHeight,width-16,rowHeight);
+        row.contentHorizontalAlignment=UIControlContentHorizontalAlignmentLeft;
+        row.contentEdgeInsets=UIEdgeInsetsMake(0,10,0,10);
+        row.titleLabel.font=[UIFont systemFontOfSize:14];
+        row.titleLabel.lineBreakMode=NSLineBreakByTruncatingTail;
+        row.tintColor=UIColor.whiteColor;
+        [row setTitle:item[@"title"] forState:UIControlStateNormal];
+        void (^handler)(void)=item[@"handler"];
+        [row addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) {
+            (void)action; [self closeEditorPopup]; if (handler) handler();
+        }] forControlEvents:UIControlEventTouchUpInside];
+        [_editorPopupScroll addSubview:row];
+        if (idx+1<items.count) {
+            UIView *separator=[[UIView alloc] initWithFrame:CGRectMake(0,(idx+1)*rowHeight-0.5,width-16,0.5)];
+            separator.backgroundColor=[UIColor colorWithWhite:1 alpha:0.12];
+            [_editorPopupScroll addSubview:separator];
+        }
+    }];
+    _editorPopupOverlay.frame=self.bounds;
+    _editorPopupPanel.center=CGPointMake(CGRectGetMidX(self.bounds),CGRectGetMidY(self.safe));
+    _editorPopupOverlay.hidden=NO;
+    [self bringSubviewToFront:_editorPopupOverlay];
+    [_editorPopupOverlay bringSubviewToFront:_editorPopupPanel];
+}
+- (void)showControlPopup {
+    NSMutableArray *items=[NSMutableArray array];
+    [items addObject:@{@"title":@"All controls", @"handler":[^{ self->_selected=-1; [self updateEditor]; } copy]}];
+    for (int b=0;b<18;b++) if ([self editable:b]) {
+        int selected=b;
+        [items addObject:@{@"title":[self controlID:b], @"handler":[^{ self->_selected=selected; [self updateEditor]; } copy]}];
+    }
+    [self showEditorPopupWithTitle:@"Select control" items:items];
+}
+- (void)showProfilePopup {
+    NSMutableArray *items=[NSMutableArray array];
+    for (NSInteger slot=0;slot<4;slot++) {
+        NSInteger target=slot; NSString *name=[_profiles name:slot];
+        NSString *title=slot==_profiles.selected ? [name stringByAppendingString:@"  ✓"] : name;
+        [items addObject:@{@"title":title, @"handler":[^{ [self selectProfile:target]; } copy]}];
+    }
+    [items addObject:@{@"title":@"Rename profile…", @"handler":[^{ [self renameProfile]; } copy]}];
+    [self showEditorPopupWithTitle:@"Control profiles" items:items];
+}
+- (void)showSaveAsPopup {
+    NSMutableArray *items=[NSMutableArray array];
+    for (NSInteger slot=0;slot<4;slot++) if (slot!=_profiles.selected) {
+        NSInteger target=slot; NSString *name=[_profiles name:slot];
+        [items addObject:@{@"title":name, @"handler":[^{
+            NSString *message=[NSString stringWithFormat:@"Replace %@ with this profile?",[self->_profiles name:target]];
+            [self confirm:message actionTitle:@"Save copy" action:^{
+                [self reset]; self->_dragTouch=nil;
+                [self->_profiles copySlot:self->_profiles.selected to:target draft:self->_custom layout:self.controlsLayout];
+                [self loadControls]; [self updateEditor]; [self setNeedsLayout];
+            }];
+        } copy]}];
+    }
+    if (!items.count) [items addObject:@{@"title":@"No other profile slots", @"handler":[^{} copy]}];
+    [self showEditorPopupWithTitle:@"Save a copy to" items:items];
+}
 - (void)updateEditor {
     [self updateProfileMenu];
     [self updateThemeMenu];
@@ -1796,16 +1896,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         _alphaSlider.value=alpha?alpha.floatValue:1;
     }
     _editInfo.text=[NSString stringWithFormat:@"Size %.0f%% · Opacity %.0f%%\nDrag a control to move it.",_sizeSlider.value*100,_alphaSlider.value*100];
-    NSMutableArray *actions=[NSMutableArray array];
-    [actions addObject:[UIAction actionWithTitle:@"All controls" image:nil identifier:nil
-        handler:^(__kindof UIAction *action) { (void)action; self->_selected=-1; [self updateEditor]; }]];
-    for (int b=0;b<18;b++) if ([self editable:b]) {
-        int selected=b;
-        [actions addObject:[UIAction actionWithTitle:[self controlID:b] image:nil identifier:nil
-            handler:^(__kindof UIAction *action) { (void)action; self->_selected=selected; [self updateEditor]; }]];
-    }
-    _chooseButton.menu=[UIMenu menuWithTitle:@"Select control" children:actions];
-    _chooseButton.showsMenuAsPrimaryAction=YES;
+    // The control picker is shown by the custom rounded popup above.
     NSString *colorKey=_selected<0 ? nil : [self themeColorKeyForControl:_selected];
     _colorPickerControl=_selected;
     UIColor *wellColor=_selected<0 ? (_themeButtonColors[@"A"] ?: k_idle) :
@@ -1878,27 +1969,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 }
 - (void)updateProfileMenu {
     [_profileButton setTitle:[NSString stringWithFormat:@"%@ ▾",[_profiles name:_profiles.selected]] forState:UIControlStateNormal];
-    NSMutableArray *profiles=[NSMutableArray array], *copies=[NSMutableArray array];
-    for (NSInteger slot=0;slot<4;slot++) {
-        NSInteger target=slot;
-        UIAction *pick=[UIAction actionWithTitle:[_profiles name:slot] image:nil identifier:nil
-            handler:^(__unused UIAction *action) { [self selectProfile:target]; }];
-        pick.state=slot==_profiles.selected?UIMenuElementStateOn:UIMenuElementStateOff; [profiles addObject:pick];
-        if (slot!=_profiles.selected) [copies addObject:[UIAction actionWithTitle:[_profiles name:slot] image:nil identifier:nil
-            handler:^(__unused UIAction *action) {
-                NSString *message=[NSString stringWithFormat:@"Replace %@ with this profile?",[self->_profiles name:target]];
-                [self confirm:message actionTitle:@"Save copy" action:^{
-                    [self reset]; self->_dragTouch=nil;
-                    [self->_profiles copySlot:self->_profiles.selected to:target draft:self->_custom layout:self.controlsLayout];
-                    [self loadControls]; [self updateEditor]; [self setNeedsLayout];
-                }];
-            }]];
-    }
-    UIAction *rename=[UIAction actionWithTitle:@"Rename…" image:nil identifier:nil
-        handler:^(__unused UIAction *action) { [self renameProfile]; }];
-    [profiles addObject:[UIMenu menuWithTitle:@"" image:nil identifier:nil options:UIMenuOptionsDisplayInline children:@[rename]]];
-    _profileButton.menu=[UIMenu menuWithTitle:@"Control profiles" children:profiles]; _profileButton.showsMenuAsPrimaryAction=YES;
-    _saveAsButton.menu=[UIMenu menuWithTitle:@"Save a copy to" children:copies]; _saveAsButton.showsMenuAsPrimaryAction=YES;
+    [_saveAsButton setTitle:@"Save as…" forState:UIControlStateNormal];
 }
 - (void)beginLauncherEdit {
     // The launcher preview is not a live gamepad session. Keep editing available
