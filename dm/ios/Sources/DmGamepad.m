@@ -1805,7 +1805,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _colorWellLockIcon.hidden=YES;
     [_tools addSubview:_colorWellLockIcon];
     [_tools bringSubviewToFront:_colorWellLockIcon];
-    [self editorButton:@"Reset control" action:@selector(resetControl) frame:CGRectMake(244,86,108,30) parent:_tools];
+    [self editorButton:@"Reset control" action:@selector(resetControl) frame:CGRectMake(260,220,92,32) parent:_tools];
     _sizeSlider=[[UISlider alloc] initWithFrame:CGRectMake(78,120,274,30)];
     _sizeSlider.minimumValue=0.5; _sizeSlider.maximumValue=2;
     _alphaSlider=[[UISlider alloc] initWithFrame:CGRectMake(78,152,274,30)];
