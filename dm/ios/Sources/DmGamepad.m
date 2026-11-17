@@ -269,7 +269,7 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
         _editHighlight = [CAShapeLayer layer];
         _editHighlight.fillColor = UIColor.clearColor.CGColor;
         _editHighlight.strokeColor = [self editorAccentColor].CGColor;
-        _editHighlight.lineWidth = 2.5;
+        _editHighlight.lineWidth = 3.5;
         _editHighlight.lineCap = kCALineCapRound;
         _editHighlight.lineJoin = kCALineJoinRound;
         _editHighlight.opacity = 1.0;
@@ -1026,17 +1026,15 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     if (path.length && [self loadThemeAtPath:path]) return YES;
 
     [defaults removeObjectForKey:k_theme_path_key];
-    if (![defaults boolForKey:@"DmTouchControlThemeExplicitlySelected"]) {
-        NSURL *bundledRoot=[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES];
-        NSURL *animalWell=[bundledRoot URLByAppendingPathComponent:@"ANIMAL WELL" isDirectory:YES];
-        if ([self loadThemeAtPath:animalWell.path]) {
-            [defaults setObject:animalWell.path forKey:k_theme_path_key];
-            [defaults setObject:_themeName ?: @"Well" forKey:k_theme_name_key];
-            return YES;
-        }
+    NSURL *bundledRoot=[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES];
+    NSURL *animalWell=[bundledRoot URLByAppendingPathComponent:@"ANIMAL WELL" isDirectory:YES];
+    if ([self loadThemeAtPath:animalWell.path]) {
+        [defaults setObject:animalWell.path forKey:k_theme_path_key];
+        [defaults setObject:_themeName ?: @"ANIMAL WELL" forKey:k_theme_name_key];
+        return YES;
     }
-    [defaults setObject:@"Classic" forKey:k_theme_name_key];
-    _themeName=@"Classic"; _themeButtonColors=@{}; theme_init(); return NO;
+    [defaults setObject:@"ANIMAL WELL" forKey:k_theme_name_key];
+    _themeName=@"ANIMAL WELL"; _themeButtonColors=@{}; theme_init(); return NO;
 }
 - (UIColor *)themeColorForButton:(int)b pressed:(BOOL)pressed {
     NSString *key=nil;
@@ -1058,16 +1056,9 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [self refresh]; [self setNeedsLayout]; [self layoutIfNeeded]; [self updateEditor];
 }
 - (void)updateThemeMenu {
-    NSString *current=[NSUserDefaults.standardUserDefaults stringForKey:k_theme_name_key] ?: @"Classic";
+    NSString *current=[NSUserDefaults.standardUserDefaults stringForKey:k_theme_name_key] ?: @"ANIMAL WELL";
     [_themeButton setTitle:[NSString stringWithFormat:@"Theme: %@ ▾",current] forState:UIControlStateNormal];
     NSMutableArray *items=[NSMutableArray array];
-    UIAction *classic=[UIAction actionWithTitle:@"Classic" image:nil identifier:nil handler:^(__unused UIAction *a) {
-        [NSUserDefaults.standardUserDefaults removeObjectForKey:k_theme_path_key];
-        [NSUserDefaults.standardUserDefaults setObject:@"Classic" forKey:k_theme_name_key];
-        self->_themeName=@"Classic"; self->_themeButtonColors=@{}; theme_init();
-        [self refresh]; [self updateEditor];
-    }];
-    classic.state=[current isEqualToString:@"Classic"]?UIMenuElementStateOn:UIMenuElementStateOff; [items addObject:classic];
     NSURL *documentsRoot=[self themesDirectoryCreating:YES];
     NSURL *bundledRoot=[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES];
     NSArray<NSURL *> *bundledFolders=[NSFileManager.defaultManager contentsOfDirectoryAtURL:bundledRoot
@@ -1218,6 +1209,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [_tools addSubview:_hudSwitch];
 }
 - (void)editorHUDChanged {
+    [_touchFeedback impactOccurredWithIntensity:0.6];
+    [_touchFeedback prepare];
     front_ios_set_runtime_hud(_fpsSwitch.on, _hudSwitch.on);
 }
 - (void)updateEditor {
