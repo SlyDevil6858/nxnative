@@ -159,7 +159,7 @@ int dm_opmode(void);   // hle_oe.c: 0 = handheld
 }
 @end
 
-@interface DmGamepad : UIView <UIGestureRecognizerDelegate, UIDocumentPickerDelegate, UIColorPickerViewControllerDelegate>
+@interface DmGamepad : UIView <UIGestureRecognizerDelegate, UIDocumentPickerDelegate>
 - (UIColor *)editorAccentColor;
 - (void)beginLauncherEdit;
 - (void)toggleEditor;
@@ -191,7 +191,7 @@ static void pads_start(void);   // Physical controllers, below
     NSString *_themeName;
     NSString *_themePath;
     UIButton *_themeButton;
-    UIButton *_colorButton;
+    UIColorWell *_colorWell;
     int _colorPickerControl;
     NSMutableDictionary *_custom;
     DmPadProfiles *_profiles;
@@ -1298,27 +1298,12 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     if (data) [data writeToFile:jsonPath atomically:YES];
     [self updateThemeMenu];
 }
-- (void)editSelectedControlColor {
-    if (_launcherPreview || _selected<0) return;
-    NSString *key=[self themeColorKeyForControl:_selected];
-    if (!key) return;
-    _colorPickerControl=_selected;
-    UIColorPickerViewController *picker=[UIColorPickerViewController new];
-    picker.delegate=self;
-    picker.selectedColor=_themeButtonColors[key] ?: k_idle;
-    picker.supportsAlpha=NO;
-    UIViewController *presenter=[self editorPresenter];
-    if (!presenter) {
-        NSLog(@"[DmGamepad] Cannot open color picker: no active view controller found");
-        return;
-    }
-    [presenter presentViewController:picker animated:YES completion:nil];
-}
-- (void)colorPickerViewControllerDidSelectColor:(UIColorPickerViewController *)viewController {
+- (void)colorWellValueChanged:(UIColorWell *)sender {
     NSString *key=[self themeColorKeyForControl:_colorPickerControl];
-    if (!key) return;
+    UIColor *color=sender.selectedColor;
+    if (!key || !color) return;
     NSMutableDictionary *colors=[_themeButtonColors mutableCopy] ?: [NSMutableDictionary dictionary];
-    colors[key]=viewController.selectedColor;
+    colors[key]=color;
     _themeButtonColors=colors;
     [self refresh];
     [self persistCustomTheme];
@@ -1390,7 +1375,13 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [self editorButton:@"Cancel" action:@selector(cancelEdit) frame:CGRectMake(110,48,90,32) parent:_tools];
     [self editorButton:@"Reset all" action:@selector(resetAllControls) frame:CGRectMake(252,48,100,32) parent:_tools];
     _chooseButton=[self editorButton:@"A ▾" action:NULL frame:CGRectMake(8,86,120,30) parent:_tools];
-    _colorButton=[self editorButton:@"Color…" action:@selector(editSelectedControlColor) frame:CGRectMake(136,86,100,30) parent:_tools];
+    _colorWell=[[UIColorWell alloc] initWithFrame:CGRectMake(136,86,100,30)];
+    _colorWell.title=@"Control Color";
+    _colorWell.supportsAlpha=NO;
+    _colorWell.supportsEyedropper=YES;
+    _colorWell.accessibilityLabel=@"Choose control color";
+    [_colorWell addTarget:self action:@selector(colorWellValueChanged:) forControlEvents:UIControlEventValueChanged];
+    [_tools addSubview:_colorWell];
     [self editorButton:@"Reset control" action:@selector(resetControl) frame:CGRectMake(244,86,108,30) parent:_tools];
     _sizeSlider=[[UISlider alloc] initWithFrame:CGRectMake(78,120,274,30)];
     _sizeSlider.minimumValue=0.5; _sizeSlider.maximumValue=2;
@@ -1478,8 +1469,11 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     }
     _chooseButton.menu=[UIMenu menuWithTitle:@"Select control" children:actions];
     _chooseButton.showsMenuAsPrimaryAction=YES;
-    [_colorButton setTitle:(_selected<0?@"Color…":[NSString stringWithFormat:@"Color: %@",[self controlID:_selected]]) forState:UIControlStateNormal];
-    _colorButton.enabled=(_selected>=0 && !_launcherPreview);
+    NSString *colorKey=[self themeColorKeyForControl:_selected];
+    _colorPickerControl=_selected;
+    _colorWell.selectedColor=colorKey ? (_themeButtonColors[colorKey] ?: k_idle) : nil;
+    _colorWell.accessibilityLabel=colorKey ? [NSString stringWithFormat:@"Choose %@ color", [self controlID:_selected]] : @"Choose control color";
+    _colorWell.enabled=(colorKey!=nil && !_launcherPreview);
     [self setNeedsLayout];
 }
 - (UIViewController *)editorPresenter {
