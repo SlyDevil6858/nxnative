@@ -221,7 +221,7 @@ static void pads_start(void);   // Physical controllers, below
     UITouch *_game[16];                            // touches on the game's touch screen by finger slot
 }
 
-static UIColor *k_idle, *k_on, *k_line, *k_ringFill, *k_text, *k_textOn;
+static UIColor *k_idle, *k_on, *k_line, *k_ringFill, *k_stickTrack, *k_stickBorder, *k_text, *k_textOn;
 static UIColor *themeHex(NSString *value) {
     if (![value isKindOfClass:NSString.class]) return nil;
     NSString *hex = [[value stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet] uppercaseString];
@@ -243,6 +243,7 @@ static id themePaletteValue(NSDictionary *palette, NSString *key) {
 static void theme_init(void) {
     k_idle = [UIColor colorWithWhite:1 alpha:0.14]; k_on = [UIColor colorWithWhite:1 alpha:0.45];
     k_line = [UIColor colorWithWhite:1 alpha:0.38]; k_ringFill = [UIColor colorWithWhite:1 alpha:0.06];
+    k_stickTrack = k_ringFill; k_stickBorder = k_line;
     k_text = [UIColor colorWithWhite:1 alpha:0.6]; k_textOn = [UIColor colorWithWhite:0 alpha:0.7];
 }
 static CAShapeLayer *shape(CALayer *parent) {
@@ -1015,10 +1016,10 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
         _key[b].opacity = [self opacity:(b >= B_LEFT ? 17 : b)];
     }
     _ring.opacity = _knob.opacity = [self opacity:16];
-    _ring.fillColor = k_ringFill.CGColor;
-    _ring.strokeColor = k_line.CGColor; _knob.strokeColor = k_line.CGColor;
+    _ring.fillColor = k_stickTrack.CGColor;
+    _ring.strokeColor = k_stickBorder.CGColor; _knob.strokeColor = k_stickBorder.CGColor;
     CAShapeLayer *innerRing=(CAShapeLayer *)_knob.sublayers.firstObject;
-    innerRing.strokeColor=k_line.CGColor;
+    innerRing.strokeColor=k_stickBorder.CGColor;
     _swap.fillColor = [self themeColorForButton:B_N pressed:_swapHeld].CGColor;
     _swap.strokeColor = k_line.CGColor; _swapLabel.foregroundColor = (_swapHeld ? k_textOn : k_text).CGColor;
     // Keep the 2D / 3D / TAP layout control above every other touch-control layer.
@@ -1093,6 +1094,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     }
     k_idle=[idle colorWithAlphaComponent:0.36]; k_on=[pressed colorWithAlphaComponent:0.92];
     k_line=[outline colorWithAlphaComponent:0.88]; k_ringFill=[ring colorWithAlphaComponent:0.25];
+    k_stickTrack=[(themeHex(buttons[@"StickTrack"]) ?: ring) colorWithAlphaComponent:0.25];
+    k_stickBorder=[(themeHex(buttons[@"StickBorder"]) ?: outline) colorWithAlphaComponent:0.88];
     k_text=[text colorWithAlphaComponent:0.96]; k_textOn=pressedText;
     _themeButtonColors=parsed;
     _themePath=[path copy];
@@ -1522,15 +1525,21 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     if (!color) return;
     NSMutableDictionary *colors=[_themeButtonColors mutableCopy] ?: [NSMutableDictionary dictionary];
     if (_colorPickerControl<0) {
-        // "All controls" applies the selected color to each distinct control palette entry.
+        // "All controls" also includes the left stick's track and outline.
         for (int control=0;control<18;control++) {
             NSString *key=[self themeColorKeyForControl:control];
             if (key.length) colors[key]=color;
         }
+        colors[@"StickTrack"]=color;
+        colors[@"StickBorder"]=color;
     } else {
         NSString *key=[self themeColorKeyForControl:_colorPickerControl];
         if (!key) return;
         colors[key]=color;
+        if (_colorPickerControl==16) {
+            colors[@"StickTrack"]=color;
+            colors[@"StickBorder"]=color;
+        }
     }
     _themeButtonColors=colors;
     _colorWell.selectedColor=color;
@@ -1802,7 +1811,9 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     BOOL hasColorTarget=(_selected<0 || colorKey!=nil);
     _colorWell.enabled=(hasColorTarget && !builtInTheme);
     _colorWell.userInteractionEnabled=(hasColorTarget && !builtInTheme);
-    _colorWellAppearance.userInteractionEnabled=(hasColorTarget && !builtInTheme);
+    // The visual rectangle must stay transparent to hit-testing so the native
+    // UIColorWell underneath receives taps in both editor presentations.
+    _colorWellAppearance.userInteractionEnabled=NO;
     _colorWellAppearance.accessibilityLabel=_colorWell.accessibilityLabel;
     _colorWell.accessibilityLabel=builtInTheme ? @"Control color locked for built-in themes" :
         (_selected<0 ? @"Choose all controls color" :
