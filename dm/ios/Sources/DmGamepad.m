@@ -178,8 +178,10 @@ int dm_opmode(void);   // hle_oe.c: 0 = handheld
 - (CGRect)frameOfPresentedViewInContainerView {
     CGRect bounds=self.containerView.bounds;
     CGFloat width=MIN(340,MAX(280,bounds.size.width-32));
-    // With the system modal header removed, the picker needs less vertical space.
-    CGFloat height=MIN(460,MAX(340,bounds.size.height-100));
+    // The picker header (eyedropper and "Colors" title) is removed below.
+    // Reduce the floating panel by the same amount that the embedded picker
+    // content is shifted upward, keeping the actual color controls visible.
+    CGFloat height=MIN(396,MAX(276,bounds.size.height-100));
     return CGRectMake(CGRectGetMidX(bounds)-width/2,CGRectGetMidY(bounds)-height/2,width,height);
 }
 - (void)containerViewWillLayoutSubviews {
@@ -259,7 +261,7 @@ int dm_opmode(void);   // hle_oe.c: 0 = handheld
     [NSLayoutConstraint activateConstraints:@[
         [self.picker.view.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
         [self.picker.view.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
-        [self.picker.view.topAnchor constraintEqualToAnchor:self.view.topAnchor],
+        [self.picker.view.topAnchor constraintEqualToAnchor:self.view.topAnchor constant:-64],
         [self.picker.view.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor]
     ]];
     [self.picker didMoveToParentViewController:self];
@@ -1903,7 +1905,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     // Put the picker inside a plain host controller. Presenting UIColorPickerViewController
     // directly adds a system title/Done header; embedding it removes that chrome entirely.
     DmColorPickerHostController *host=[[DmColorPickerHostController alloc] initWithPicker:picker];
-    host.preferredContentSize=CGSizeMake(340, 460);
+    host.preferredContentSize=CGSizeMake(340, 396);
     host.overrideUserInterfaceStyle=UIUserInterfaceStyleDark;
     host.modalPresentationStyle=UIModalPresentationCustom;
     host.modalTransitionStyle=UIModalTransitionStyleCrossDissolve;
