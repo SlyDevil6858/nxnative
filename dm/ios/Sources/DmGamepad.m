@@ -1135,8 +1135,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             [title caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
             [title caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame;
         // Compare canonical filesystem paths so the Documents copy is reliably recognized.
-        NSString *standardFolderPath=folder.standardizedFileURL.path;
-        NSString *standardDocumentsPrefix=[documentsRoot.standardizedFileURL.path stringByAppendingString:@"/"];
+        NSString *standardFolderPath=folder.standardizedURL.path;
+        NSString *standardDocumentsPrefix=[documentsRoot.standardizedURL.path stringByAppendingString:@"/"];
         BOOL writable=[standardFolderPath hasPrefix:standardDocumentsPrefix];
         if (writable && !protectedTheme) {
             UIAction *remove=[UIAction actionWithTitle:[NSString stringWithFormat:@"Delete %@",title]
