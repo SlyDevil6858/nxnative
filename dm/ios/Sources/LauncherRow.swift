@@ -51,6 +51,58 @@ struct SettingRow: View {
     let s: Setting
     @ObservedObject var m: LauncherModel
     let accentColor: Color
+    @State private var showingChoicePopover = false
+
+    #if os(iOS)
+    private var selectedChoiceLabel: String {
+        let value = m.values[s.env] ?? s.def
+        return s.options?.first(where: { $0.count >= 2 && $0[0] == value })?[1] ?? value
+    }
+
+    private var choicePopover: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                ForEach(s.options ?? [], id: \.self) { option in
+                    if option.count >= 2 {
+                        Button {
+                            m.values[s.env] = option[0]
+                            showingChoicePopover = false
+                        } label: {
+                            HStack(spacing: 8) {
+                                Text(option[1]).lineLimit(1)
+                                Spacer(minLength: 4)
+                                if (m.values[s.env] ?? s.def) == option[0] {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(.white)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                            .padding(.horizontal, 8)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .frame(height: 40)
+                        Rectangle()
+                            .fill(Color.white.opacity(0.12))
+                            .frame(height: 0.5)
+                    }
+                }
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 2))
+        .frame(width: 288)
+        .frame(maxHeight: 240)
+        .padding(8)
+        .background(Color(red: 0.035, green: 0.035, blue: 0.035).opacity(0.98))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10)
+            .stroke(Color.white.opacity(0.16), lineWidth: 1))
+        .presentationBackground(Color(red: 0.035, green: 0.035, blue: 0.035).opacity(0.98))
+        .presentationCornerRadius(10)
+        .presentationCompactAdaptation(.popover)
+        .environment(\.colorScheme, .dark)
+    }
+    #endif
 
     private var locked: Bool { m.fixed.contains(s.env) }
     private var note: String {
@@ -74,6 +126,27 @@ struct SettingRow: View {
         Group {
             switch s.kind {
             case "choice":
+                #if os(iOS)
+                Button {
+                    showingChoicePopover = true
+                } label: {
+                    HStack(spacing: 8) {
+                        settingLabel
+                        Spacer(minLength: 8)
+                        Text(selectedChoiceLabel)
+                            .foregroundStyle(accentColor)
+                            .lineLimit(1)
+                        Image(systemName: "chevron.down")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(accentColor)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .popover(isPresented: $showingChoicePopover, arrowEdge: .trailing) {
+                    choicePopover
+                }
+                #else
                 Picker(selection: m.binding(s)) {
                     ForEach(s.options ?? [], id: \.self) { Text($0[1]).tag($0[0]) }
                 } label: {
@@ -81,6 +154,7 @@ struct SettingRow: View {
                 }
                 .pickerStyle(.menu)
                 .tint(accentColor)
+                #endif
             case "range":
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
