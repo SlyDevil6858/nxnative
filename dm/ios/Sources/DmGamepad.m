@@ -1218,7 +1218,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 - (NSString *)borderColorKeyForControl:(int)control {
     NSString *key=[self themeColorKeyForControl:control];
     if (!key.length) return nil;
-    if ([key isEqualToString:@"Stick"]) return @"StickBorder";
+    if (control==16) return @"StickBorder";
     return [@"Border" stringByAppendingString:key];
 }
 - (NSString *)colorTargetName {
@@ -1229,7 +1229,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     }
 }
 - (UIColor *)currentColorForEditorSelection {
-    if (_colorTarget==2) return _themeButtonColors[@"StickTrack"] ?: k_ringFill;
+    if (_colorTarget==2) return _themeButtonColors[@"StickTrack"] ?: k_stickTrack;
     if (_colorTarget==1) {
         if (_selected<0) return _themeButtonColors[@"BorderA"] ?: k_line;
         NSString *key=[self borderColorKeyForControl:_selected];
