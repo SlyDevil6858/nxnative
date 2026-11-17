@@ -168,7 +168,7 @@ int dm_opmode(void);   // hle_oe.c: 0 = handheld
     self=[super initWithPresentedViewController:presented presentingViewController:presenting];
     if (self) {
         _dimmingView=[UIView new];
-        _dimmingView.backgroundColor=[UIColor colorWithWhite:0 alpha:0.48];
+        _dimmingView.backgroundColor=[UIColor colorWithWhite:0 alpha:0.22];
         _dimmingView.alpha=0;
         UITapGestureRecognizer *tap=[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(dismissPicker)];
         [_dimmingView addGestureRecognizer:tap];
@@ -185,7 +185,13 @@ int dm_opmode(void);   // hle_oe.c: 0 = handheld
     [super containerViewWillLayoutSubviews];
     self.dimmingView.frame=self.containerView.bounds;
     self.presentedView.frame=self.frameOfPresentedViewInContainerView;
+    // Give the floating picker a solid dark surface so transparent areas in
+    // UIColorPickerViewController do not show the dimmed game underneath.
+    self.presentedView.backgroundColor=[UIColor colorWithWhite:0.075 alpha:1.0];
+    self.presentedViewController.view.backgroundColor=[UIColor colorWithWhite:0.075 alpha:1.0];
     self.presentedView.layer.cornerRadius=14;
+    self.presentedView.layer.borderWidth=1;
+    self.presentedView.layer.borderColor=[UIColor colorWithWhite:1 alpha:0.14].CGColor;
     self.presentedView.layer.masksToBounds=YES;
 }
 - (void)presentationTransitionWillBegin {
