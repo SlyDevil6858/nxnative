@@ -1298,7 +1298,12 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     picker.delegate=self;
     picker.selectedColor=_themeButtonColors[key] ?: k_idle;
     picker.supportsAlpha=NO;
-    [[self editorPresenter] presentViewController:picker animated:YES completion:nil];
+    UIViewController *presenter=[self editorPresenter];
+    if (!presenter) {
+        NSLog(@"[DmGamepad] Cannot open color picker: no active view controller found");
+        return;
+    }
+    [presenter presentViewController:picker animated:YES completion:nil];
 }
 - (void)colorPickerViewControllerDidSelectColor:(UIColorPickerViewController *)viewController {
     NSString *key=[self themeColorKeyForControl:_colorPickerControl];
@@ -1472,6 +1477,17 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     UIResponder *responder=self;
     while (responder && ![responder isKindOfClass:UIViewController.class]) responder=responder.nextResponder;
     UIViewController *presenter=(UIViewController *)responder;
+    // The gamepad view is sometimes hosted below a custom window/controller whose
+    // responder chain does not include its presenting view controller.
+    if (!presenter) {
+        for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+            if (![scene isKindOfClass:UIWindowScene.class] || scene.activationState!=UISceneActivationStateForegroundActive) continue;
+            for (UIWindow *window in ((UIWindowScene *)scene).windows) {
+                if (window.isKeyWindow && window.rootViewController) { presenter=window.rootViewController; break; }
+            }
+            if (presenter) break;
+        }
+    }
     while (presenter.presentedViewController) presenter=presenter.presentedViewController;
     return presenter;
 }
