@@ -1144,7 +1144,10 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             [items addObject:remove];
         }
     }
-    _themeButton.menu=[UIMenu menuWithTitle:@"Touch Control Theme" children:items];
+    // UIKit displays these menu children in reverse visual order in this editor.
+// Reverse the sorted actions so the visible order is ANIMAL WELL, CLASSIC, then the rest.
+    _themeButton.menu=[UIMenu menuWithTitle:@"Touch Control Theme"
+        children:[[items reverseObjectEnumerator] allObjects]];
     _themeButton.showsMenuAsPrimaryAction=YES;
 }
 - (void)confirmDeleteThemeAtPath:(NSString *)path name:(NSString *)name {
