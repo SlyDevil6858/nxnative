@@ -212,6 +212,7 @@ private struct LauncherView: View {
                                 ForEach(rows) { SettingRow(s: $0, m: m, accentColor: accentColor) }
                                 if section == "Controls" {
                                     Button {
+                                        refreshThemes()
                                         showingThemeMenu = true
                                     } label: {
                                         HStack {
@@ -392,7 +393,9 @@ private struct LauncherView: View {
             Text("This permanently deletes the imported theme folder from this device.")
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("DmPadLauncherEditorVisibilityChanged"))) { notification in
-            isControlLayoutEditing = (notification.userInfo?["editing"] as? Bool) ?? false
+            let editing = (notification.userInfo?["editing"] as? Bool) ?? false
+            isControlLayoutEditing = editing
+            if !editing { refreshThemes() }
         }
         .onAppear(perform: refreshThemes)
         .task {
