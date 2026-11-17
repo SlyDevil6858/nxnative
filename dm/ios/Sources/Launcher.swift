@@ -289,6 +289,7 @@ private struct LauncherView: View {
                 }
             }
         }
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .preferredColorScheme(.dark)
         .sheet(isPresented: $pickingTheme) {
             DocumentPicker(types: [.folder]) { url in
