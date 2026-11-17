@@ -245,7 +245,7 @@ private struct LauncherView: View {
                                                         .contentShape(Rectangle())
                                                     }
                                                     .buttonStyle(.plain)
-                                                    if !isBundledTheme(theme) {
+                                                    if canDeleteTheme(theme) {
                                                         Button(role: .destructive) {
                                                             showingThemeMenu = false
                                                             themeToDelete = theme
@@ -397,10 +397,18 @@ private struct LauncherView: View {
         for retired in ["Well"] {
             try? FileManager.default.removeItem(at: directory.appendingPathComponent(retired, isDirectory: true))
         }
-        // Remove identical legacy copies left by older builds, but preserve any user-customized folder.
-        if let bundledRoot = Bundle.main.resourceURL?.appendingPathComponent("TouchControlThemes", isDirectory: true),
+        let bundledRoot = Bundle.main.resourceURL?.appendingPathComponent("TouchControlThemes", isDirectory: true)
+        // FOREST is shipped in the bundle, then installed as a deletable, Files-visible copy in Documents.
+        let forestSource = bundledRoot?.appendingPathComponent("FOREST", isDirectory: true)
+        let forestDestination = directory.appendingPathComponent("FOREST", isDirectory: true)
+        if let forestSource, !FileManager.default.fileExists(atPath: forestDestination.path) {
+            try? FileManager.default.copyItem(at: forestSource, to: forestDestination)
+        }
+        // Remove identical legacy copies of the other bundled themes, but preserve editable FOREST.
+        if let bundledRoot,
            let bundledFolders = try? FileManager.default.contentsOfDirectory(at: bundledRoot, includingPropertiesForKeys: [.isDirectoryKey]) {
             for bundled in bundledFolders where (try? bundled.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
+                if bundled.lastPathComponent.caseInsensitiveCompare("FOREST") == .orderedSame { continue }
                 let legacy = directory.appendingPathComponent(bundled.lastPathComponent, isDirectory: true)
                 let bundledJSON = try? Data(contentsOf: bundled.appendingPathComponent("theme.json"))
                 let legacyJSON = try? Data(contentsOf: legacy.appendingPathComponent("theme.json"))
@@ -421,8 +429,18 @@ private struct LauncherView: View {
         return path.hasPrefix(root)
     }
 
+    private func canDeleteTheme(_ theme: LauncherTheme) -> Bool {
+        let folderName = URL(fileURLWithPath: theme.path).lastPathComponent
+        guard folderName.caseInsensitiveCompare("ANIMAL WELL") != .orderedSame,
+              folderName.caseInsensitiveCompare("CLASSIC") != .orderedSame,
+              theme.name.caseInsensitiveCompare("ANIMAL WELL") != .orderedSame,
+              theme.name.caseInsensitiveCompare("CLASSIC") != .orderedSame else { return false }
+        let documentsRoot = themesDirectory().standardizedFileURL.path + "/"
+        return URL(fileURLWithPath: theme.path).standardizedFileURL.path.hasPrefix(documentsRoot)
+    }
+
     private func deleteTheme(_ theme: LauncherTheme) {
-        guard !isBundledTheme(theme) else { return }
+        guard canDeleteTheme(theme) else { return }
         do {
             try FileManager.default.removeItem(at: URL(fileURLWithPath: theme.path))
             if selectedTheme == theme.name,
@@ -455,7 +473,14 @@ private struct LauncherView: View {
         let bundledRoot = Bundle.main.resourceURL?.appendingPathComponent("TouchControlThemes", isDirectory: true)
         let bundledFolders = bundledRoot.flatMap { try? FileManager.default.contentsOfDirectory(at: $0, includingPropertiesForKeys: [.isDirectoryKey]) } ?? []
         let importedFolders = (try? FileManager.default.contentsOfDirectory(at: documentsRoot, includingPropertiesForKeys: [.isDirectoryKey])) ?? []
-        let folders = bundledFolders + importedFolders
+        // When a bundled FOREST exists, show only its writable Documents copy.
+        let hasDocumentsForest = importedFolders.contains {
+            $0.lastPathComponent.caseInsensitiveCompare("FOREST") == .orderedSame
+        }
+        let visibleBundled = bundledFolders.filter {
+            !(hasDocumentsForest && $0.lastPathComponent.caseInsensitiveCompare("FOREST") == .orderedSame)
+        }
+        let folders = visibleBundled + importedFolders
         themes = folders.compactMap { folder in
             guard (try? folder.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true,
                   let json = themeJSON(in: folder) else { return nil }
