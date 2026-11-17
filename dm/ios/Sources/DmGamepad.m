@@ -1616,93 +1616,32 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _themeMenuScroll.frame=CGRectMake(8,8,288,MIN(contentHeight,240));
     _themeMenuPanel.frame=CGRectMake(0,0,304,MIN(contentHeight,240)+16);
 }
-- (void)renameThemeAtPath:(NSString *)path name:(NSString *)name {
+- (void)saveInlineThemeRenameAtPath:(NSString *)path {
+    NSString *newName=[_themeRenameField.text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+    if (!newName.length || [newName caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame || [newName caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame) {
+        _themeRenameField.layer.borderWidth=1.5; _themeRenameField.layer.borderColor=[UIColor systemRedColor].CGColor; return;
+    }
+    NSURL *target=[NSURL fileURLWithPath:path isDirectory:YES].standardizedURL;
     NSURL *documentsRoot=[self themesDirectoryCreating:YES].standardizedURL;
-    NSURL *folder=[NSURL fileURLWithPath:path].standardizedURL;
-    NSString *documentsPrefix=[documentsRoot.path stringByAppendingString:@"/"];
-    if (![folder.path hasPrefix:documentsPrefix] ||
-        [folder.lastPathComponent caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
-        [folder.lastPathComponent caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame ||
-        [name caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
-        [name caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame) return;
-
-    UIAlertController *prompt=[UIAlertController alertControllerWithTitle:@"Rename Theme"
-        message:@"Choose a new name for this custom theme." preferredStyle:UIAlertControllerStyleAlert];
-    [prompt addTextFieldWithConfigurationHandler:^(UITextField *field) {
-        field.text=name;
-        field.clearButtonMode=UITextFieldViewModeWhileEditing;
-        field.autocapitalizationType=UITextAutocapitalizationTypeWords;
-    }];
-    [prompt addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
-    __weak UIAlertController *weakPrompt=prompt;
-    [prompt addAction:[UIAlertAction actionWithTitle:@"Rename" style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) {
-        NSString *newName=[weakPrompt.textFields.firstObject.text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
-        if (!newName.length || [newName caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
-            [newName caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame) return;
-        NSURL *manifestURL=[self themeJSONURLInFolder:folder];
-        NSString *manifestPath=manifestURL.path;
-        NSMutableDictionary *json=[[NSJSONSerialization JSONObjectWithData:[NSData dataWithContentsOfFile:manifestPath]
-            options:NSJSONReadingMutableContainers error:nil] mutableCopy];
-        if (!json) return;
-        json[@"name"]=newName;
-        NSData *data=[NSJSONSerialization dataWithJSONObject:json options:NSJSONWritingPrettyPrinted error:nil];
-        if (!data || ![data writeToFile:manifestPath atomically:YES]) return;
-        NSString *selectedPath=[NSURL fileURLWithPath:self->_themePath ?: @""].standardizedURL.path;
-        if ([selectedPath isEqualToString:folder.path]) {
-            self->_themeName=newName;
-            [NSUserDefaults.standardUserDefaults setObject:newName forKey:k_theme_name_key];
-        }
-        [self updateThemeMenu];
-        [self updateEditor];
-        [self closeThemeMenu];
-    }]];
-    // Resolve the actual visible controller from this view's window first. The
-    // responder chain can point at a stale controller while the launcher editor
-    // is being presented or dismissed.
-    __block void (^attemptPresentation)(NSUInteger);
-    attemptPresentation = ^(NSUInteger attempt) {
-        if (attempt > 40) {
-            LOG("touch controls: rename prompt could not find a visible presenter");
-            attemptPresentation=nil;
-            return;
-        }
-
-        // Always start from the view's own window when possible, then walk to
-        // the top-most controller. Do not reject a presenter just because it
-        // has a transition coordinator: UIKit keeps that coordinator available
-        // briefly after animations and it was preventing the rename alert.
-        UIWindow *window=self.window;
-        if (!window || window.windowScene.activationState!=UISceneActivationStateForegroundActive) {
-            window=nil;
-            for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
-                if (![scene isKindOfClass:UIWindowScene.class] || scene.activationState!=UISceneActivationStateForegroundActive) continue;
-                for (UIWindow *candidate in ((UIWindowScene *)scene).windows) {
-                    if (candidate.isKeyWindow) { window=candidate; break; }
-                }
-                if (window) break;
-            }
-        }
-
-        UIViewController *presenter=window.rootViewController ?: [self editorPresenter];
-        while (presenter.presentedViewController) presenter=presenter.presentedViewController;
-        if (!presenter || !presenter.isViewLoaded || !presenter.view.window ||
-            presenter.isBeingDismissed || presenter.isBeingPresented ||
-            presenter.presentedViewController) {
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.12 * NSEC_PER_SEC)),
-                           dispatch_get_main_queue(), ^{
-                attemptPresentation(attempt+1);
-            });
-            return;
-        }
-
-        [presenter presentViewController:prompt animated:YES completion:^{
-            [prompt.textFields.firstObject becomeFirstResponder];
-            attemptPresentation=nil;
-        }];
-    };
-    dispatch_async(dispatch_get_main_queue(), ^{
-        attemptPresentation(0);
-    });
+    NSArray<NSURL *> *imported=[NSFileManager.defaultManager contentsOfDirectoryAtURL:documentsRoot includingPropertiesForKeys:nil options:NSDirectoryEnumerationSkipsHiddenFiles error:nil] ?: @[];
+    BOOL isDirectImport=NO;
+    for (NSURL *folder in imported) if ([folder.standardizedURL.path isEqualToString:target.path]) { isDirectImport=YES; break; }
+    if (!isDirectImport || [target.lastPathComponent caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame || [target.lastPathComponent caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame) return;
+    NSURL *manifestURL=[self themeJSONURLInFolder:target];
+    NSData *source=[NSData dataWithContentsOfURL:manifestURL];
+    NSMutableDictionary *json=source ? [[NSJSONSerialization JSONObjectWithData:source options:NSJSONReadingMutableContainers error:nil] mutableCopy] : nil;
+    if (!json) { _themeRenameField.layer.borderWidth=1.5; _themeRenameField.layer.borderColor=[UIColor systemRedColor].CGColor; return; }
+    json[@"name"]=newName;
+    NSError *error=nil;
+    NSData *data=[NSJSONSerialization dataWithJSONObject:json options:NSJSONWritingPrettyPrinted error:&error];
+    if (!data || ![data writeToURL:manifestURL options:NSDataWritingAtomic error:&error]) {
+        LOG("touch controls: unable to save renamed theme manifest");
+        _themeRenameField.layer.borderWidth=1.5; _themeRenameField.layer.borderColor=[UIColor systemRedColor].CGColor; return;
+    }
+    NSString *selectedPath=[NSURL fileURLWithPath:_themePath ?: @""] .standardizedURL.path;
+    if ([selectedPath isEqualToString:target.path]) { _themeName=newName; [NSUserDefaults.standardUserDefaults setObject:newName forKey:k_theme_name_key]; }
+    [_themeRenameField resignFirstResponder]; _themeRenameField=nil; _themeRenamePath=nil;
+    [self updateThemeMenu]; [self updateEditor];
 }
 - (void)confirmDeleteThemeAtPath:(NSString *)path name:(NSString *)name {
     NSURL *documentsRoot=[self themesDirectoryCreating:YES];
