@@ -192,6 +192,9 @@ static void pads_start(void);   // Physical controllers, below
     NSString *_themePath;
     UIButton *_themeButton;
     UIColorWell *_colorWell;
+    UIView *_colorWellAppearance;
+    UIView *_colorWellSwatch;
+    CAGradientLayer *_colorWellRainbowBorder;
     UIImageView *_colorWellLockIcon;
     int _colorPickerControl;
     NSMutableDictionary *_custom;
@@ -1472,6 +1475,23 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     if (data) [data writeToFile:jsonPath atomically:YES];
     [self updateThemeMenu];
 }
+- (void)refreshColorWellAppearance {
+    if (!_colorWellAppearance || !_colorWellRainbowBorder || !_colorWellSwatch) return;
+    _colorWellAppearance.frame=_colorWell.frame;
+    _colorWellRainbowBorder.frame=_colorWellAppearance.bounds;
+    CGRect bounds=_colorWellAppearance.bounds;
+    CGFloat border=2.0;
+    UIBezierPath *borderPath=[UIBezierPath bezierPathWithRoundedRect:CGRectInset(bounds,1,1) cornerRadius:5];
+    CAShapeLayer *mask=[CAShapeLayer layer];
+    mask.frame=bounds;
+    mask.path=borderPath.CGPath;
+    mask.fillColor=UIColor.clearColor.CGColor;
+    mask.strokeColor=UIColor.whiteColor.CGColor;
+    mask.lineWidth=border;
+    _colorWellRainbowBorder.mask=mask;
+    _colorWellSwatch.frame=CGRectInset(bounds,5,5);
+    _colorWellSwatch.backgroundColor=_colorWell.selectedColor ?: k_idle;
+}
 - (void)colorWellValueChanged:(UIColorWell *)sender {
     UIColor *color=sender.selectedColor;
     if (!color) return;
@@ -1488,6 +1508,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         colors[key]=color;
     }
     _themeButtonColors=colors;
+    _colorWell.selectedColor=color;
+    [self refreshColorWellAppearance];
     [self refresh];
     [self persistCustomTheme];
 }
@@ -1577,6 +1599,38 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _colorWell.accessibilityLabel=@"Choose control color";
     [_colorWell addTarget:self action:@selector(colorWellValueChanged:) forControlEvents:UIControlEventValueChanged];
     [_tools addSubview:_colorWell];
+
+    // UIColorWell draws its own circular swatch and rainbow ring. Cover that
+    // artwork with a rectangular custom face while leaving the native control
+    // underneath to handle taps and present Apple's color palette.
+    _colorWellAppearance=[UIView new];
+    _colorWellAppearance.frame=_colorWell.frame;
+    _colorWellAppearance.backgroundColor=[UIColor colorWithWhite:0.12 alpha:1];
+    _colorWellAppearance.layer.cornerRadius=6;
+    _colorWellAppearance.clipsToBounds=YES;
+    _colorWellAppearance.userInteractionEnabled=NO;
+    [_tools addSubview:_colorWellAppearance];
+
+    _colorWellRainbowBorder=[CAGradientLayer layer];
+    _colorWellRainbowBorder.colors=@[
+        (id)[UIColor colorWithRed:1 green:0.20 blue:0.20 alpha:1].CGColor,
+        (id)[UIColor colorWithRed:1 green:0.72 blue:0.16 alpha:1].CGColor,
+        (id)[UIColor colorWithRed:0.25 green:0.85 blue:0.35 alpha:1].CGColor,
+        (id)[UIColor colorWithRed:0.18 green:0.65 blue:1 alpha:1].CGColor,
+        (id)[UIColor colorWithRed:0.62 green:0.35 blue:1 alpha:1].CGColor,
+        (id)[UIColor colorWithRed:1 green:0.20 blue:0.20 alpha:1].CGColor
+    ];
+    _colorWellRainbowBorder.startPoint=CGPointMake(0,0.5);
+    _colorWellRainbowBorder.endPoint=CGPointMake(1,0.5);
+    [_colorWellAppearance.layer addSublayer:_colorWellRainbowBorder];
+
+    _colorWellSwatch=[UIView new];
+    _colorWellSwatch.frame=CGRectInset(_colorWellAppearance.bounds,4,4);
+    _colorWellSwatch.autoresizingMask=UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
+    _colorWellSwatch.layer.cornerRadius=3;
+    _colorWellSwatch.clipsToBounds=YES;
+    [_colorWellAppearance addSubview:_colorWellSwatch];
+
     _colorWellLockIcon=[[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"lock.fill"]];
     _colorWellLockIcon.frame=CGRectMake(174,91,24,20);
     _colorWellLockIcon.contentMode=UIViewContentModeScaleAspectFit;
@@ -1627,7 +1681,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     UIButton *importThemeButton=[self editorButton:@"Import…" action:@selector(importThemeFolder) frame:CGRectMake(260,220,92,32) parent:_tools];
     importThemeButton.titleLabel.font=[UIFont systemFontOfSize:11 weight:UIFontWeightMedium];
     UIButton *createThemeButton=[self editorButton:@"Create theme" action:@selector(createCustomTheme)
-        frame:CGRectMake(_launcherPreview ? 105 : 8,258,150,32) parent:_tools];
+        frame:CGRectMake(8,258,_launcherPreview ? 150 : 256,32) parent:_tools];
     createThemeButton.titleLabel.adjustsFontSizeToFitWidth=YES;
     importThemeButton.titleLabel.adjustsFontSizeToFitWidth=YES;
     importThemeButton.titleLabel.minimumScaleFactor=0.8;
@@ -1636,7 +1690,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     // Runtime HUD settings share the Create theme row in the live in-game editor.
     if (!_launcherPreview) {
         _fpsButton=[UIButton buttonWithType:UIButtonTypeSystem];
-        _fpsButton.frame=CGRectMake(170,258,36,32);
+        _fpsButton.frame=CGRectMake(272,258,36,32);
         _fpsButton.accessibilityLabel=@"FPS counter";
         _fpsButton.accessibilityHint=@"Toggle the FPS counter";
         [_fpsButton setImage:[UIImage systemImageNamed:@"speedometer"] forState:UIControlStateNormal];
@@ -1646,7 +1700,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         [_tools addSubview:_fpsButton];
 
         _hudButton=[UIButton buttonWithType:UIButtonTypeSystem];
-        _hudButton.frame=CGRectMake(214,258,36,32);
+        _hudButton.frame=CGRectMake(316,258,36,32);
         _hudButton.accessibilityLabel=@"Performance HUD";
         _hudButton.accessibilityHint=@"Toggle the performance HUD";
         [_hudButton setImage:[UIImage systemImageNamed:@"chart.bar.xaxis"] forState:UIControlStateNormal];
@@ -1715,6 +1769,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     UIColor *wellColor=_selected<0 ? (_themeButtonColors[@"A"] ?: k_idle) :
         (colorKey ? (_themeButtonColors[colorKey] ?: k_idle) : nil);
     _colorWell.selectedColor=wellColor;
+    [self refreshColorWellAppearance];
     BOOL builtInTheme=[self isBuiltInThemeSelected];
     BOOL hasColorTarget=(_selected<0 || colorKey!=nil);
     _colorWell.enabled=(hasColorTarget && !builtInTheme);
@@ -1723,6 +1778,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         (_selected<0 ? @"Choose all controls color" :
          (colorKey ? [NSString stringWithFormat:@"Choose %@ color", [self controlID:_selected]] : @"Choose control color"));
     _colorWellLockIcon.hidden=!builtInTheme;
+    [_tools bringSubviewToFront:_colorWellAppearance];
     [_tools bringSubviewToFront:_colorWellLockIcon];
     [self setNeedsLayout];
 }
