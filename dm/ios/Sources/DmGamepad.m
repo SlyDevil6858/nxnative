@@ -207,7 +207,7 @@ static void pads_start(void);   // Physical controllers, below
     UITouch *_dragTouch;
     CGPoint _dragStart, _dragHome;
     CGRect _lastSafe;
-    UIButton *_chooseButton, *_profileButton, *_saveAsButton;
+    UIButton *_chooseButton, *_profileButton, *_saveAsButton, *_resetControlButton;
     DmPaddedTipLabel *_menuTip;
     CAShapeLayer *_menuTipBubble;
     BOOL _launcherReopenTip;
@@ -479,7 +479,7 @@ static CGPoint side(CGRect s, int right, CGFloat dx, CGFloat y) { return CGPoint
     static dispatch_once_t once;
     dispatch_once(&once, ^{
         ids = @[@"A",@"B",@"X",@"Y",@"L3",@"R3",@"L",@"R",@"ZL",@"ZR",@"Plus",@"Minus",
-                @"unused12",@"unused13",@"unused14",@"unused15",@"Stick",@"Dpad"];
+                @"unused12",@"unused13",@"unused14",@"unused15",@"Stick",@"Dpad",@"Layout Switcher"];
     });
     return b >= 0 && b < (int)ids.count ? ids[b] : @"";
 }
@@ -1588,6 +1588,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 - (NSString *)themeColorKeyForControl:(int)control {
     if (control==16) return @"Stick";
     if (control==17) return @"Dpad";
+    if (control==18) return @"Layout";
     switch (control) {
         case B_A:return @"A"; case B_B:return @"B"; case B_X:return @"X"; case B_Y:return @"Y";
         case B_LS:case B_RS:return @"Stick"; case B_L:return @"L"; case B_R:return @"R";
@@ -1647,6 +1648,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
                 NSString *key=[self borderColorKeyForControl:control];
                 if (key.length) colors[key]=color;
             }
+            colors[@"BorderLayout"]=color;
         } else {
             NSString *key=[self borderColorKeyForControl:_colorPickerControl];
             if (!key.length) return;
@@ -1660,6 +1662,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
                 NSString *key=[self themeColorKeyForControl:control];
                 if (key.length) colors[key]=color;
             }
+            colors[@"Layout"]=color;
         } else {
             NSString *key=[self themeColorKeyForControl:_colorPickerControl];
             if (!key.length) return;
@@ -1808,7 +1811,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _colorWellLockIcon.hidden=YES;
     [_tools addSubview:_colorWellLockIcon];
     [_tools bringSubviewToFront:_colorWellLockIcon];
-    [self editorButton:@"Reset control" action:@selector(resetControl) frame:CGRectMake(260,220,92,32) parent:_tools];
+    _resetControlButton=[self editorButton:@"Reset control" action:@selector(resetControl) frame:CGRectMake(260,220,92,32) parent:_tools];
     _sizeSlider=[[UISlider alloc] initWithFrame:CGRectMake(78,120,274,30)];
     _sizeSlider.minimumValue=0.5; _sizeSlider.maximumValue=2;
     _alphaSlider=[[UISlider alloc] initWithFrame:CGRectMake(78,152,274,30)];
@@ -1983,6 +1986,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         int selected=b;
         [items addObject:@{@"title":[self controlID:b], @"handler":[^{ self->_selected=selected; [self updateEditor]; } copy]}];
     }
+    [items addObject:@{@"title":@"Layout Switcher", @"handler":[^{ self->_selected=18; [self updateEditor]; } copy]}];
     [self showEditorPopupWithTitle:@"Select control" items:items];
 }
 - (void)showProfilePopup {
@@ -2014,6 +2018,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 - (void)updateEditor {
     [self updateProfileMenu];
     [self updateThemeMenu];
+    BOOL styleOnly=(_selected==18);
     if (_selected<0) {
         CGFloat scale=0,alpha=0; NSInteger count=0;
         for (int b=0;b<18;b++) if ([self editable:b]) {
@@ -2027,11 +2032,15 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         [_chooseButton setTitle:@"All controls ▾" forState:UIControlStateNormal];
     } else {
         [_chooseButton setTitle:[NSString stringWithFormat:@"%@ ▾",[self controlID:_selected]] forState:UIControlStateNormal];
-        _sizeSlider.value=[self scale:_selected];
+        _sizeSlider.value=styleOnly?1:[self scale:_selected];
         NSNumber *alpha=_custom[[self controlID:_selected]][@"alpha"];
-        _alphaSlider.value=alpha?alpha.floatValue:1;
+        _alphaSlider.value=styleOnly?1:(alpha?alpha.floatValue:1);
     }
-    _editInfo.text=[NSString stringWithFormat:@"Size %.0f%% · Opacity %.0f%%\nDrag a control to move it.",_sizeSlider.value*100,_alphaSlider.value*100];
+    _sizeSlider.enabled=!styleOnly;
+    _alphaSlider.enabled=!styleOnly;
+    _resetControlButton.enabled=!styleOnly;
+    _editInfo.text=styleOnly ? @"Style only · Edit the fill and border colors." :
+        [NSString stringWithFormat:@"Size %.0f%% · Opacity %.0f%%\\nDrag a control to move it.",_sizeSlider.value*100,_alphaSlider.value*100];
     // The control picker is shown by the custom rounded popup above.
     NSString *colorKey=_selected<0 ? nil : [self themeColorKeyForControl:_selected];
     _colorPickerControl=_selected;
@@ -2041,7 +2050,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _colorWell.selectedColor=wellColor;
     [self refreshColorWellAppearance];
     BOOL builtInTheme=[self isBuiltInThemeSelected];
-    BOOL hasColorTarget=(_colorTarget==2 || _selected<0 || colorKey!=nil);
+    BOOL hasColorTarget=(_colorTarget==2 ? _selected!=18 : (_selected<0 || colorKey!=nil));
     _colorWell.enabled=(hasColorTarget && !builtInTheme);
     _colorWell.userInteractionEnabled=(hasColorTarget && !builtInTheme);
     _colorTargetButton.enabled=!builtInTheme;
@@ -2160,12 +2169,14 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 - (void)cancelEdit { [self loadControls]; [self finishEdit]; }
 - (void)resetAllControls { [_custom removeAllObjects]; [self updateEditor]; [self setNeedsLayout]; }
 - (void)resetControl {
+    if (_selected==18) return;
     if (_selected<0) {
         for (int b=0;b<18;b++) if ([self editable:b]) [_custom removeObjectForKey:[self controlID:b]];
     } else [_custom removeObjectForKey:[self controlID:_selected]];
     [self updateEditor]; [self setNeedsLayout];
 }
 - (void)storeControlAt:(CGPoint)point {
+    if (_selected==18) return;
     CGRect safe=self.safe; if (safe.size.width<=0 || safe.size.height<=0) return;
     if (_selected<0 && _dragAllHomes.count) {
         CGPoint delta=CGPointMake(point.x-_dragHome.x,point.y-_dragHome.y);
@@ -2187,6 +2198,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [self setNeedsLayout]; [self refresh];
 }
 - (void)adjustControl {
+    if (_selected==18) return;
     float requestedScale=_sizeSlider.value;
     if (_selected<0) {
         for (int b=0;b<18;b++) if ([self editable:b]) {
@@ -2202,6 +2214,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [self setNeedsLayout]; [self layoutIfNeeded]; [self refresh];
 }
 - (void)adjustOpacityControl {
+    if (_selected==18) return;
     float requestedAlpha=_alphaSlider.value;
     if (_selected<0) {
         for (int b=0;b<18;b++) if ([self editable:b]) {
