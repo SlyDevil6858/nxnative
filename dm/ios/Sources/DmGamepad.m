@@ -263,6 +263,32 @@ int dm_opmode(void);   // hle_oe.c: 0 = handheld
         [self.picker.view.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor]
     ]];
     [self.picker didMoveToParentViewController:self];
+    [self removeEyedropperControls:self.picker.view];
+}
+- (void)viewDidLayoutSubviews {
+    [super viewDidLayoutSubviews];
+    // UIKit does not expose a public eyedropper toggle. Hide the picker control
+    // by its accessibility text after UIKit has built or refreshed its subviews.
+    [self removeEyedropperControls:self.picker.view];
+}
+- (void)removeEyedropperControls:(UIView *)view {
+    for (UIView *child in view.subviews) {
+        NSString *label=child.accessibilityLabel.lowercaseString ?: @"";
+        NSString *hint=child.accessibilityHint.lowercaseString ?: @"";
+        NSString *identifier=child.accessibilityIdentifier.lowercaseString ?: @"";
+        NSString *description=[NSString stringWithFormat:@"%@ %@ %@",label,hint,identifier];
+        BOOL isEyedropper=[description containsString:@"eyedropper"] ||
+            [description containsString:@"sample color"] ||
+            [description containsString:@"pick a color from"] ||
+            [description containsString:@"screen color"];
+        if (isEyedropper && [child isKindOfClass:UIControl.class]) {
+            child.hidden=YES;
+            child.userInteractionEnabled=NO;
+            child.accessibilityElementsHidden=YES;
+            continue;
+        }
+        [self removeEyedropperControls:child];
+    }
 }
 - (BOOL)shouldAutorotate { return self.picker.shouldAutorotate; }
 - (UIInterfaceOrientationMask)supportedInterfaceOrientations { return self.picker.supportedInterfaceOrientations; }
