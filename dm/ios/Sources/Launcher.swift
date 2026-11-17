@@ -211,23 +211,33 @@ private struct LauncherView: View {
                             Section(section == "Controls" ? "Touch controls" : section) {
                                 ForEach(rows) { SettingRow(s: $0, m: m, accentColor: accentColor) }
                                 if section == "Controls" {
-                                    DisclosureGroup(isExpanded: $showingThemeList) {
-                                        themeMenuContent
-                                    } label: {
-                                        HStack {
-                                            Text("Touch controls theme")
-                                                .foregroundStyle(.white)
-                                            Spacer()
-                                            Text(selectedTheme)
-                                                .foregroundStyle(accentColor)
-                                                .lineLimit(1)
+                                    VStack(spacing: 0) {
+                                        Button {
+                                            withAnimation(.easeInOut(duration: 0.2)) {
+                                                showingThemeList.toggle()
+                                            }
+                                            if showingThemeList { refreshThemes() }
+                                        } label: {
+                                            HStack {
+                                                Text("Touch controls theme")
+                                                    .foregroundStyle(.white)
+                                                Spacer()
+                                                Text(selectedTheme)
+                                                    .foregroundStyle(accentColor)
+                                                    .lineLimit(1)
+                                                Image(systemName: "chevron.down")
+                                                    .font(.system(size: 12, weight: .semibold))
+                                                    .foregroundStyle(accentColor)
+                                                    .rotationEffect(.degrees(showingThemeList ? 180 : 0))
+                                            }
+                                            .contentShape(Rectangle())
                                         }
-                                        .contentShape(Rectangle())
+                                        .buttonStyle(.plain)
+                                        if showingThemeList {
+                                            themeMenuContent
+                                        }
                                     }
-                                    .tint(accentColor)
-                                    .onChange(of: showingThemeList) { _, expanded in
-                                        if expanded { refreshThemes() }
-                                    }
+                                    .background(Color.black)
                                     Button("Edit touch controls layout…") {
                                         dm_gamepad_present_launcher_editor()
                                     }
@@ -268,8 +278,8 @@ private struct LauncherView: View {
                     }
                 }
                 .listStyle(.plain)
-                .listRowBackground(Color(white: 0.055))
-                .background(Color(white: 0.055))
+                .listRowBackground(Color.black)
+                .background(Color.black)
                 .contentMargins(.horizontal, 0, for: .scrollContent)
                 .frame(width: geometry.size.width * 0.70)
                 .scrollContentBackground(.hidden)
@@ -358,7 +368,7 @@ private struct LauncherView: View {
                             Spacer(minLength: 4)
                             if selectedTheme == theme.name {
                                 Image(systemName: "checkmark")
-                                    .foregroundStyle(Color(red: 0.16, green: 0.34, blue: 0.20))
+                                    .foregroundStyle(Color(red: 0.22, green: 0.48, blue: 0.28))
                             }
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -374,6 +384,7 @@ private struct LauncherView: View {
                             showingThemeRename = true
                         } label: {
                             Image(systemName: "pencil")
+                                .font(.system(size: 16, weight: .semibold))
                                 .foregroundStyle(accentColor)
                                 .frame(width: 32, height: 32)
                                 .contentShape(Rectangle())
