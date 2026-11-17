@@ -1482,10 +1482,6 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     if (_themeRenameField.isFirstResponder) [_themeRenameField resignFirstResponder];
     _themeMenuFramePinned=NO;
 }
-- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch {
-    if (gestureRecognizer.view!=_themeMenuOverlay) return YES;
-    return ![touch.view isDescendantOfView:_themeMenuPanel];
-}
 - (void)updateThemeMenu {
     NSString *current=[NSUserDefaults.standardUserDefaults stringForKey:k_theme_name_key] ?: @"ANIMAL WELL";
     [_themeButton setTitle:[NSString stringWithFormat:@"Theme: %@ ▾",current] forState:UIControlStateNormal];
@@ -2471,8 +2467,14 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [self refresh];
 }
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch {
-    if (gestureRecognizer!=_editHold || _padOff || _editing) return NO;
-    return [self inSwap:[touch locationInView:self]];
+    if (gestureRecognizer==_editHold) {
+        if (_padOff || _editing) return NO;
+        return [self inSwap:[touch locationInView:self]];
+    }
+    if (gestureRecognizer.view==_themeMenuOverlay) {
+        return ![touch.view isDescendantOfView:_themeMenuPanel];
+    }
+    return YES;
 }
 - (void)handleEditHold:(UILongPressGestureRecognizer *)gesture {
     if (gesture.state==UIGestureRecognizerStateBegan && !_padOff && !_editing) {
