@@ -892,7 +892,7 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     [CATransaction begin]; [CATransaction setDisableActions:YES];
     CGRect safe=self.safe;
     if (!CGRectEqualToRect(safe,_lastSafe)) { _lastSafe=safe; if (!_editing) [self reset]; }
-    _tools.frame=CGRectMake(CGRectGetMidX(safe)-160,CGRectGetMidY(safe)-180,320,360);
+    _tools.frame=CGRectMake(CGRectGetMidX(safe)-180,CGRectGetMidY(safe)-165,360,370);
     _controls.frame = self.layer.bounds;
     for (int b = B_A; b <= B_Y; b++) { CGPoint c = [self facePos:b]; setPath(_key[b], circlePath(c, [self faceRadius:b])); placeLabel(_label[b], c, 20 * u * [self scale:b]); }
     for (int i = 0; i < (int)(sizeof k_btns / sizeof *k_btns); i++) { int b = k_btns[i];
@@ -1139,12 +1139,14 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             [title caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
             [title caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame;
         // Compare canonical filesystem paths so the Documents copy is reliably recognized.
-        NSString *standardFolderPath=folder.standardizedURL.path;
-        NSString *standardDocumentsPrefix=[documentsRoot.standardizedURL.path stringByAppendingString:@"/"];
-        BOOL writable=[standardFolderPath hasPrefix:standardDocumentsPrefix];
+        NSString *standardFolderPath=folder.URLByStandardizingPath.path;
+        NSString *standardDocumentsPath=documentsRoot.URLByStandardizingPath.path;
+        NSString *standardDocumentsPrefix=[standardDocumentsPath stringByAppendingString:@"/"];
+        BOOL writable=[standardFolderPath hasPrefix:standardDocumentsPrefix] ||
+            [folder.path hasPrefix:documentsPrefix];
         if (writable && !protectedTheme) {
             UIAction *remove=[UIAction actionWithTitle:[NSString stringWithFormat:@"Delete %@",title]
-                image:[UIImage systemImageNamed:@"trash"] identifier:nil handler:^(__unused UIAction *a) {
+                image:[UIImage systemImageNamed:@"trash.fill"] identifier:nil handler:^(__unused UIAction *a) {
                     [self confirmDeleteThemeAtPath:themePath name:title];
                 }];
             remove.attributes=UIMenuElementAttributesDestructive;
@@ -1374,18 +1376,18 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 - (void)setupEditor {
     _tools=[UIView new]; _tools.backgroundColor=[UIColor colorWithWhite:0 alpha:0.92]; _tools.layer.cornerRadius=10;
     [self addSubview:_tools]; _tools.hidden=YES;
-    _profileButton=[self editorButton:@"Profile" action:NULL frame:CGRectMake(8,8,192,32) parent:_tools];
+    _profileButton=[self editorButton:@"Profile" action:NULL frame:CGRectMake(8,8,220,32) parent:_tools];
     _profileButton.titleLabel.adjustsFontSizeToFitWidth=YES; _profileButton.titleLabel.minimumScaleFactor=0.75;
-    _saveAsButton=[self editorButton:@"Save as…" action:NULL frame:CGRectMake(208,8,104,32) parent:_tools];
+    _saveAsButton=[self editorButton:@"Save as…" action:NULL frame:CGRectMake(236,8,116,32) parent:_tools];
     [self editorButton:@"Save" action:@selector(saveEdit) frame:CGRectMake(8,48,90,32) parent:_tools];
     [self editorButton:@"Cancel" action:@selector(cancelEdit) frame:CGRectMake(110,48,90,32) parent:_tools];
-    [self editorButton:@"Reset all" action:@selector(resetAllControls) frame:CGRectMake(212,48,100,32) parent:_tools];
-    _chooseButton=[self editorButton:@"A ▾" action:NULL frame:CGRectMake(8,86,104,30) parent:_tools];
-    _colorButton=[self editorButton:@"Color…" action:@selector(editSelectedControlColor) frame:CGRectMake(118,86,88,30) parent:_tools];
-    [self editorButton:@"Reset control" action:@selector(resetControl) frame:CGRectMake(212,86,100,30) parent:_tools];
-    _sizeSlider=[[UISlider alloc] initWithFrame:CGRectMake(78,120,230,30)];
+    [self editorButton:@"Reset all" action:@selector(resetAllControls) frame:CGRectMake(252,48,100,32) parent:_tools];
+    _chooseButton=[self editorButton:@"A ▾" action:NULL frame:CGRectMake(8,86,120,30) parent:_tools];
+    _colorButton=[self editorButton:@"Color…" action:@selector(editSelectedControlColor) frame:CGRectMake(136,86,100,30) parent:_tools];
+    [self editorButton:@"Reset control" action:@selector(resetControl) frame:CGRectMake(244,86,108,30) parent:_tools];
+    _sizeSlider=[[UISlider alloc] initWithFrame:CGRectMake(78,120,274,30)];
     _sizeSlider.minimumValue=0.5; _sizeSlider.maximumValue=2;
-    _alphaSlider=[[UISlider alloc] initWithFrame:CGRectMake(78,152,230,30)];
+    _alphaSlider=[[UISlider alloc] initWithFrame:CGRectMake(78,152,274,30)];
     _alphaSlider.minimumValue=0; _alphaSlider.maximumValue=1;
     UIColor *accent=[self editorAccentColor];
     // Match SwiftUI Slider.tint(accentColor): tint only the filled track.
@@ -1399,13 +1401,13 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         labelView.text=i?@"Opacity":@"Size"; labelView.textColor=UIColor.whiteColor;
         labelView.font=[UIFont systemFontOfSize:13]; [_tools addSubview:labelView];
     }
-    _editInfo=[[UILabel alloc] initWithFrame:CGRectMake(8,184,304,32)];
+    _editInfo=[[UILabel alloc] initWithFrame:CGRectMake(8,184,344,32)];
     _editInfo.numberOfLines=2; _editInfo.font=[UIFont systemFontOfSize:11];
     _editInfo.textColor=UIColor.whiteColor; [_tools addSubview:_editInfo];
-    _themeButton=[self editorButton:@"Theme: ANIMAL WELL ▾" action:NULL frame:CGRectMake(8,220,150,32) parent:_tools];
-    UIButton *importThemeButton=[self editorButton:@"Import…" action:@selector(importThemeFolder) frame:CGRectMake(164,220,68,32) parent:_tools];
+    _themeButton=[self editorButton:@"Theme: ANIMAL WELL ▾" action:NULL frame:CGRectMake(8,220,244,32) parent:_tools];
+    UIButton *importThemeButton=[self editorButton:@"Import…" action:@selector(importThemeFolder) frame:CGRectMake(260,220,92,32) parent:_tools];
     importThemeButton.titleLabel.font=[UIFont systemFontOfSize:11 weight:UIFontWeightMedium];
-    [self editorButton:@"Create theme" action:@selector(createCustomTheme) frame:CGRectMake(8,258,150,32) parent:_tools];
+    [self editorButton:@"Create theme" action:@selector(createCustomTheme) frame:CGRectMake(105,258,150,32) parent:_tools];
     importThemeButton.titleLabel.adjustsFontSizeToFitWidth=YES;
     importThemeButton.titleLabel.minimumScaleFactor=0.8;
     importThemeButton.titleLabel.lineBreakMode=NSLineBreakByClipping;
@@ -1415,7 +1417,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         UILabel *fpsTitle=[[UILabel alloc] initWithFrame:CGRectMake(10,298,210,28)];
         fpsTitle.text=@"FPS counter"; fpsTitle.textColor=UIColor.whiteColor;
         fpsTitle.font=[UIFont systemFontOfSize:13]; [_tools addSubview:fpsTitle];
-        _fpsSwitch=[[UISwitch alloc] initWithFrame:CGRectMake(254,296,52,31)];
+        _fpsSwitch=[[UISwitch alloc] initWithFrame:CGRectMake(298,296,52,31)];
         _fpsSwitch.onTintColor=accent;
         _fpsSwitch.tintColor=[UIColor colorWithWhite:0.14 alpha:1.0];
         _fpsSwitch.on=front_ios_runtime_fps_enabled();
@@ -1425,7 +1427,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         UILabel *hudTitle=[[UILabel alloc] initWithFrame:CGRectMake(10,332,210,28)];
         hudTitle.text=@"Performance HUD"; hudTitle.textColor=UIColor.whiteColor;
         hudTitle.font=[UIFont systemFontOfSize:13]; [_tools addSubview:hudTitle];
-        _hudSwitch=[[UISwitch alloc] initWithFrame:CGRectMake(254,330,52,31)];
+        _hudSwitch=[[UISwitch alloc] initWithFrame:CGRectMake(298,330,52,31)];
         _hudSwitch.onTintColor=accent;
         _hudSwitch.tintColor=[UIColor colorWithWhite:0.14 alpha:1.0];
         _hudSwitch.on=front_ios_runtime_metal_hud_enabled();
