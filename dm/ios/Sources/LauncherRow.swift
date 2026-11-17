@@ -52,6 +52,7 @@ private struct LauncherToggleStyle: ToggleStyle {
 /// a larger, explicit app-dominant tint.
 struct LauncherDisclosureGroupStyle: DisclosureGroupStyle {
     let accentColor: Color
+    @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
         Button {
@@ -64,7 +65,7 @@ struct LauncherDisclosureGroupStyle: DisclosureGroupStyle {
                 Spacer(minLength: 8)
                 Image(systemName: "chevron.down")
                     .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(accentColor)
+                    .foregroundStyle(isEnabled ? accentColor : Color(white: 0.58))
                     .rotationEffect(.degrees(configuration.isExpanded ? 0 : -90))
                     .animation(.easeInOut(duration: 0.22), value: configuration.isExpanded)
                     .frame(width: 30, height: 30)
