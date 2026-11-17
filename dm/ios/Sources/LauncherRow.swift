@@ -89,6 +89,7 @@ struct SettingRow: View {
             }
         }
         .padding(.top, 4)
+        .background(Color.black)
     }
     #endif
 
