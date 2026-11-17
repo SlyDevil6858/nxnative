@@ -1612,7 +1612,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _profileButton.titleLabel.adjustsFontSizeToFitWidth=YES; _profileButton.titleLabel.minimumScaleFactor=0.75;
     _saveAsButton=[self editorButton:@"Save as…" action:NULL frame:CGRectMake(236,8,116,32) parent:_tools];
     [self editorButton:@"Save" action:@selector(saveEdit) frame:CGRectMake(8,48,90,32) parent:_tools];
-    [self editorButton:@"Cancel" action:@selector(cancelEdit) frame:CGRectMake(110,48,90,32) parent:_tools];
+    [self editorButton:@"Cancel" action:@selector(cancelEdit) frame:CGRectMake(110,48,132,32) parent:_tools];
     [self editorButton:@"Reset all" action:@selector(resetAllControls) frame:CGRectMake(252,48,100,32) parent:_tools];
     _chooseButton=[self editorButton:@"A ▾" action:NULL frame:CGRectMake(8,86,120,30) parent:_tools];
     _colorWell=[[UIColorWell alloc] initWithFrame:CGRectMake(136,86,100,30)];
