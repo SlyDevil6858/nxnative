@@ -268,8 +268,8 @@ private struct LauncherView: View {
                     }
                 }
                 .listStyle(.plain)
-                .listRowBackground(Color.black)
-                .background(Color.black)
+                .listRowBackground(Color(white: 0.055))
+                .background(Color(white: 0.055))
                 .contentMargins(.horizontal, 0, for: .scrollContent)
                 .frame(width: geometry.size.width * 0.70)
                 .scrollContentBackground(.hidden)
@@ -401,6 +401,7 @@ private struct LauncherView: View {
             }
         }
         .padding(.top, 4)
+        .background(Color.black)
     }
 
     private var accentTextColor: Color {
