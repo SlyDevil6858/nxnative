@@ -223,7 +223,7 @@ private struct LauncherView: View {
                                                 .lineLimit(1)
                                         }
                                     }
-                                    .tint(accentColor)
+                                    .disclosureGroupStyle(LauncherDisclosureGroupStyle(accentColor: accentColor))
                                     .background(Color.black)
                                     .onChange(of: showingThemeList) { isShowing in
                                         if isShowing { refreshThemes() }
