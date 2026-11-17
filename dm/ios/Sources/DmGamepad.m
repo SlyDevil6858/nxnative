@@ -197,6 +197,8 @@ static void pads_start(void);   // Physical controllers, below
     CAGradientLayer *_colorWellRainbowBorder;
     UIImageView *_colorWellLockIcon;
     int _colorPickerControl;
+    NSInteger _colorTarget; // 0 = fill, 1 = border, 2 = left-stick track
+    UIButton *_colorTargetButton;
     NSMutableDictionary *_custom;
     DmPadProfiles *_profiles;
     BOOL _editing, _editWasTap;
@@ -1071,7 +1073,7 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     for (int b = 0; b < B_N; b++) {
         BOOL on = (all >> b) & 1;
         _key[b].fillColor = [self themeColorForButton:b pressed:on].CGColor;
-        _key[b].strokeColor = k_line.CGColor;
+        _key[b].strokeColor = [self themeBorderColorForButton:b].CGColor;
         _label[b].foregroundColor = (on ? k_textOn : k_text).CGColor;
         _key[b].opacity = [self opacity:(b >= B_LEFT ? 17 : b)];
     }
@@ -1081,7 +1083,7 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     CAShapeLayer *innerRing=(CAShapeLayer *)_knob.sublayers.firstObject;
     innerRing.strokeColor=k_stickBorder.CGColor;
     _swap.fillColor = [self themeColorForButton:B_N pressed:_swapHeld].CGColor;
-    _swap.strokeColor = k_line.CGColor; _swapLabel.foregroundColor = (_swapHeld ? k_textOn : k_text).CGColor;
+    _swap.strokeColor = [self themeBorderColorForButton:B_N].CGColor; _swapLabel.foregroundColor = (_swapHeld ? k_textOn : k_text).CGColor;
     // Keep the 2D / 3D / TAP layout control above every other touch-control layer.
     [_controls addSublayer:_swap];
     CGPoint h = self.stickHome, o = [self knobOffset:0];
@@ -1200,6 +1202,44 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     if (!base && b==B_N) base=_themeButtonColors[@"Layout"];
     if (!base) return pressed ? k_on : k_idle;
     return [base colorWithAlphaComponent:pressed ? 0.92 : 0.36];
+}
+- (UIColor *)themeBorderColorForButton:(int)b {
+    NSString *key=nil;
+    switch (b) {
+        case B_A:key=@"A";break; case B_B:key=@"B";break; case B_X:key=@"X";break; case B_Y:key=@"Y";break;
+        case B_LS:case B_RS:key=@"Stick";break; case B_L:key=@"L";break; case B_R:key=@"R";break;
+        case B_ZL:key=@"ZL";break; case B_ZR:key=@"ZR";break; case B_PLUS:key=@"Plus";break;
+        case B_MINUS:key=@"Minus";break; default:if (b>=B_LEFT) key=@"Dpad";break;
+    }
+    if (b==B_N) key=@"Layout";
+    UIColor *color=key ? _themeButtonColors[[@"Border" stringByAppendingString:key]] : nil;
+    return color ?: k_line;
+}
+- (NSString *)borderColorKeyForControl:(int)control {
+    NSString *key=[self themeColorKeyForControl:control];
+    if (!key.length) return nil;
+    if ([key isEqualToString:@"Stick"]) return @"StickBorder";
+    return [@"Border" stringByAppendingString:key];
+}
+- (NSString *)colorTargetName {
+    switch (_colorTarget) {
+        case 1:return @"Border Color";
+        case 2:return @"Left Stick Track";
+        default:return @"Fill Color";
+    }
+}
+- (UIColor *)currentColorForEditorSelection {
+    if (_colorTarget==2) return _themeButtonColors[@"StickTrack"] ?: k_ringFill;
+    if (_colorTarget==1) {
+        if (_selected<0) return _themeButtonColors[@"BorderA"] ?: k_line;
+        NSString *key=[self borderColorKeyForControl:_selected];
+        UIColor *saved=key ? _themeButtonColors[key] : nil;
+        if (saved) return saved;
+        return (_selected==16) ? k_stickBorder : k_line;
+    }
+    if (_selected<0) return _themeButtonColors[@"A"] ?: k_idle;
+    NSString *key=[self themeColorKeyForControl:_selected];
+    return key ? (_themeButtonColors[key] ?: k_idle) : nil;
 }
 - (BOOL)isBuiltInThemeSelected {
     if (!_themePath.length) return YES;
@@ -1594,21 +1634,33 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     UIColor *color=sender.selectedColor;
     if (!color) return;
     NSMutableDictionary *colors=[_themeButtonColors mutableCopy] ?: [NSMutableDictionary dictionary];
-    if (_colorPickerControl<0) {
-        // "All controls" also includes the left stick's track and outline.
-        for (int control=0;control<18;control++) {
-            NSString *key=[self themeColorKeyForControl:control];
-            if (key.length) colors[key]=color;
-        }
+    if (_colorTarget==2) {
+        // The track is an independent layer and never changes the stick fill or border.
         colors[@"StickTrack"]=color;
-        colors[@"StickBorder"]=color;
+        k_stickTrack=[color colorWithAlphaComponent:0.25];
+    } else if (_colorTarget==1) {
+        if (_colorPickerControl<0) {
+            for (int control=0;control<18;control++) if ([self editable:control]) {
+                NSString *key=[self borderColorKeyForControl:control];
+                if (key.length) colors[key]=color;
+            }
+        } else {
+            NSString *key=[self borderColorKeyForControl:_colorPickerControl];
+            if (!key.length) return;
+            colors[key]=color;
+            if (_colorPickerControl==16) k_stickBorder=[color colorWithAlphaComponent:0.88];
+        }
+        if (_colorPickerControl<0) k_stickBorder=[color colorWithAlphaComponent:0.88];
     } else {
-        NSString *key=[self themeColorKeyForControl:_colorPickerControl];
-        if (!key) return;
-        colors[key]=color;
-        if (_colorPickerControl==16) {
-            colors[@"StickTrack"]=color;
-            colors[@"StickBorder"]=color;
+        if (_colorPickerControl<0) {
+            for (int control=0;control<18;control++) if ([self editable:control]) {
+                NSString *key=[self themeColorKeyForControl:control];
+                if (key.length) colors[key]=color;
+            }
+        } else {
+            NSString *key=[self themeColorKeyForControl:_colorPickerControl];
+            if (!key.length) return;
+            colors[key]=color;
         }
     }
     _themeButtonColors=colors;
@@ -1691,7 +1743,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [self editorButton:@"Reset all" action:@selector(resetAllControls) frame:CGRectMake(252,48,100,32) parent:_tools];
     _chooseButton=[self editorButton:@"A ▾" action:@selector(showControlPopup) frame:CGRectMake(8,86,120,30) parent:_tools];
     _colorWell=[[UIColorWell alloc] initWithFrame:CGRectMake(136,86,100,30)];
-    _colorWell.title=@"Control Color";
+    _colorWell.title=@"Fill Color";
     _colorWell.overrideUserInterfaceStyle=UIUserInterfaceStyleDark;
     _colorWell.backgroundColor=[UIColor colorWithWhite:0.12 alpha:0.96];
     _colorWell.tintColor=UIColor.whiteColor;
@@ -1703,6 +1755,10 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _colorWell.accessibilityLabel=@"Choose control color";
     [_colorWell addTarget:self action:@selector(colorWellValueChanged:) forControlEvents:UIControlEventValueChanged];
     [_tools addSubview:_colorWell];
+    _colorTargetButton=[self editorButton:@"Fill Color ▾" action:@selector(showColorTargetPopup)
+        frame:CGRectMake(244,86,108,30) parent:_tools];
+    _colorTargetButton.titleLabel.adjustsFontSizeToFitWidth=YES;
+    _colorTargetButton.titleLabel.minimumScaleFactor=0.68;
 
     // UIColorWell draws its own circular swatch and rainbow ring. Cover that
     // artwork with a rectangular custom face while leaving the native control
@@ -1907,6 +1963,16 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [self bringSubviewToFront:_editorPopupOverlay];
     [_editorPopupOverlay bringSubviewToFront:_editorPopupPanel];
 }
+- (void)showColorTargetPopup {
+    NSArray<NSString *> *names=@[@"Fill Color",@"Border Color",@"Left Stick Track"];
+    NSMutableArray *items=[NSMutableArray array];
+    for (NSInteger target=0;target<names.count;target++) {
+        NSInteger selectedTarget=target;
+        NSString *title=target==_colorTarget ? [names[target] stringByAppendingString:@"  ✓"] : names[target];
+        [items addObject:@{@"title":title,@"handler":[^{ self->_colorTarget=selectedTarget; [self updateEditor]; } copy]}];
+    }
+    [self showEditorPopupWithTitle:@"Color target" items:items];
+}
 - (void)showControlPopup {
     NSMutableArray *items=[NSMutableArray array];
     [items addObject:@{@"title":@"All controls", @"handler":[^{ self->_selected=-1; [self updateEditor]; } copy]}];
@@ -1966,14 +2032,17 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     // The control picker is shown by the custom rounded popup above.
     NSString *colorKey=_selected<0 ? nil : [self themeColorKeyForControl:_selected];
     _colorPickerControl=_selected;
-    UIColor *wellColor=_selected<0 ? (_themeButtonColors[@"A"] ?: k_idle) :
-        (colorKey ? (_themeButtonColors[colorKey] ?: k_idle) : nil);
+    UIColor *wellColor=[self currentColorForEditorSelection];
+    _colorWell.title=[self colorTargetName];
+    [_colorTargetButton setTitle:[NSString stringWithFormat:@"%@ ▾",[self colorTargetName]] forState:UIControlStateNormal];
     _colorWell.selectedColor=wellColor;
     [self refreshColorWellAppearance];
     BOOL builtInTheme=[self isBuiltInThemeSelected];
-    BOOL hasColorTarget=(_selected<0 || colorKey!=nil);
+    BOOL hasColorTarget=(_colorTarget==2 || _selected<0 || colorKey!=nil);
     _colorWell.enabled=(hasColorTarget && !builtInTheme);
     _colorWell.userInteractionEnabled=(hasColorTarget && !builtInTheme);
+    _colorTargetButton.enabled=!builtInTheme;
+    _colorTargetButton.alpha=builtInTheme?0.55:1.0;
     // The visual rectangle must stay transparent to hit-testing so the native
     // UIColorWell underneath receives taps in both editor presentations.
     _colorWellAppearance.userInteractionEnabled=NO;
