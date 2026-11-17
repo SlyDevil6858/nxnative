@@ -358,20 +358,29 @@ private struct LauncherView: View {
                 importTheme(from: url)
             } onCancel: { pickingTheme = false }
         }
-        .alert("Touch controls theme", isPresented: $showingThemeImportAlert) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(themeImportMessage)
-        }
-        .alert("Rename theme", isPresented: $showingThemeRename) {
-            TextField("Theme name", text: $themeRenameText)
-            Button("Cancel", role: .cancel) { themeToRename = nil }
-            Button("Rename") {
-                if let theme = themeToRename { renameTheme(theme, to: themeRenameText) }
-                themeToRename = nil
+        .alert(showingThemeRename ? "Rename theme" : "Touch controls theme",
+               isPresented: Binding(
+                get: { showingThemeRename || showingThemeImportAlert },
+                set: { presented in
+                    if !presented {
+                        showingThemeRename = false
+                        showingThemeImportAlert = false
+                        themeToRename = nil
+                    }
+                })) {
+            if showingThemeRename {
+                TextField("Theme name", text: $themeRenameText)
+                Button("Cancel", role: .cancel) { themeToRename = nil; showingThemeRename = false }
+                Button("Rename") {
+                    if let theme = themeToRename { renameTheme(theme, to: themeRenameText) }
+                    themeToRename = nil
+                    showingThemeRename = false
+                }
+            } else {
+                Button("OK", role: .cancel) { showingThemeImportAlert = false }
             }
         } message: {
-            Text("Choose a new name for this custom theme.")
+            Text(showingThemeRename ? "Choose a new name for this custom theme." : themeImportMessage)
         }
         .confirmationDialog("Delete imported touch control theme?", isPresented: $confirmingThemeDeletion, titleVisibility: .visible) {
             Button("Delete \(themeToDelete?.name ?? "theme")", role: .destructive) {
