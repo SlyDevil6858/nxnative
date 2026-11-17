@@ -1203,13 +1203,15 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 }
 - (BOOL)isBuiltInThemeSelected {
     if (!_themePath.length) return YES;
-    // Any theme stored inside the app's writable Documents theme directory is
-    // user-editable, including themes inside nested folders and FOREST's writable copy.
-    NSURL *documentsRoot=[self themesDirectoryCreating:YES].standardizedURL;
-    NSString *root=[documentsRoot.path stringByAppendingString:@"/"];
-    NSString *selected=[NSURL fileURLWithPath:_themePath].standardizedURL.path;
-    BOOL isWritableTheme=[selected hasPrefix:root] && ![selected isEqualToString:documentsRoot.path];
-    return !isWritableTheme;
+    // Decide from the actual selected theme files, not their folder name or
+    // location. Imported themes (including nested folders) are writable;
+    // bundled themes are read-only.
+    NSURL *folder=[NSURL fileURLWithPath:_themePath isDirectory:YES];
+    NSURL *manifest=[self themeJSONURLInFolder:folder];
+    NSFileManager *fm=NSFileManager.defaultManager;
+    BOOL writableFolder=[fm isWritableFileAtPath:folder.path];
+    BOOL writableManifest=[fm fileExistsAtPath:manifest.path] && [fm isWritableFileAtPath:manifest.path];
+    return !(writableFolder && writableManifest);
 }
 - (void)applyThemePath:(NSString *)path name:(NSString *)name {
     if (![self loadThemeAtPath:path]) return;
@@ -1814,7 +1816,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 
     // Runtime HUD toggles appear in both the launcher preview and live editor.
     _fpsButton=[UIButton buttonWithType:UIButtonTypeSystem];
-    _fpsButton.frame=CGRectMake(272,258,36,32);
+    _fpsButton.frame=CGRectMake(272,258,40,32);
     _fpsButton.backgroundColor=[UIColor colorWithWhite:0.12 alpha:0.96];
     _fpsButton.layer.cornerRadius=6;
     _fpsButton.accessibilityLabel=@"FPS counter";
@@ -1826,7 +1828,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [_tools addSubview:_fpsButton];
 
     _hudButton=[UIButton buttonWithType:UIButtonTypeSystem];
-    _hudButton.frame=CGRectMake(316,258,36,32);
+    _hudButton.frame=CGRectMake(320,258,40,32);
     _hudButton.backgroundColor=[UIColor colorWithWhite:0.12 alpha:0.96];
     _hudButton.layer.cornerRadius=6;
     _hudButton.accessibilityLabel=@"Performance HUD";
