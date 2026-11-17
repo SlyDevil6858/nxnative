@@ -999,9 +999,9 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     // Center both editor menus, then shift them slightly downward. The minimum
     // top clearance keeps the 2D / 3D / Tap layout control above the panel.
     CGFloat toolsHeight=ceil(toolsContentBottom+8);
-    // The live editor gets extra room for the two HUD controls; the launcher
-    // preview keeps its original width because those controls are hidden there.
-    CGFloat toolsWidth=_launcherPreview ? 360 : 376;
+    // Both editor presentations use the same width: the HUD toggles end at
+    // x=352, leaving the intended 8-point right inset inside this 360-point panel.
+    CGFloat toolsWidth=360;
     CGFloat toolsX=CGRectGetMidX(safe)-toolsWidth/2;
     CGFloat topClearance=(K_PILL_Y+K_SWAP_R+8)*u;
     CGFloat centeredY=CGRectGetMidY(safe)-toolsHeight/2+18;
