@@ -1578,14 +1578,14 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         } else {
             UIButton *pick=[UIButton buttonWithType:UIButtonTypeSystem]; pick.frame=CGRectMake(0,row*rowHeight,212,rowHeight);
             [pick setTitle:title forState:UIControlStateNormal]; pick.contentHorizontalAlignment=UIControlContentHorizontalAlignmentLeft; pick.contentEdgeInsets=UIEdgeInsetsMake(0,12,0,0);
-            pick.contentVerticalAlignment=UIControlContentVerticalAlignmentCenter; pick.titleLabel.font=[UIFont systemFontOfSize:14]; pick.titleLabel.lineBreakMode=NSLineBreakByTruncatingTail; pick.tintColor=UIColor.whiteColor;
-            if ([current isEqualToString:title]) {
-                NSMutableAttributedString *selectedTitle=[[NSMutableAttributedString alloc] initWithString:[title stringByAppendingString:@"  ✓"]];
-                [selectedTitle addAttribute:NSForegroundColorAttributeName value:[self editorAccentColor] range:NSMakeRange(title.length+2,1)];
-                [pick setAttributedTitle:selectedTitle forState:UIControlStateNormal];
-            } else {
-                [pick setTitle:title forState:UIControlStateNormal];
-            }
+            pick.contentVerticalAlignment=UIControlContentVerticalAlignmentCenter; pick.titleLabel.font=[UIFont systemFontOfSize:14]; pick.titleLabel.lineBreakMode=NSLineBreakByTruncatingTail;
+            UIColor *themeTextColor=[self editorAccentColor];
+            pick.tintColor=themeTextColor;
+            [pick setTitleColor:themeTextColor forState:UIControlStateNormal];
+            NSString *displayTitle=[current isEqualToString:title] ? [title stringByAppendingString:@"  ✓"] : title;
+            NSMutableAttributedString *themeTitle=[[NSMutableAttributedString alloc] initWithString:displayTitle];
+            [themeTitle addAttribute:NSForegroundColorAttributeName value:themeTextColor range:NSMakeRange(0,themeTitle.length)];
+            [pick setAttributedTitle:themeTitle forState:UIControlStateNormal];
             pick.accessibilityLabel=[NSString stringWithFormat:@"Select %@",title];
             [pick addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; [weakSelf applyThemePath:path name:title]; [weakSelf closeThemeMenu]; }] forControlEvents:UIControlEventTouchUpInside]; [_themeMenuScroll addSubview:pick];
         }
