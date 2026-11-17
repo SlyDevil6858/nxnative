@@ -943,13 +943,16 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     CGFloat toolsContentBottom=0;
     for (UIView *item in _tools.subviews)
         toolsContentBottom=MAX(toolsContentBottom,CGRectGetMaxY(item.frame));
-    // Keep a little breathing room around the panel and pin the live in-game menu
-    // to the safe-area bottom with a modest gap. The launcher preview stays centered.
+    // Center both editor menus, then shift them slightly downward. The minimum
+    // top clearance keeps the 2D / 3D / Tap layout control above the panel.
     CGFloat toolsHeight=ceil(toolsContentBottom+8);
     CGFloat toolsWidth=360;
     CGFloat toolsX=CGRectGetMidX(safe)-toolsWidth/2;
-    CGFloat toolsY=_launcherPreview ? CGRectGetMidY(safe)-toolsHeight/2 :
-        CGRectGetMaxY(safe)-toolsHeight-12;
+    CGFloat topClearance=(K_PILL_Y+K_SWAP_R+8)*u;
+    CGFloat centeredY=CGRectGetMidY(safe)-toolsHeight/2+18;
+    CGFloat minToolsY=CGRectGetMinY(safe)+topClearance;
+    CGFloat maxToolsY=MAX(minToolsY,CGRectGetMaxY(safe)-toolsHeight-4);
+    CGFloat toolsY=MIN(MAX(centeredY,minToolsY),maxToolsY);
     _tools.frame=CGRectMake(toolsX,toolsY,toolsWidth,toolsHeight);
     _themeMenuOverlay.frame=self.bounds;
     if (!_themeMenuOverlay.hidden) {
