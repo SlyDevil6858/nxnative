@@ -1525,6 +1525,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         if (!json) continue;
         NSString *path=folder.standardizedURL.path;
         NSString *title=[json[@"name"] isKindOfClass:NSString.class] && [json[@"name"] length] ? json[@"name"] : folder.lastPathComponent;
+        __weak typeof(self) weakSelf=self;
         BOOL editingThisTheme=[_themeRenamePath isEqualToString:path];
         if (editingThisTheme) {
             UITextField *field=[[UITextField alloc] initWithFrame:CGRectMake(4,row*rowHeight+7,204,34)];
@@ -1535,7 +1536,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             UIButton *save=[UIButton buttonWithType:UIButtonTypeCustom]; save.frame=CGRectMake(216,row*rowHeight+8,32,32);
             [save setImage:[UIImage systemImageNamed:@"checkmark" withConfiguration:[UIImageSymbolConfiguration configurationWithPointSize:17 weight:UIImageSymbolWeightSemibold]] forState:UIControlStateNormal];
             save.tintColor=[UIColor colorWithRed:0.25 green:0.78 blue:0.38 alpha:1]; save.accessibilityLabel=@"Save theme name";
-            __weak typeof(self) weakSelf=self; NSString *savePath=[path copy];
+            NSString *savePath=[path copy];
             [save addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; [weakSelf saveInlineThemeRenameAtPath:savePath]; }] forControlEvents:UIControlEventTouchUpInside]; [_themeMenuScroll addSubview:save];
             UIButton *cancel=[UIButton buttonWithType:UIButtonTypeCustom]; cancel.frame=CGRectMake(252,row*rowHeight+8,32,32);
             [cancel setImage:[UIImage systemImageNamed:@"xmark" withConfiguration:[UIImageSymbolConfiguration configurationWithPointSize:15 weight:UIImageSymbolWeightSemibold]] forState:UIControlStateNormal];
@@ -1547,7 +1548,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             [pick setTitle:title forState:UIControlStateNormal]; pick.contentHorizontalAlignment=UIControlContentHorizontalAlignmentLeft; pick.contentEdgeInsets=UIEdgeInsetsMake(0,12,0,0);
             pick.contentVerticalAlignment=UIControlContentVerticalAlignmentCenter; pick.titleLabel.font=[UIFont systemFontOfSize:14]; pick.titleLabel.lineBreakMode=NSLineBreakByTruncatingTail; pick.tintColor=UIColor.whiteColor;
             if ([current isEqualToString:title]) [pick setTitle:[title stringByAppendingString:@"  ✓"] forState:UIControlStateNormal];
-            pick.accessibilityLabel=[NSString stringWithFormat:@"Select %@",title]; __weak typeof(self) weakSelf=self;
+            pick.accessibilityLabel=[NSString stringWithFormat:@"Select %@",title];
             [pick addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; [weakSelf applyThemePath:path name:title]; [weakSelf closeThemeMenu]; }] forControlEvents:UIControlEventTouchUpInside]; [_themeMenuScroll addSubview:pick];
         }
         NSString *folderName=folder.lastPathComponent;
@@ -1626,7 +1627,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         LOG("touch controls: unable to save renamed theme manifest");
         _themeRenameField.layer.borderWidth=1.5; _themeRenameField.layer.borderColor=[UIColor systemRedColor].CGColor; return;
     }
-    NSString *selectedPath=[NSURL fileURLWithPath:_themePath ?: @""] .standardizedURL.path;
+    NSString *selectedPath=[NSURL fileURLWithPath:(_themePath ?: @"")].standardizedURL.path;
     if ([selectedPath isEqualToString:target.path]) { _themeName=newName; [NSUserDefaults.standardUserDefaults setObject:newName forKey:k_theme_name_key]; }
     [_themeRenameField resignFirstResponder]; _themeRenameField=nil; _themeRenamePath=nil;
     [self updateThemeMenu]; [self updateEditor];
