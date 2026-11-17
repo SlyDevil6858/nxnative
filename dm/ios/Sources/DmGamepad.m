@@ -1581,7 +1581,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             pick.contentVerticalAlignment=UIControlContentVerticalAlignmentCenter; pick.titleLabel.font=[UIFont systemFontOfSize:14]; pick.titleLabel.lineBreakMode=NSLineBreakByTruncatingTail; pick.tintColor=UIColor.whiteColor;
             if ([current isEqualToString:title]) {
                 NSMutableAttributedString *selectedTitle=[[NSMutableAttributedString alloc] initWithString:[title stringByAppendingString:@"  ✓"]];
-                [selectedTitle addAttribute:NSForegroundColorAttributeName value:[UIColor colorWithRed:0.22 green:0.48 blue:0.28 alpha:1] range:NSMakeRange(title.length+2,1)];
+                [selectedTitle addAttribute:NSForegroundColorAttributeName value:[self editorAccentColor] range:NSMakeRange(title.length+2,1)];
                 [pick setAttributedTitle:selectedTitle forState:UIControlStateNormal];
             } else {
                 [pick setTitle:title forState:UIControlStateNormal];
