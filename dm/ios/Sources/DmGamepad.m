@@ -1530,7 +1530,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _colorPickerControl=_selected;
     _colorWell.selectedColor=colorKey ? (_themeButtonColors[colorKey] ?: k_idle) : nil;
     _colorWell.accessibilityLabel=colorKey ? [NSString stringWithFormat:@"Choose %@ color", [self controlID:_selected]] : @"Choose control color";
-    _colorWell.enabled=(colorKey!=nil && !_launcherPreview);
+    _colorWell.enabled=(colorKey!=nil);
     [self setNeedsLayout];
 }
 - (UIViewController *)editorPresenter {
