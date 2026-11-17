@@ -199,14 +199,14 @@ static void pads_start(void);   // Physical controllers, below
     CGRect _lastSafe;
     UIButton *_chooseButton, *_profileButton, *_saveAsButton;
     DmPaddedTipLabel *_menuTip;
-    CAShapeLayer *_menuTipArrow;
+    CAShapeLayer *_menuTipBubble;
     UILongPressGestureRecognizer *_editHold;
     UIView *_tools;
     UISlider *_sizeSlider, *_alphaSlider;
     UISwitch *_fpsSwitch, *_hudSwitch;
     UILabel *_editInfo;
     CAShapeLayer *_editHighlight;
-    CAGradientLayer *_editHighlightGradient;
+    CAShapeLayer *_menuTipBubble;
     NSDictionary<NSString *, NSValue *> *_dragAllHomes;
     UITouch *_game[16];                            // touches on the game's touch screen by finger slot
 }
@@ -265,32 +265,17 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
         _swap = shape(_controls); _swapLabel = label(_swap, @"");
         _skinItems = [NSMutableDictionary dictionary];
         _customSkin = NO; // Native vector controls are used; the PNG skin system is retired.
-        // One shared conic gradient masks every selection outline, keeping all
-        // highlighters perfectly in sync with a single lightweight animation.
+        // One shared accent-colour outline surrounds the selected controls.
+        // A single opacity pulse keeps every halo fading in and out in sync.
         _editHighlight = [CAShapeLayer layer];
         _editHighlight.fillColor = UIColor.clearColor.CGColor;
-        _editHighlight.strokeColor = UIColor.whiteColor.CGColor;
-        _editHighlight.lineWidth = 3.5;
+        _editHighlight.strokeColor = [self editorAccentColor].CGColor;
+        _editHighlight.lineWidth = 2.5;
         _editHighlight.lineCap = kCALineCapRound;
         _editHighlight.lineJoin = kCALineJoinRound;
+        _editHighlight.opacity = 1.0;
         _editHighlight.hidden = YES;
-        _editHighlightGradient = [CAGradientLayer layer];
-        _editHighlightGradient.type = kCAGradientLayerConic;
-        _editHighlightGradient.startPoint = CGPointMake(0.5, 0.5);
-        _editHighlightGradient.endPoint = CGPointMake(1.0, 0.5);
-        _editHighlightGradient.colors = @[
-            (id)[UIColor colorWithRed:1.0 green:0.0 blue:0.0 alpha:1.0].CGColor,
-            (id)[UIColor colorWithRed:1.0 green:0.65 blue:0.0 alpha:1.0].CGColor,
-            (id)[UIColor colorWithRed:1.0 green:1.0 blue:0.0 alpha:1.0].CGColor,
-            (id)[UIColor colorWithRed:0.0 green:0.85 blue:0.15 alpha:1.0].CGColor,
-            (id)[UIColor colorWithRed:0.0 green:0.65 blue:1.0 alpha:1.0].CGColor,
-            (id)[UIColor colorWithRed:0.35 green:0.1 blue:1.0 alpha:1.0].CGColor,
-            (id)[UIColor colorWithRed:0.85 green:0.0 blue:1.0 alpha:1.0].CGColor,
-            (id)[UIColor colorWithRed:1.0 green:0.0 blue:0.0 alpha:1.0].CGColor
-        ];
-        _editHighlightGradient.locations = @[@0.0, @0.1429, @0.2857, @0.4286, @0.5714, @0.7143, @0.8571, @1.0];
-        _editHighlightGradient.mask = _editHighlight;
-        [_controls addSublayer:_editHighlightGradient];
+        [_controls addSublayer:_editHighlight];
         NSNumber *saved = [NSUserDefaults.standardUserDefaults objectForKey:k_layout_key];
         int l = saved ? (int)saved.integerValue : DM_GAME_PAD_LAYOUT;
         if (l == 2 && dm_opmode() != 0) l = 0;   // Tap only in handheld mode (env.txt's DM_OPMODE may have changed it)
@@ -323,29 +308,27 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
             UIColor *tipBorder=[UIColor colorWithRed:borderRed green:borderGreen blue:borderBlue alpha:alpha];
             CGFloat fillLuminance=0.2126*red*0.72+0.7152*green*0.72+0.0722*blue*0.72;
             _menuTip.textColor=fillLuminance>0.58?UIColor.blackColor:UIColor.whiteColor;
-            _menuTip.backgroundColor=tipFill;
-            _menuTip.layer.cornerRadius=10;
-            _menuTip.layer.cornerCurve=kCACornerCurveContinuous;
-            _menuTip.layer.masksToBounds=NO;
-            _menuTip.layer.borderWidth=1.5;
-            _menuTip.layer.borderColor=tipBorder.CGColor;
-            _menuTipArrow=[CAShapeLayer layer];
-            _menuTipArrow.fillColor=tipFill.CGColor;
-            _menuTipArrow.strokeColor=tipBorder.CGColor;
-            _menuTipArrow.lineWidth=1.5;
-            _menuTipArrow.lineJoin=kCALineJoinRound;
-            // Keep the arrow above the box. Its fill covers the box's top border,
-            // while the open stroke draws only the two sloping sides, making one
-            // continuous speech-bubble outline without a seam across the arrow base.
+            _menuTip.backgroundColor=UIColor.clearColor;
+            _menuTip.layer.cornerRadius=0;
+            _menuTip.layer.borderWidth=0;
+            // The rounded box and pointer share one closed path and one stroke.
+            // This removes the overlapping edges that caused a visible seam.
+            _menuTipBubble=[CAShapeLayer layer];
+            _menuTipBubble.fillColor=tipFill.CGColor;
+            _menuTipBubble.strokeColor=tipBorder.CGColor;
+            _menuTipBubble.lineWidth=1.5;
+            _menuTipBubble.lineJoin=kCALineJoinRound;
+            _menuTipBubble.frame=self.bounds;
+            _menuTipBubble.opacity=1;
             _menuTip.alpha=0;
+            [self.layer addSublayer:_menuTipBubble];
             [self addSubview:_menuTip];
-            [self.layer addSublayer:_menuTipArrow];
             [NSUserDefaults.standardUserDefaults setBool:YES forKey:@"DmPadMenuTipShown"];
             dispatch_async(dispatch_get_main_queue(), ^{
-                [UIView animateWithDuration:0.25 animations:^{ self->_menuTip.alpha=1; }];
+                [UIView animateWithDuration:0.25 animations:^{ self->_menuTip.alpha=1; self->_menuTipBubble.opacity=1; }];
                 dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(6 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                    [UIView animateWithDuration:0.35 animations:^{ self->_menuTip.alpha=0; }
-                                     completion:^(__unused BOOL finished) { [self->_menuTip removeFromSuperview]; self->_menuTip=nil; }];
+                    [UIView animateWithDuration:0.35 animations:^{ self->_menuTip.alpha=0; self->_menuTipBubble.opacity=0; }
+                                     completion:^(__unused BOOL finished) { [self->_menuTip removeFromSuperview]; [self->_menuTipBubble removeFromSuperlayer]; self->_menuTip=nil; self->_menuTipBubble=nil; }];
                 });
             });
         }
@@ -867,16 +850,27 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
         CGFloat tipWidth=MIN(340, MAX(0,self.bounds.size.width-32));
         CGSize tipSize=[_menuTip sizeThatFits:CGSizeMake(tipWidth,CGFLOAT_MAX)];
         _menuTip.frame=CGRectMake((self.bounds.size.width-tipWidth)/2, self.safeAreaInsets.top+44, tipWidth, tipSize.height);
-        CGFloat arrowX=CGRectGetMidX(_menuTip.frame);
-        CGFloat arrowBaseY=CGRectGetMinY(_menuTip.frame)+0.5;
-        UIBezierPath *arrow=[UIBezierPath bezierPath];
-        [arrow moveToPoint:CGPointMake(arrowX-10,arrowBaseY)];
-        [arrow addLineToPoint:CGPointMake(arrowX,arrowBaseY-11)];
-        [arrow addLineToPoint:CGPointMake(arrowX+10,arrowBaseY)];
-        // Leave the path open: Core Animation implicitly closes it for the fill,
-        // but the stroke follows only the two sides of the arrow.
-        _menuTipArrow.frame=self.bounds;
-        _menuTipArrow.path=arrow.CGPath;
+        CGRect r=_menuTip.frame;
+        CGFloat radius=10.0, arrowHalf=10.0, arrowHeight=11.0;
+        CGFloat left=CGRectGetMinX(r), right=CGRectGetMaxX(r);
+        CGFloat top=CGRectGetMinY(r), bottom=CGRectGetMaxY(r);
+        CGFloat mid=CGRectGetMidX(r);
+        UIBezierPath *bubble=[UIBezierPath bezierPath];
+        [bubble moveToPoint:CGPointMake(left+radius,top)];
+        [bubble addLineToPoint:CGPointMake(mid-arrowHalf,top)];
+        [bubble addLineToPoint:CGPointMake(mid,top-arrowHeight)];
+        [bubble addLineToPoint:CGPointMake(mid+arrowHalf,top)];
+        [bubble addLineToPoint:CGPointMake(right-radius,top)];
+        [bubble addArcWithCenter:CGPointMake(right-radius,top+radius) radius:radius startAngle:-M_PI_2 endAngle:0 clockwise:YES];
+        [bubble addLineToPoint:CGPointMake(right,bottom-radius)];
+        [bubble addArcWithCenter:CGPointMake(right-radius,bottom-radius) radius:radius startAngle:0 endAngle:M_PI_2 clockwise:YES];
+        [bubble addLineToPoint:CGPointMake(left+radius,bottom)];
+        [bubble addArcWithCenter:CGPointMake(left+radius,bottom-radius) radius:radius startAngle:M_PI_2 endAngle:M_PI clockwise:YES];
+        [bubble addLineToPoint:CGPointMake(left,top+radius)];
+        [bubble addArcWithCenter:CGPointMake(left+radius,top+radius) radius:radius startAngle:M_PI endAngle:3*M_PI_2 clockwise:YES];
+        [bubble closePath];
+        _menuTipBubble.frame=self.bounds;
+        _menuTipBubble.path=bubble.CGPath;
     }
     [CATransaction begin]; [CATransaction setDisableActions:YES];
     CGRect safe=self.safe;
@@ -921,14 +915,11 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
                 CGRectMake(center.x - radius, center.y - radius, 2 * radius, 2 * radius));
         }
         _editHighlight.frame = _controls.bounds;
-        _editHighlightGradient.frame = _controls.bounds;
         _editHighlight.path = outlines;
         CGPathRelease(outlines);
         _editHighlight.hidden = NO;
-        _editHighlightGradient.hidden = NO;
     } else {
         _editHighlight.hidden = YES;
-        _editHighlightGradient.hidden = YES;
     }
     [CATransaction commit];
     [self refresh];
@@ -1320,19 +1311,14 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     if (_tap) { _tap=NO; [self loadControls]; [self applyLayout]; }
     [self reset]; _editing=YES; _controls.hidden=_padOff; _selected=B_A; _tools.hidden=NO;
     if (!UIAccessibilityIsReduceMotionEnabled()) {
-        CAKeyframeAnimation *rainbow = [CAKeyframeAnimation animationWithKeyPath:@"endPoint"];
-        rainbow.values = @[
-            [NSValue valueWithCGPoint:CGPointMake(1.0, 0.5)],
-            [NSValue valueWithCGPoint:CGPointMake(0.5, 1.0)],
-            [NSValue valueWithCGPoint:CGPointMake(0.0, 0.5)],
-            [NSValue valueWithCGPoint:CGPointMake(0.5, 0.0)],
-            [NSValue valueWithCGPoint:CGPointMake(1.0, 0.5)]
-        ];
-        rainbow.duration = 8.0;
-        rainbow.calculationMode = kCAAnimationLinear;
-        rainbow.repeatCount = HUGE_VALF;
-        rainbow.removedOnCompletion = YES;
-        [_editHighlightGradient addAnimation:rainbow forKey:@"synchronizedRainbow"];
+        CABasicAnimation *pulse = [CABasicAnimation animationWithKeyPath:@"opacity"];
+        pulse.fromValue = @0.22;
+        pulse.toValue = @1.0;
+        pulse.duration = 0.34;
+        pulse.autoreverses = YES;
+        pulse.repeatCount = HUGE_VALF;
+        pulse.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
+        [_editHighlight addAnimation:pulse forKey:@"synchronizedPulse"];
     }
     [self updateEditor]; [self setNeedsLayout];
 }
@@ -1344,8 +1330,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [self reset]; _editing=NO;
     if (_editWasTap) { _tap=YES; [self applyLayout]; }
     _tools.hidden=YES; _controls.hidden=_padOff;
-    _editHighlight.hidden=YES; _editHighlightGradient.hidden=YES;
-    [_editHighlightGradient removeAnimationForKey:@"synchronizedRainbow"];
+    _editHighlight.hidden=YES;
+    [_editHighlight removeAnimationForKey:@"synchronizedPulse"];
     [self setNeedsLayout];
 }
 - (void)saveEdit { [_profiles save:_custom layout:self.controlsLayout slot:_profiles.selected]; [self finishEdit]; }
@@ -1613,7 +1599,7 @@ static BOOL pads_slotted(GCController *gone) {
     UIView *launcher=self.presentingViewController.view;
     if (!_backgroundDimmer) {
         _backgroundDimmer=[UIView new];
-        _backgroundDimmer.backgroundColor=[UIColor colorWithWhite:0 alpha:0.90];
+        _backgroundDimmer.backgroundColor=[UIColor colorWithWhite:0 alpha:0.68];
         _backgroundDimmer.alpha=0;
         _backgroundDimmer.translatesAutoresizingMaskIntoConstraints=NO;
         [launcher addSubview:_backgroundDimmer];
@@ -1624,6 +1610,7 @@ static BOOL pads_slotted(GCController *gone) {
             [_backgroundDimmer.bottomAnchor constraintEqualToAnchor:launcher.bottomAnchor]
         ]];
     }
+    [NSNotificationCenter.defaultCenter postNotificationName:@"DmPadLauncherEditorVisibilityChanged" object:nil userInfo:@{@"editing":@YES}];
     [UIView animateWithDuration:0.30 delay:0 options:UIViewAnimationOptionBeginFromCurrentState|UIViewAnimationOptionCurveEaseInOut animations:^{
         self.view.alpha=1;
         self.backgroundDimmer.alpha=1;
@@ -1637,6 +1624,7 @@ static BOOL pads_slotted(GCController *gone) {
         self.view.alpha=0;
         self.backgroundDimmer.alpha=0;
     } completion:^(__unused BOOL finished) {
+        [NSNotificationCenter.defaultCenter postNotificationName:@"DmPadLauncherEditorVisibilityChanged" object:nil userInfo:@{@"editing":@NO}];
         [self.backgroundDimmer removeFromSuperview];
         [self dismissViewControllerAnimated:NO completion:nil];
     }];
