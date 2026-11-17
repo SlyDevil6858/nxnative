@@ -1235,6 +1235,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         pick.frame=CGRectMake(0,row*rowHeight,212,rowHeight);
         [pick setTitle:title forState:UIControlStateNormal];
         pick.contentHorizontalAlignment=UIControlContentHorizontalAlignmentLeft;
+        pick.contentEdgeInsets=UIEdgeInsetsMake(0,8,0,0);
         pick.titleLabel.font=[UIFont systemFontOfSize:14];
         pick.titleLabel.lineBreakMode=NSLineBreakByTruncatingTail;
         pick.tintColor=UIColor.whiteColor;
