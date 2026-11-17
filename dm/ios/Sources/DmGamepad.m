@@ -1808,14 +1808,15 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     UIButton *importThemeButton=[self editorButton:@"Import…" action:@selector(importThemeFolder) frame:CGRectMake(260,220,92,32) parent:_tools];
     importThemeButton.titleLabel.font=[UIFont systemFontOfSize:11 weight:UIFontWeightMedium];
     UIButton *createThemeButton=[self editorButton:@"Create theme" action:@selector(createCustomTheme)
-        frame:CGRectMake(_launcherPreview ? 105 : 8,258,_launcherPreview ? 150 : 256,32) parent:_tools];
+        frame:CGRectMake(8,258,_launcherPreview ? 344 : 256,32) parent:_tools];
     createThemeButton.titleLabel.adjustsFontSizeToFitWidth=YES;
     importThemeButton.titleLabel.adjustsFontSizeToFitWidth=YES;
     importThemeButton.titleLabel.minimumScaleFactor=0.8;
     importThemeButton.titleLabel.lineBreakMode=NSLineBreakByClipping;
 
-    // Runtime HUD toggles appear in both the launcher preview and live editor.
+    // Runtime HUD toggles are only available in the live control editor.
     _fpsButton=[UIButton buttonWithType:UIButtonTypeSystem];
+    _fpsButton.hidden=_launcherPreview;
     _fpsButton.frame=CGRectMake(272,258,40,32);
     _fpsButton.backgroundColor=[UIColor colorWithWhite:0.12 alpha:0.96];
     _fpsButton.layer.cornerRadius=6;
@@ -1828,6 +1829,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [_tools addSubview:_fpsButton];
 
     _hudButton=[UIButton buttonWithType:UIButtonTypeSystem];
+    _hudButton.hidden=_launcherPreview;
     _hudButton.frame=CGRectMake(320,258,40,32);
     _hudButton.backgroundColor=[UIColor colorWithWhite:0.12 alpha:0.96];
     _hudButton.layer.cornerRadius=6;
