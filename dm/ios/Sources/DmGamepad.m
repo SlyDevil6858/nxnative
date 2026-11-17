@@ -192,6 +192,7 @@ static void pads_start(void);   // Physical controllers, below
     NSString *_themePath;
     UIButton *_themeButton;
     UIColorWell *_colorWell;
+    UIImageView *_colorWellLockIcon;
     int _colorPickerControl;
     NSMutableDictionary *_custom;
     DmPadProfiles *_profiles;
@@ -1103,6 +1104,13 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     if (!base) return pressed ? k_on : k_idle;
     return [base colorWithAlphaComponent:pressed ? 0.92 : 0.36];
 }
+- (BOOL)isBuiltInThemeSelected {
+    if (!_themePath.length) return YES;
+    NSURL *bundledRoot=[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES];
+    NSString *root=[bundledRoot.standardizedURL.path stringByAppendingString:@"/"];
+    NSString *path=[_themePath stringByStandardizingPath];
+    return [path hasPrefix:root];
+}
 - (void)applyThemePath:(NSString *)path name:(NSString *)name {
     if (![self loadThemeAtPath:path]) return;
     [NSUserDefaults.standardUserDefaults setObject:path forKey:k_theme_path_key];
@@ -1496,6 +1504,16 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _colorWell.accessibilityLabel=@"Choose control color";
     [_colorWell addTarget:self action:@selector(colorWellValueChanged:) forControlEvents:UIControlEventValueChanged];
     [_tools addSubview:_colorWell];
+    _colorWellLockIcon=[[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"lock.fill"]];
+    _colorWellLockIcon.frame=CGRectMake(174,91,24,20);
+    _colorWellLockIcon.contentMode=UIViewContentModeScaleAspectFit;
+    _colorWellLockIcon.tintColor=UIColor.whiteColor;
+    _colorWellLockIcon.backgroundColor=[UIColor colorWithWhite:0 alpha:0.42];
+    _colorWellLockIcon.layer.cornerRadius=5;
+    _colorWellLockIcon.clipsToBounds=YES;
+    _colorWellLockIcon.userInteractionEnabled=NO;
+    _colorWellLockIcon.hidden=YES;
+    [_tools addSubview:_colorWellLockIcon];
     [self editorButton:@"Reset control" action:@selector(resetControl) frame:CGRectMake(244,86,108,30) parent:_tools];
     _sizeSlider=[[UISlider alloc] initWithFrame:CGRectMake(78,120,274,30)];
     _sizeSlider.minimumValue=0.5; _sizeSlider.maximumValue=2;
@@ -1624,7 +1642,11 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _colorPickerControl=_selected;
     _colorWell.selectedColor=colorKey ? (_themeButtonColors[colorKey] ?: k_idle) : nil;
     _colorWell.accessibilityLabel=colorKey ? [NSString stringWithFormat:@"Choose %@ color", [self controlID:_selected]] : @"Choose control color";
-    _colorWell.enabled=(colorKey!=nil);
+    BOOL builtInTheme=[self isBuiltInThemeSelected];
+    _colorWell.enabled=(colorKey!=nil && !builtInTheme);
+    _colorWell.accessibilityLabel=builtInTheme ? @"Control color locked for built-in themes" :
+        (colorKey ? [NSString stringWithFormat:@"Choose %@ color", [self controlID:_selected]] : @"Choose control color");
+    _colorWellLockIcon.hidden=!builtInTheme;
     [self setNeedsLayout];
 }
 - (UIViewController *)editorPresenter {
