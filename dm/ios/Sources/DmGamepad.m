@@ -975,13 +975,16 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         [fm createDirectoryAtURL:dir withIntermediateDirectories:YES attributes:nil error:nil];
         // Remove the retired Well built-in copied into Documents by older builds.
         [fm removeItemAtURL:[dir URLByAppendingPathComponent:@"Well" isDirectory:YES] error:nil];
-        // Remove identical copies installed by older builds; retain customized/imported folders.
         NSURL *bundled=[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES];
+        NSURL *forestSource=[bundled URLByAppendingPathComponent:@"FOREST" isDirectory:YES];
+        NSURL *forestDestination=[dir URLByAppendingPathComponent:@"FOREST" isDirectory:YES];
+        if (![fm fileExistsAtPath:forestDestination.path]) [fm copyItemAtURL:forestSource toURL:forestDestination error:nil];
+        // Keep the writable FOREST copy; remove identical legacy copies of the protected built-ins.
         NSArray<NSURL *> *bundledFolders=[fm contentsOfDirectoryAtURL:bundled
             includingPropertiesForKeys:@[NSURLIsDirectoryKey] options:NSDirectoryEnumerationSkipsHiddenFiles error:nil];
         for (NSURL *folder in bundledFolders) {
             NSNumber *isDirectory=nil; [folder getResourceValue:&isDirectory forKey:NSURLIsDirectoryKey error:nil];
-            if (!isDirectory.boolValue) continue;
+            if (!isDirectory.boolValue || [folder.lastPathComponent caseInsensitiveCompare:@"FOREST"]==NSOrderedSame) continue;
             NSURL *legacy=[dir URLByAppendingPathComponent:folder.lastPathComponent isDirectory:YES];
             NSData *bundledJSON=[NSData dataWithContentsOfURL:[folder URLByAppendingPathComponent:@"theme.json"]];
             NSData *legacyJSON=[NSData dataWithContentsOfURL:[legacy URLByAppendingPathComponent:@"theme.json"]];
@@ -1067,7 +1070,15 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         includingPropertiesForKeys:nil options:NSDirectoryEnumerationSkipsHiddenFiles error:nil] ?: @[];
     NSArray<NSURL *> *importedFolders=[NSFileManager.defaultManager contentsOfDirectoryAtURL:documentsRoot
         includingPropertiesForKeys:nil options:NSDirectoryEnumerationSkipsHiddenFiles error:nil] ?: @[];
-    NSArray<NSURL *> *folders=[bundledFolders arrayByAddingObjectsFromArray:importedFolders];
+    BOOL hasDocumentsForest=NO;
+    for (NSURL *folder in importedFolders) if ([folder.lastPathComponent caseInsensitiveCompare:@"FOREST"]==NSOrderedSame) { hasDocumentsForest=YES; break; }
+    NSMutableArray<NSURL *> *visibleBundled=[NSMutableArray array];
+    for (NSURL *folder in bundledFolders) {
+        if (hasDocumentsForest && [folder.lastPathComponent caseInsensitiveCompare:@"FOREST"]==NSOrderedSame) continue;
+        [visibleBundled addObject:folder];
+    }
+    NSArray<NSURL *> *folders=[visibleBundled arrayByAddingObjectsFromArray:importedFolders];
+    NSString *documentsPrefix=[documentsRoot.path stringByAppendingString:@"/"];
     for (NSURL *folder in folders) {
         BOOL isDir=NO; if (![NSFileManager.defaultManager fileExistsAtPath:folder.path isDirectory:&isDir] || !isDir) continue;
         NSString *themePath=folder.path;
@@ -1080,10 +1091,60 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             [self applyThemePath:themePath name:title];
         }];
         pick.state=[current isEqualToString:title]?UIMenuElementStateOn:UIMenuElementStateOff; [items addObject:pick];
+        NSString *folderName=folder.lastPathComponent;
+        BOOL protectedTheme=[folderName caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
+            [folderName caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame ||
+            [title caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
+            [title caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame;
+        BOOL writable=[folder.path hasPrefix:documentsPrefix];
+        if (writable && !protectedTheme) {
+            UIAction *remove=[UIAction actionWithTitle:[NSString stringWithFormat:@"Delete %@",title]
+                image:[UIImage systemImageNamed:@"trash"] identifier:nil handler:^(__unused UIAction *a) {
+                    [self confirmDeleteThemeAtPath:themePath name:title];
+                }];
+            remove.attributes=UIMenuElementAttributesDestructive;
+            [items addObject:remove];
+        }
     }
     _themeButton.menu=[UIMenu menuWithTitle:@"Touch Control Theme" children:items];
     _themeButton.showsMenuAsPrimaryAction=YES;
 }
+- (void)confirmDeleteThemeAtPath:(NSString *)path name:(NSString *)name {
+    NSURL *documentsRoot=[self themesDirectoryCreating:YES];
+    NSString *prefix=[documentsRoot.path stringByAppendingString:@"/"];
+    NSString *folderName=[NSURL fileURLWithPath:path].lastPathComponent;
+    if (![path hasPrefix:prefix] ||
+        [folderName caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
+        [folderName caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame ||
+        [name caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
+        [name caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame) return;
+
+    UIAlertController *alert=[UIAlertController alertControllerWithTitle:[NSString stringWithFormat:@"Delete %@?",name]
+        message:@"This removes the theme folder from the app's TouchControlThemes folder in Files."
+        preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[UIAlertAction actionWithTitle:@"Delete" style:UIAlertActionStyleDestructive handler:^(__unused UIAlertAction *action) {
+        NSError *error=nil;
+        if (![NSFileManager.defaultManager removeItemAtPath:path error:&error]) {
+            UIAlertController *failure=[UIAlertController alertControllerWithTitle:@"Could Not Delete Theme"
+                message:error.localizedDescription ?: @"The theme folder could not be deleted."
+                preferredStyle:UIAlertControllerStyleAlert];
+            [failure addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+            [[self editorPresenter] presentViewController:failure animated:YES completion:nil];
+            return;
+        }
+        NSString *selectedPath=[NSUserDefaults.standardUserDefaults stringForKey:k_theme_path_key];
+        if ([selectedPath isEqualToString:path]) {
+            NSURL *animalWell=[[[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES]
+                URLByAppendingPathComponent:@"ANIMAL WELL" isDirectory:YES] URLByStandardizingPath];
+            [self applyThemePath:animalWell.path name:@"ANIMAL WELL"];
+        } else {
+            [self updateThemeMenu];
+        }
+    }]];
+    [[self editorPresenter] presentViewController:alert animated:YES completion:nil];
+}
+
 - (void)importThemeFolder {
     UIDocumentPickerViewController *picker=[[UIDocumentPickerViewController alloc] initWithDocumentTypes:@[@"public.folder"] inMode:UIDocumentPickerModeOpen];
     picker.delegate=self;
