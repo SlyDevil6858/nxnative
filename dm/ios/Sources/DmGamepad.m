@@ -999,7 +999,9 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     // Center both editor menus, then shift them slightly downward. The minimum
     // top clearance keeps the 2D / 3D / Tap layout control above the panel.
     CGFloat toolsHeight=ceil(toolsContentBottom+8);
-    CGFloat toolsWidth=360;
+    // The live editor gets extra room for the two HUD controls; the launcher
+    // preview keeps its original width because those controls are hidden there.
+    CGFloat toolsWidth=_launcherPreview ? 360 : 376;
     CGFloat toolsX=CGRectGetMidX(safe)-toolsWidth/2;
     CGFloat topClearance=(K_PILL_Y+K_SWAP_R+8)*u;
     CGFloat centeredY=CGRectGetMidY(safe)-toolsHeight/2+18;
@@ -1351,11 +1353,12 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             [title caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
             [title caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame;
         NSString *documentsPrefix=[documentsRoot.standardizedURL.path stringByAppendingString:@"/"];
-        NSString *manifestPath=[[folder URLByAppendingPathComponent:@"theme.json"] path];
+        NSURL *manifestURL=[self themeJSONURLInFolder:folder];
+        BOOL manifestExists=[NSFileManager.defaultManager fileExistsAtPath:manifestURL.path];
         BOOL belongsToCustomThemes=[path hasPrefix:documentsPrefix];
-        BOOL writable=belongsToCustomThemes &&
+        BOOL writable=belongsToCustomThemes && manifestExists &&
             [NSFileManager.defaultManager isWritableFileAtPath:folder.path] &&
-            [NSFileManager.defaultManager isWritableFileAtPath:manifestPath];
+            [NSFileManager.defaultManager isWritableFileAtPath:manifestURL.path];
         if (writable && !protectedTheme) {
             UIButton *rename=[UIButton buttonWithType:UIButtonTypeSystem];
             rename.frame=CGRectMake(216,row*rowHeight+4,32,32);
@@ -1868,7 +1871,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     UIButton *importThemeButton=[self editorButton:@"Import…" action:@selector(importThemeFolder) frame:CGRectMake(260,220,92,32) parent:_tools];
     importThemeButton.titleLabel.font=[UIFont systemFontOfSize:11 weight:UIFontWeightMedium];
     UIButton *createThemeButton=[self editorButton:@"Create theme" action:@selector(createCustomTheme)
-        frame:CGRectMake(8,258,_launcherPreview ? 344 : 256,32) parent:_tools];
+        frame:CGRectMake(8,258,_launcherPreview ? 344 : 248,32) parent:_tools];
     createThemeButton.titleLabel.adjustsFontSizeToFitWidth=YES;
     importThemeButton.titleLabel.adjustsFontSizeToFitWidth=YES;
     importThemeButton.titleLabel.minimumScaleFactor=0.8;
@@ -1877,7 +1880,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     // Runtime HUD toggles are only available in the live control editor.
     _fpsButton=[UIButton buttonWithType:UIButtonTypeSystem];
     _fpsButton.hidden=_launcherPreview;
-    _fpsButton.frame=CGRectMake(272,258,40,32);
+    _fpsButton.frame=CGRectMake(264,258,40,32);
     _fpsButton.backgroundColor=[UIColor colorWithWhite:0.12 alpha:0.96];
     _fpsButton.layer.cornerRadius=6;
     _fpsButton.accessibilityLabel=@"FPS counter";
@@ -1890,7 +1893,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 
     _hudButton=[UIButton buttonWithType:UIButtonTypeSystem];
     _hudButton.hidden=_launcherPreview;
-    _hudButton.frame=CGRectMake(320,258,40,32);
+    _hudButton.frame=CGRectMake(312,258,40,32);
     _hudButton.backgroundColor=[UIColor colorWithWhite:0.12 alpha:0.96];
     _hudButton.layer.cornerRadius=6;
     _hudButton.accessibilityLabel=@"Performance HUD";
