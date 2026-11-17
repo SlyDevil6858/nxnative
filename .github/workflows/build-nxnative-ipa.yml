@@ -18,6 +18,11 @@ on:
         required: true
         type: number
         default: 0
+      override_folder:
+        description: "Folder inside OVERRIDES to use for the app icon and launcher background (blank disables overrides)"
+        required: false
+        type: string
+        default: "ANIMAL WELL"
       include_animal_well_theme:
         description: "Bundle the ANIMAL WELL touch controls theme"
         required: true
@@ -93,29 +98,43 @@ jobs:
           print("Bundled touch control themes in TouchControlThemes/: " + ", ".join(bundled))
           PY
 
-      - name: Load optional launcher appearance overrides
+      - name: Select launcher appearance override folder
         working-directory: nxnative
+        env:
+          OVERRIDE_FOLDER: ${{ inputs.override_folder }}
         run: |
-          ruby -ryaml -e '
-            root = Dir.pwd
-            config = File.file?("appearance.yml") ? YAML.safe_load_file("appearance.yml") : {}
-            appearance = config.is_a?(Hash) ? (config["appearance"] || {}) : {}
-            unless appearance.is_a?(Hash)
-              warn "appearance.yml: appearance must be a mapping; using original appearance"
-              appearance = {}
-            end
-            {"custom_icon" => "NXNATIVE_CUSTOM_ICON", "custom_background" => "NXNATIVE_CUSTOM_BACKGROUND"}.each do |key, env|
-              value = appearance[key]
-              next if value.nil? || value.to_s.strip.empty?
-              path = File.expand_path(value.to_s, root)
-              unless path.start_with?(root + File::SEPARATOR) && File.file?(path)
-                warn "appearance.yml: #{key} path is missing or outside nxnative; ignoring it"
-                next
-              end
-              File.open(ENV.fetch("GITHUB_ENV"), "a") { |file| file.puts "#{env}=#{path}" }
-              puts "Using #{key}: #{value}"
-            end
-          '
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          root = Path.cwd().resolve()
+          overrides_root = (root / "OVERRIDES").resolve()
+          selected = os.environ.get("OVERRIDE_FOLDER", "").strip()
+
+          if not selected:
+              print("No appearance override folder selected; using the game's original icon and launcher background.")
+              raise SystemExit(0)
+
+          # Accept one folder name only; never allow absolute paths or traversal.
+          if Path(selected).name != selected or selected in {".", ".."} or "/" in selected or "\\" in selected:
+              raise SystemExit("override_folder must be the name of one folder inside OVERRIDES.")
+
+          folder = (overrides_root / selected).resolve()
+          if folder.parent != overrides_root or not folder.is_dir():
+              available = sorted(p.name for p in overrides_root.iterdir() if p.is_dir()) if overrides_root.is_dir() else []
+              raise SystemExit(f"Override folder '{selected}' was not found in OVERRIDES/. Available folders: {', '.join(available) or '(none)'}")
+
+          icon = folder / "custom-icon.png"
+          background = folder / "custom-background.png"
+          missing = [str(p.relative_to(root)) for p in (icon, background) if not p.is_file()]
+          if missing:
+              raise SystemExit("Selected override folder is missing required PNG file(s): " + ", ".join(missing))
+
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
+              env.write(f"NXNATIVE_CUSTOM_ICON={icon}\n")
+              env.write(f"NXNATIVE_CUSTOM_BACKGROUND={background}\n")
+          print(f"Using appearance overrides from OVERRIDES/{selected}/")
+          PY
 
       - name: Verify paths and required game files
         id: verify-input
@@ -209,6 +228,8 @@ jobs:
           GAME_FOLDER: ${{ inputs.game_folder }}
           PROD_KEYS_PATH: ${{ inputs.prod_keys_path }}
           DM_APP_BUILD: ${{ inputs.build_number }}
+          DM_ICON: ${{ env.NXNATIVE_CUSTOM_ICON }}
+          DM_LAUNCHER_BACKGROUND: ${{ env.NXNATIVE_CUSTOM_BACKGROUND }}
           DM_SHOW_FPS: "0"
         run: |
           set -o pipefail
