@@ -89,16 +89,10 @@ struct SettingRow: View {
                 }
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 2))
-        .frame(width: 288)
-        .frame(maxHeight: 240)
-        .padding(8)
-        .background(Color(red: 0.035, green: 0.035, blue: 0.035).opacity(0.98))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10)
-            .stroke(Color.white.opacity(0.16), lineWidth: 1))
+        .frame(width: 210)
+        .frame(maxHeight: 180)
+        .padding(6)
         .presentationBackground(Color(red: 0.035, green: 0.035, blue: 0.035).opacity(0.98))
-        .presentationCornerRadius(10)
         .presentationCompactAdaptation(.popover)
         .environment(\.colorScheme, .dark)
     }
