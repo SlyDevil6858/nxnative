@@ -116,30 +116,18 @@ struct SettingRow: View {
             switch s.kind {
             case "choice":
                 #if os(iOS)
-                VStack(spacing: 0) {
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            showingChoiceList.toggle()
-                        }
-                    } label: {
-                        HStack(spacing: 8) {
-                            settingLabel
-                            Spacer(minLength: 8)
-                            Text(selectedChoiceLabel)
-                                .foregroundStyle(locked ? Color(white: 0.58) : accentColor)
-                                .lineLimit(1)
-                            Image(systemName: "chevron.down")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(locked ? Color(white: 0.58) : accentColor)
-                                .rotationEffect(.degrees(showingChoiceList ? 180 : 0))
-                        }
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    if showingChoiceList {
-                        choiceListContent
+                DisclosureGroup(isExpanded: $showingChoiceList) {
+                    choiceListContent
+                } label: {
+                    HStack(spacing: 8) {
+                        settingLabel
+                        Spacer(minLength: 8)
+                        Text(selectedChoiceLabel)
+                            .foregroundStyle(locked ? Color(white: 0.58) : accentColor)
+                            .lineLimit(1)
                     }
                 }
+                .tint(locked ? Color(white: 0.58) : accentColor)
                 .background(Color.black)
                 #else
                 Picker(selection: m.binding(s)) {
