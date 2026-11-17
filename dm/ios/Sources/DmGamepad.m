@@ -1,5 +1,5 @@
 // Virtual gamepad (Nintendo button positions) + physical controllers (GameController), handed to the host through dm_input_set and dm_pad_set_player (hle_hid.c, bit layout in dm_input.h).
-//   Two layouts, three in handheld mode; one tap on the layout button at the top centre (labelled with the current layout, "2D" / "3D" / "Tap") goes to the next, and the choice is kept in NSUserDefaults (each game is its own app, so per game); the first launch uses the game profile's pad_layout (DM_GAME_PAD_LAYOUT).
+//   Two layouts, three in handheld mode; one tap on the layout button at the top centre ("2D" / "3D" / "Tap") switches layouts, while pressing and holding it opens the in-game control menu. The choice is kept per game; the first launch uses pad_layout (DM_GAME_PAD_LAYOUT).
 //   Tap (touch): no control but the layout button, every other touch goes to the game's touch screen; offered only while the game is in handheld mode, the only one in which it reads the touch screen (Balatro, played by touch).
 //   2D (simple): top corners ZL above L (one column), ZR above R likewise, teardrops with the tip toward the screen corner; − and + side by side at the top centre; the left stick in the bottom-left corner (fixed ring, tilt measured from the ring centre, small dead zone);
 //     the A (right) B (bottom) X (top) Y (left) diamond in the bottom-right corner, sliding a finger between keys switches keys. Each bottom corner holds a single control, so it sits close in (reaching halfway into the side safe-area inset).
@@ -292,7 +292,7 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
         if (!g_launcher_preview && ![NSUserDefaults.standardUserDefaults boolForKey:@"DmPadMenuTipShown"]) {
             // A one-time hint points out the 2D / 3D layout button without covering the game.
             _menuTip=[DmPaddedTipLabel new];
-            _menuTip.text=@"Press and hold the 2D or 3D button, or hold Select on your controller, to open the in-game control menu.";
+            _menuTip.text=@"Press and hold the 2D, 3D, or Tap button, or hold Select on your controller, to open the in-game control menu.";
             _menuTip.textColor=UIColor.whiteColor;
             _menuTip.font=[UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
             _menuTip.textAlignment=NSTextAlignmentCenter;
@@ -1098,8 +1098,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             NSDictionary *json=[self validThemeJSONAtFolder:folder];
             NSString *themeName=[json[@"name"] isKindOfClass:NSString.class] ? json[@"name"] : folder.lastPathComponent;
             themeName=normalizedName(themeName);
-            if ([folderName isEqualToString:@"ANIMAL WELL"] || [themeName isEqualToString:@"ANIMAL WELL"]) return 0;
-            if ([folderName isEqualToString:@"CLASSIC"] || [themeName isEqualToString:@"CLASSIC"]) return 1;
+            if ([folderName hasPrefix:@"ANIMAL WELL"] || [themeName hasPrefix:@"ANIMAL WELL"]) return 0;
+            if ([folderName hasPrefix:@"CLASSIC"] || [themeName hasPrefix:@"CLASSIC"]) return 1;
             // FOREST is intentionally grouped with imported/user-added themes.
             return 2;
         };
@@ -1508,11 +1508,11 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [self refresh];
 }
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch {
-    if (gestureRecognizer!=_editHold || _padOff || _editing || _tap) return NO;
+    if (gestureRecognizer!=_editHold || _padOff || _editing) return NO;
     return [self inSwap:[touch locationInView:self]];
 }
 - (void)handleEditHold:(UILongPressGestureRecognizer *)gesture {
-    if (gesture.state==UIGestureRecognizerStateBegan && !_padOff && !_tap && !_editing) [self toggleEditor];
+    if (gesture.state==UIGestureRecognizerStateBegan && !_padOff && !_editing) [self toggleEditor];
 }
 - (UIColor *)editorAccentColor {
     UIImage *icon=[UIImage imageNamed:@"AppIcon"];
