@@ -361,8 +361,9 @@ private struct LauncherView: View {
                                     .foregroundStyle(Color(red: 0.22, green: 0.48, blue: 0.28))
                             }
                         }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                        .padding(.horizontal, 8)
+                        .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
