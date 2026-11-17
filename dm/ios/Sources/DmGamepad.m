@@ -1622,7 +1622,10 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     CGFloat contentHeight=row*rowHeight;
     _themeMenuScroll.contentSize=CGSizeMake(288,contentHeight);
     _themeMenuScroll.frame=CGRectMake(8,8,288,MIN(contentHeight,240));
-    _themeMenuPanel.frame=CGRectMake(0,0,304,MIN(contentHeight,240)+16);
+    CGFloat panelHeight=MIN(contentHeight,240)+16;
+    _themeMenuPanel.frame=_themeMenuFramePinned
+        ? CGRectMake(_themeMenuPinnedFrame.origin.x,_themeMenuPinnedFrame.origin.y,304,panelHeight)
+        : CGRectMake(0,0,304,panelHeight);
 }
 - (void)saveInlineThemeRenameAtPath:(NSString *)path {
     NSString *newName=[_themeRenameField.text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
