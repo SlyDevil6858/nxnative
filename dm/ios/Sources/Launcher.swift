@@ -224,6 +224,7 @@ private struct LauncherView: View {
                                         }
                                         .contentShape(Rectangle())
                                     }
+                                    .tint(accentColor)
                                     .onChange(of: showingThemeList) { _, expanded in
                                         if expanded { refreshThemes() }
                                     }
@@ -352,11 +353,12 @@ private struct LauncherView: View {
                     } label: {
                         HStack(spacing: 8) {
                             Text(theme.name)
+                                .foregroundStyle(accentColor)
                                 .lineLimit(1)
                             Spacer(minLength: 4)
                             if selectedTheme == theme.name {
                                 Image(systemName: "checkmark")
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(Color(red: 0.12, green: 0.42, blue: 0.22))
                             }
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -372,7 +374,7 @@ private struct LauncherView: View {
                             showingThemeRename = true
                         } label: {
                             Image(systemName: "pencil")
-                                .foregroundStyle(.white.opacity(0.82))
+                                .foregroundStyle(accentColor)
                                 .frame(width: 32, height: 32)
                                 .contentShape(Rectangle())
                         }
