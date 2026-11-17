@@ -286,6 +286,9 @@ private struct LauncherView: View {
                                                 }
                                             }
                                         }
+                                        // Keep the scrolling list's corners tighter than the
+                                        // surrounding popover so it cannot protrude past its frame.
+                                        .clipShape(RoundedRectangle(cornerRadius: 2))
                                         .frame(width: 288)
                                         .frame(maxHeight: 240)
                                         .padding(8)
