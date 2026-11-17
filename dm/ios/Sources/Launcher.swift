@@ -180,21 +180,21 @@ private struct LauncherControlTipBubble: Shape {
         let mid = rect.midX
         var path = Path()
         path.move(to: CGPoint(x: left + radius, y: top))
-        path.addLine(to: CGPoint(x: mid - arrowHalf, y: top))
-        path.addLine(to: CGPoint(x: mid, y: rect.maxY))
-        path.addLine(to: CGPoint(x: mid + arrowHalf, y: bottom))
-        path.addLine(to: CGPoint(x: right - radius, y: bottom))
-        path.addArc(center: CGPoint(x: right - radius, y: bottom - radius),
-                    radius: radius, startAngle: .degrees(90), endAngle: .degrees(0), clockwise: true)
-        path.addLine(to: CGPoint(x: right, y: top + radius))
+        path.addLine(to: CGPoint(x: right - radius, y: top))
         path.addArc(center: CGPoint(x: right - radius, y: top + radius),
-                    radius: radius, startAngle: .degrees(0), endAngle: .degrees(-90), clockwise: true)
-        path.addLine(to: CGPoint(x: left + radius, y: top))
-        path.addArc(center: CGPoint(x: left + radius, y: top + radius),
-                    radius: radius, startAngle: .degrees(-90), endAngle: .degrees(-180), clockwise: true)
-        path.addLine(to: CGPoint(x: left, y: bottom - radius))
+                    radius: radius, startAngle: .degrees(-90), endAngle: .degrees(0), clockwise: false)
+        path.addLine(to: CGPoint(x: right, y: bottom - radius))
+        path.addArc(center: CGPoint(x: right - radius, y: bottom - radius),
+                    radius: radius, startAngle: .degrees(0), endAngle: .degrees(90), clockwise: false)
+        path.addLine(to: CGPoint(x: mid + arrowHalf, y: bottom))
+        path.addLine(to: CGPoint(x: mid, y: rect.maxY))
+        path.addLine(to: CGPoint(x: mid - arrowHalf, y: bottom))
+        path.addLine(to: CGPoint(x: left + radius, y: bottom))
         path.addArc(center: CGPoint(x: left + radius, y: bottom - radius),
-                    radius: radius, startAngle: .degrees(180), endAngle: .degrees(90), clockwise: true)
+                    radius: radius, startAngle: .degrees(90), endAngle: .degrees(180), clockwise: false)
+        path.addLine(to: CGPoint(x: left, y: top + radius))
+        path.addArc(center: CGPoint(x: left + radius, y: top + radius),
+                    radius: radius, startAngle: .degrees(180), endAngle: .degrees(270), clockwise: false)
         path.closeSubpath()
         return path
     }
@@ -341,6 +341,7 @@ private struct LauncherView: View {
                                                 .font(.system(size: 13, weight: .semibold))
                                                 .multilineTextAlignment(.center)
                                                 .foregroundStyle(accentTextColor)
+                                                .frame(width: 242)
                                                 .fixedSize(horizontal: false, vertical: true)
                                                 .padding(.horizontal, 14)
                                                 .padding(.vertical, 10)
