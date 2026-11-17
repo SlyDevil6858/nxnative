@@ -920,8 +920,8 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
         toolsContentBottom=MAX(toolsContentBottom,CGRectGetMaxY(item.frame));
     // Keep a little breathing room around the panel and pin the live in-game menu
     // to the safe-area bottom with a modest gap. The launcher preview stays centered.
-    CGFloat toolsHeight=ceil(toolsContentBottom+16);
-    CGFloat toolsWidth=368;
+    CGFloat toolsHeight=ceil(toolsContentBottom+8);
+    CGFloat toolsWidth=360;
     CGFloat toolsX=CGRectGetMidX(safe)-toolsWidth/2;
     CGFloat toolsY=_launcherPreview ? CGRectGetMidY(safe)-toolsHeight/2 :
         CGRectGetMaxY(safe)-toolsHeight-12;
@@ -1112,10 +1112,13 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 }
 - (BOOL)isBuiltInThemeSelected {
     if (!_themePath.length) return YES;
-    NSURL *bundledRoot=[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES];
-    NSString *root=[bundledRoot.standardizedURL.path stringByAppendingString:@"/"];
-    NSString *path=[_themePath stringByStandardizingPath];
-    return [path hasPrefix:root];
+    // Only a direct child of the writable Documents theme folder is user-editable.
+    // Checking the bundle path alone misses built-ins whose selected path was restored
+    // from an older build or whose resource URL has a different canonical spelling.
+    NSURL *documentsRoot=[self themesDirectoryCreating:YES].standardizedURL;
+    NSURL *selected=[NSURL fileURLWithPath:_themePath].standardizedURL;
+    BOOL isWritableTheme=[selected.URLByDeletingLastPathComponent.path isEqualToString:documentsRoot.path];
+    return !isWritableTheme;
 }
 - (void)applyThemePath:(NSString *)path name:(NSString *)name {
     if (![self loadThemeAtPath:path]) return;
@@ -1192,7 +1195,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         NSString *path=folder.standardizedURL.path;
         NSString *title=[json[@"name"] isKindOfClass:NSString.class] && [json[@"name"] length] ? json[@"name"] : folder.lastPathComponent;
         UIButton *pick=[UIButton buttonWithType:UIButtonTypeSystem];
-        pick.frame=CGRectMake(0,row*rowHeight,250,rowHeight);
+        pick.frame=CGRectMake(0,row*rowHeight,212,rowHeight);
         [pick setTitle:title forState:UIControlStateNormal];
         pick.contentHorizontalAlignment=UIControlContentHorizontalAlignmentLeft;
         pick.titleLabel.font=[UIFont systemFontOfSize:14];
@@ -1217,6 +1220,19 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         for (NSURL *importedFolder in importedFolders)
             if ([importedFolder.standardizedURL.path isEqualToString:path]) { writable=YES; break; }
         if (writable && !protectedTheme) {
+            UIButton *rename=[UIButton buttonWithType:UIButtonTypeSystem];
+            rename.frame=CGRectMake(216,row*rowHeight+4,32,32);
+            [rename setImage:[UIImage systemImageNamed:@"pencil"] forState:UIControlStateNormal];
+            rename.tintColor=[UIColor colorWithWhite:1 alpha:0.82];
+            rename.accessibilityLabel=[NSString stringWithFormat:@"Rename %@",title];
+            NSString *renamePath=[path copy],*renameName=[title copy];
+            [rename addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) {
+                (void)action;
+                [weakSelf closeThemeMenu];
+                [weakSelf renameThemeAtPath:renamePath name:renameName];
+            }] forControlEvents:UIControlEventTouchUpInside];
+            [_themeMenuScroll addSubview:rename];
+
             UIButton *remove=[UIButton buttonWithType:UIButtonTypeSystem];
             remove.frame=CGRectMake(252,row*rowHeight+4,32,32);
             [remove setImage:[UIImage systemImageNamed:@"trash"] forState:UIControlStateNormal];
@@ -1239,6 +1255,43 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _themeMenuScroll.contentSize=CGSizeMake(288,contentHeight);
     _themeMenuScroll.frame=CGRectMake(8,8,288,MIN(contentHeight,240));
     _themeMenuPanel.frame=CGRectMake(0,0,304,MIN(contentHeight,240)+16);
+}
+- (void)renameThemeAtPath:(NSString *)path name:(NSString *)name {
+    NSURL *documentsRoot=[self themesDirectoryCreating:YES].standardizedURL;
+    NSURL *folder=[NSURL fileURLWithPath:path].standardizedURL;
+    if (![folder.URLByDeletingLastPathComponent.path isEqualToString:documentsRoot.path] ||
+        [folder.lastPathComponent caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
+        [folder.lastPathComponent caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame ||
+        [name caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
+        [name caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame) return;
+
+    UIAlertController *prompt=[UIAlertController alertControllerWithTitle:@"Rename Theme"
+        message:@"Choose a new name for this custom theme." preferredStyle:UIAlertControllerStyleAlert];
+    [prompt addTextFieldWithConfigurationHandler:^(UITextField *field) {
+        field.text=name;
+        field.clearButtonMode=UITextFieldViewModeWhileEditing;
+        field.autocapitalizationType=UITextAutocapitalizationTypeWords;
+    }];
+    [prompt addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    __weak UIAlertController *weakPrompt=prompt;
+    [prompt addAction:[UIAlertAction actionWithTitle:@"Rename" style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) {
+        NSString *newName=[weakPrompt.textFields.firstObject.text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+        if (!newName.length) return;
+        NSString *manifestPath=[[folder URLByAppendingPathComponent:@"theme.json"] path];
+        NSMutableDictionary *json=[[NSJSONSerialization JSONObjectWithData:[NSData dataWithContentsOfFile:manifestPath]
+            options:NSJSONReadingMutableContainers error:nil] mutableCopy];
+        if (!json) return;
+        json[@"name"]=newName;
+        NSData *data=[NSJSONSerialization dataWithJSONObject:json options:NSJSONWritingPrettyPrinted error:nil];
+        if (!data || ![data writeToFile:manifestPath atomically:YES]) return;
+        if ([self->_themePath isEqualToString:folder.path]) {
+            self->_themeName=newName;
+            [NSUserDefaults.standardUserDefaults setObject:newName forKey:k_theme_name_key];
+        }
+        [self updateEditor];
+    }]];
+    UIViewController *presenter=[self editorPresenter];
+    if (presenter) [presenter presentViewController:prompt animated:YES completion:nil];
 }
 - (void)confirmDeleteThemeAtPath:(NSString *)path name:(NSString *)name {
     NSURL *documentsRoot=[self themesDirectoryCreating:YES];
@@ -1419,11 +1472,20 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [self updateThemeMenu];
 }
 - (void)colorWellValueChanged:(UIColorWell *)sender {
-    NSString *key=[self themeColorKeyForControl:_colorPickerControl];
     UIColor *color=sender.selectedColor;
-    if (!key || !color) return;
+    if (!color) return;
     NSMutableDictionary *colors=[_themeButtonColors mutableCopy] ?: [NSMutableDictionary dictionary];
-    colors[key]=color;
+    if (_colorPickerControl<0) {
+        // "All controls" applies the selected color to each distinct control palette entry.
+        for (int control=0;control<18;control++) {
+            NSString *key=[self themeColorKeyForControl:control];
+            if (key.length) colors[key]=color;
+        }
+    } else {
+        NSString *key=[self themeColorKeyForControl:_colorPickerControl];
+        if (!key) return;
+        colors[key]=color;
+    }
     _themeButtonColors=colors;
     [self refresh];
     [self persistCustomTheme];
@@ -1486,8 +1548,11 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [parent addSubview:button]; return button;
 }
 - (void)setupEditor {
+    self.overrideUserInterfaceStyle=UIUserInterfaceStyleDark;
+    self.tintColor=UIColor.whiteColor;
     _tools=[UIView new];
     _tools.overrideUserInterfaceStyle=UIUserInterfaceStyleDark;
+    _tools.tintColor=UIColor.whiteColor;
     _tools.backgroundColor=UIColor.systemBackgroundColor;
     _tools.layer.cornerRadius=10;
     [self addSubview:_tools]; _tools.hidden=YES;
@@ -1503,6 +1568,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _colorWell.overrideUserInterfaceStyle=UIUserInterfaceStyleDark;
     _colorWell.backgroundColor=[UIColor colorWithWhite:0.12 alpha:0.96];
     _colorWell.tintColor=UIColor.whiteColor;
+    _colorWell.overrideUserInterfaceStyle=UIUserInterfaceStyleDark;
     _colorWell.layer.cornerRadius=6;
     _colorWell.clipsToBounds=YES;
     _colorWell.supportsAlpha=NO;
@@ -1520,6 +1586,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _colorWellLockIcon.userInteractionEnabled=NO;
     _colorWellLockIcon.hidden=YES;
     [_tools addSubview:_colorWellLockIcon];
+    [_tools bringSubviewToFront:_colorWellLockIcon];
     [self editorButton:@"Reset control" action:@selector(resetControl) frame:CGRectMake(244,86,108,30) parent:_tools];
     _sizeSlider=[[UISlider alloc] initWithFrame:CGRectMake(78,120,274,30)];
     _sizeSlider.minimumValue=0.5; _sizeSlider.maximumValue=2;
@@ -1558,7 +1625,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [_themeMenuPanel addSubview:_themeMenuScroll];
     UIButton *importThemeButton=[self editorButton:@"Import…" action:@selector(importThemeFolder) frame:CGRectMake(260,220,92,32) parent:_tools];
     importThemeButton.titleLabel.font=[UIFont systemFontOfSize:11 weight:UIFontWeightMedium];
-    UIButton *createThemeButton=[self editorButton:@"Create theme" action:@selector(createCustomTheme) frame:CGRectMake(8,258,150,32) parent:_tools];
+    UIButton *createThemeButton=[self editorButton:@"Create theme" action:@selector(createCustomTheme)
+        frame:CGRectMake(_launcherPreview ? 105 : 8,258,150,32) parent:_tools];
     createThemeButton.titleLabel.adjustsFontSizeToFitWidth=YES;
     importThemeButton.titleLabel.adjustsFontSizeToFitWidth=YES;
     importThemeButton.titleLabel.minimumScaleFactor=0.8;
@@ -1641,15 +1709,20 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     }
     _chooseButton.menu=[UIMenu menuWithTitle:@"Select control" children:actions];
     _chooseButton.showsMenuAsPrimaryAction=YES;
-    NSString *colorKey=[self themeColorKeyForControl:_selected];
+    NSString *colorKey=_selected<0 ? nil : [self themeColorKeyForControl:_selected];
     _colorPickerControl=_selected;
-    _colorWell.selectedColor=colorKey ? (_themeButtonColors[colorKey] ?: k_idle) : nil;
-    _colorWell.accessibilityLabel=colorKey ? [NSString stringWithFormat:@"Choose %@ color", [self controlID:_selected]] : @"Choose control color";
+    UIColor *wellColor=_selected<0 ? (_themeButtonColors[@"A"] ?: k_idle) :
+        (colorKey ? (_themeButtonColors[colorKey] ?: k_idle) : nil);
+    _colorWell.selectedColor=wellColor;
     BOOL builtInTheme=[self isBuiltInThemeSelected];
-    _colorWell.enabled=(colorKey!=nil && !builtInTheme);
+    BOOL hasColorTarget=(_selected<0 || colorKey!=nil);
+    _colorWell.enabled=(hasColorTarget && !builtInTheme);
+    _colorWell.userInteractionEnabled=(hasColorTarget && !builtInTheme);
     _colorWell.accessibilityLabel=builtInTheme ? @"Control color locked for built-in themes" :
-        (colorKey ? [NSString stringWithFormat:@"Choose %@ color", [self controlID:_selected]] : @"Choose control color");
+        (_selected<0 ? @"Choose all controls color" :
+         (colorKey ? [NSString stringWithFormat:@"Choose %@ color", [self controlID:_selected]] : @"Choose control color"));
     _colorWellLockIcon.hidden=!builtInTheme;
+    [_tools bringSubviewToFront:_colorWellLockIcon];
     [self setNeedsLayout];
 }
 - (UIViewController *)editorPresenter {
