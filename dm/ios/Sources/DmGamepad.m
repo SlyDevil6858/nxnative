@@ -1354,14 +1354,19 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             [folderName caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame ||
             [title caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
             [title caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame;
-        NSString *documentsPrefix=[documentsRoot.standardizedURL.path stringByAppendingString:@"/"];
+        // Only direct child folders in the app's imported-themes directory are custom themes.
+        // Do not gate the actions on isWritableFileAtPath: that check can incorrectly return
+        // false for app-managed/document-provider files even when the app can edit them.
+        BOOL isImportedTheme=NO;
+        for (NSURL *importedFolder in importedFolders) {
+            if ([importedFolder.standardizedURL.path isEqualToString:folder.standardizedURL.path]) {
+                isImportedTheme=YES;
+                break;
+            }
+        }
         NSURL *manifestURL=[self themeJSONURLInFolder:folder];
-        BOOL manifestExists=[NSFileManager.defaultManager fileExistsAtPath:manifestURL.path];
-        BOOL belongsToCustomThemes=[path hasPrefix:documentsPrefix];
-        BOOL writable=belongsToCustomThemes && manifestExists &&
-            [NSFileManager.defaultManager isWritableFileAtPath:folder.path] &&
-            [NSFileManager.defaultManager isWritableFileAtPath:manifestURL.path];
-        if (writable && !protectedTheme) {
+        BOOL manifestExists=manifestURL && [NSFileManager.defaultManager fileExistsAtPath:manifestURL.path];
+        if (isImportedTheme && manifestExists && !protectedTheme) {
             // Match the launcher's plain 32x32 pencil and trash actions exactly.
             // This selector is shared by the pre-launch preview and live editor.
             UIImageSymbolConfiguration *actionSymbol=[UIImageSymbolConfiguration configurationWithPointSize:17 weight:UIImageSymbolWeightRegular];
