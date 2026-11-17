@@ -228,7 +228,7 @@ private struct LauncherView: View {
                                         .contentShape(Rectangle())
                                     }
                                     .buttonStyle(.plain)
-                                    .popover(isPresented: $showingThemeMenu, arrowEdge: .trailing) {
+                                    .popover(isPresented: $showingThemeMenu, attachmentAnchor: .point(.leading), arrowEdge: .trailing) {
                                         themeMenuPopover
                                     }
                                     Button("Edit touch controls layout…") {
