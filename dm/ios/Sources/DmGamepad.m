@@ -193,6 +193,7 @@ static void pads_start(void);   // Physical controllers, below
     NSMutableDictionary *_custom;
     DmPadProfiles *_profiles;
     BOOL _editing, _editWasTap;
+    BOOL _launcherPreview;
     int _selected;
     UITouch *_dragTouch;
     CGPoint _dragStart, _dragHome;
@@ -242,6 +243,7 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
 - (instancetype)initWithFrame:(CGRect)f {
     if ((self = [super initWithFrame:f])) {
         self.multipleTouchEnabled = YES; self.opaque = NO; self.backgroundColor = UIColor.clearColor;
+        _launcherPreview = g_launcher_preview;
         const char *feedback = getenv("DM_TOUCH_HAPTICS");
         if (!feedback || atoi(feedback)) {
             _touchFeedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
@@ -1188,25 +1190,28 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     importThemeButton.titleLabel.minimumScaleFactor=0.8;
     importThemeButton.titleLabel.lineBreakMode=NSLineBreakByClipping;
 
-    UILabel *fpsTitle=[[UILabel alloc] initWithFrame:CGRectMake(10,260,210,28)];
-    fpsTitle.text=@"FPS counter"; fpsTitle.textColor=UIColor.whiteColor;
-    fpsTitle.font=[UIFont systemFontOfSize:13]; [_tools addSubview:fpsTitle];
-    _fpsSwitch=[[UISwitch alloc] initWithFrame:CGRectMake(254,258,52,31)];
-    _fpsSwitch.onTintColor=accent;
-    _fpsSwitch.tintColor=[UIColor colorWithWhite:0.14 alpha:1.0];
-    _fpsSwitch.on=front_ios_runtime_fps_enabled();
-    [_fpsSwitch addTarget:self action:@selector(editorHUDChanged) forControlEvents:UIControlEventValueChanged];
-    [_tools addSubview:_fpsSwitch];
+    // Runtime HUD settings belong to the live in-game editor, not the pre-launch layout preview.
+    if (!_launcherPreview) {
+        UILabel *fpsTitle=[[UILabel alloc] initWithFrame:CGRectMake(10,260,210,28)];
+        fpsTitle.text=@"FPS counter"; fpsTitle.textColor=UIColor.whiteColor;
+        fpsTitle.font=[UIFont systemFontOfSize:13]; [_tools addSubview:fpsTitle];
+        _fpsSwitch=[[UISwitch alloc] initWithFrame:CGRectMake(254,258,52,31)];
+        _fpsSwitch.onTintColor=accent;
+        _fpsSwitch.tintColor=[UIColor colorWithWhite:0.14 alpha:1.0];
+        _fpsSwitch.on=front_ios_runtime_fps_enabled();
+        [_fpsSwitch addTarget:self action:@selector(editorHUDChanged) forControlEvents:UIControlEventValueChanged];
+        [_tools addSubview:_fpsSwitch];
 
-    UILabel *hudTitle=[[UILabel alloc] initWithFrame:CGRectMake(10,294,210,28)];
-    hudTitle.text=@"Performance HUD"; hudTitle.textColor=UIColor.whiteColor;
-    hudTitle.font=[UIFont systemFontOfSize:13]; [_tools addSubview:hudTitle];
-    _hudSwitch=[[UISwitch alloc] initWithFrame:CGRectMake(254,292,52,31)];
-    _hudSwitch.onTintColor=accent;
-    _hudSwitch.tintColor=[UIColor colorWithWhite:0.14 alpha:1.0];
-    _hudSwitch.on=front_ios_runtime_metal_hud_enabled();
-    [_hudSwitch addTarget:self action:@selector(editorHUDChanged) forControlEvents:UIControlEventValueChanged];
-    [_tools addSubview:_hudSwitch];
+        UILabel *hudTitle=[[UILabel alloc] initWithFrame:CGRectMake(10,294,210,28)];
+        hudTitle.text=@"Performance HUD"; hudTitle.textColor=UIColor.whiteColor;
+        hudTitle.font=[UIFont systemFontOfSize:13]; [_tools addSubview:hudTitle];
+        _hudSwitch=[[UISwitch alloc] initWithFrame:CGRectMake(254,292,52,31)];
+        _hudSwitch.onTintColor=accent;
+        _hudSwitch.tintColor=[UIColor colorWithWhite:0.14 alpha:1.0];
+        _hudSwitch.on=front_ios_runtime_metal_hud_enabled();
+        [_hudSwitch addTarget:self action:@selector(editorHUDChanged) forControlEvents:UIControlEventValueChanged];
+        [_tools addSubview:_hudSwitch];
+    }
 }
 - (void)editorHUDChanged {
     [_touchFeedback impactOccurredWithIntensity:0.6];
