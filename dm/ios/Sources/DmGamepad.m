@@ -1481,7 +1481,11 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             [rename addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) {
                 (void)action;
                 [weakSelf closeThemeMenu];
-                [weakSelf renameThemeAtPath:renamePath name:renameName];
+                // Defer presentation until the selector overlay has finished
+                // handling this tap and the current UI event has unwound.
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [weakSelf renameThemeAtPath:renamePath name:renameName];
+                });
             }] forControlEvents:UIControlEventTouchUpInside];
             [_themeMenuScroll addSubview:rename];
 
@@ -1553,14 +1557,30 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         [self updateEditor];
     }]];
     UIViewController *presenter=[self editorPresenter];
-    if (!presenter || presenter.isBeingDismissed || presenter.isBeingPresented) return;
+    if (!presenter) {
+        LOG("touch controls: rename prompt has no active view controller");
+        return;
+    }
+    if (presenter.isBeingDismissed || presenter.isBeingPresented) {
+        // The theme selector can be used while the launcher/editor is transitioning.
+        // Retry on the next run-loop turn rather than silently dropping the rename.
+        dispatch_async(dispatch_get_main_queue(), ^{
+            UIViewController *retryPresenter=[self editorPresenter];
+            if (!retryPresenter || retryPresenter.isBeingDismissed || retryPresenter.isBeingPresented) {
+                LOG("touch controls: rename prompt presenter is still transitioning");
+                return;
+            }
+            [retryPresenter presentViewController:prompt animated:YES completion:^{
+                [prompt.textFields.firstObject becomeFirstResponder];
+            }];
+        });
+        return;
+    }
 
-    // UIAlertController does not reliably focus its text field when launched from
-    // the gamepad's custom overlay. Explicitly request focus after presentation so
-    // the software keyboard appears in both the pre-launch and live editors.
+    // Explicitly focus the field after presentation so the software keyboard
+    // appears in both the pre-launch and live editors.
     [presenter presentViewController:prompt animated:YES completion:^{
-        UITextField *field=prompt.textFields.firstObject;
-        [field becomeFirstResponder];
+        [prompt.textFields.firstObject becomeFirstResponder];
     }];
 }
 - (void)confirmDeleteThemeAtPath:(NSString *)path name:(NSString *)name {
