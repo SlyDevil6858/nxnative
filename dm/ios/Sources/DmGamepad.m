@@ -1670,6 +1670,20 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     picker.supportsAlpha=NO;
     picker.selectedColor=_editorColor ?: k_idle;
     picker.overrideUserInterfaceStyle=UIUserInterfaceStyleDark;
+
+    // Keep the native picker in a compact sheet so the touch controls remain
+    // visible while the user adjusts their colors.
+    picker.modalPresentationStyle=UIModalPresentationPageSheet;
+    if (@available(iOS 15.0, *)) {
+        UISheetPresentationController *sheet=picker.sheetPresentationController;
+        sheet.detents=@[UISheetPresentationControllerDetent.mediumDetent,
+                        UISheetPresentationControllerDetent.largeDetent];
+        sheet.selectedDetentIdentifier=UISheetPresentationControllerDetentIdentifierMedium;
+        sheet.largestUndimmedDetentIdentifier=UISheetPresentationControllerDetentIdentifierMedium;
+        sheet.prefersGrabberVisible=YES;
+        sheet.prefersScrollingExpandsWhenScrolledToEdge=NO;
+    }
+
     _editorColorPicker=picker;
     [[self editorPresenter] presentViewController:picker animated:YES completion:nil];
 }
