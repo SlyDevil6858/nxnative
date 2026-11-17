@@ -159,6 +159,61 @@ int dm_opmode(void);   // hle_oe.c: 0 = handheld
 }
 @end
 
+@interface DmColorPickerPresentationController : UIPresentationController
+@property(nonatomic,strong) UIView *dimmingView;
+@end
+
+@implementation DmColorPickerPresentationController
+- (instancetype)initWithPresentedViewController:(UIViewController *)presented presentingViewController:(UIViewController *)presenting {
+    self=[super initWithPresentedViewController:presented presentingViewController:presenting];
+    if (self) {
+        _dimmingView=[UIView new];
+        _dimmingView.backgroundColor=[UIColor colorWithWhite:0 alpha:0.48];
+        _dimmingView.alpha=0;
+        UITapGestureRecognizer *tap=[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(dismissPicker)];
+        [_dimmingView addGestureRecognizer:tap];
+    }
+    return self;
+}
+- (CGRect)frameOfPresentedViewInContainerView {
+    CGRect bounds=self.containerView.bounds;
+    CGFloat width=MIN(340,MAX(280,bounds.size.width-32));
+    CGFloat height=MIN(520,MAX(380,bounds.size.height-80));
+    return CGRectMake(CGRectGetMidX(bounds)-width/2,CGRectGetMidY(bounds)-height/2,width,height);
+}
+- (void)containerViewWillLayoutSubviews {
+    [super containerViewWillLayoutSubviews];
+    self.dimmingView.frame=self.containerView.bounds;
+    self.presentedView.frame=self.frameOfPresentedViewInContainerView;
+    self.presentedView.layer.cornerRadius=14;
+    self.presentedView.layer.masksToBounds=YES;
+}
+- (void)presentationTransitionWillBegin {
+    [super presentationTransitionWillBegin];
+    self.dimmingView.frame=self.containerView.bounds;
+    [self.containerView insertSubview:self.dimmingView atIndex:0];
+    [UIView animateWithDuration:0.22 animations:^{ self.dimmingView.alpha=1; }];
+}
+- (void)dismissalTransitionWillBegin {
+    [super dismissalTransitionWillBegin];
+    [UIView animateWithDuration:0.20 animations:^{ self.dimmingView.alpha=0; }];
+}
+- (void)dismissPicker {
+    [self.presentedViewController dismissViewControllerAnimated:YES completion:nil];
+}
+@end
+
+@interface DmColorPickerTransitionDelegate : NSObject <UIViewControllerTransitioningDelegate>
+@end
+@implementation DmColorPickerTransitionDelegate
+- (UIPresentationController *)presentationControllerForPresentedViewController:(UIViewController *)presented
+                                                        presentingViewController:(UIViewController *)presenting
+                                                            sourceViewController:(UIViewController *)source {
+    (void)source;
+    return [[DmColorPickerPresentationController alloc] initWithPresentedViewController:presented presentingViewController:presenting];
+}
+@end
+
 @interface DmGamepad : UIView <UIGestureRecognizerDelegate, UIDocumentPickerDelegate, UIColorPickerViewControllerDelegate>
 - (UIColor *)editorAccentColor;
 - (void)beginLauncherEdit;
@@ -194,6 +249,7 @@ static void pads_start(void);   // Physical controllers, below
     UIButton *_colorWellButton;
     UIColor *_editorColor;
     UIColorPickerViewController *_editorColorPicker;
+    DmColorPickerTransitionDelegate *_colorPickerTransitionDelegate;
     UIView *_colorWellAppearance;
     UIView *_colorWellSwatch;
     CAGradientLayer *_colorWellRainbowBorder;
@@ -1670,23 +1726,13 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     picker.supportsAlpha=NO;
     picker.selectedColor=_editorColor ?: k_idle;
     picker.overrideUserInterfaceStyle=UIUserInterfaceStyleDark;
-    // Give the sheet a narrower preferred width, leaving the live controls
-    // visible along both sides while the color picker is open.
-    picker.preferredContentSize=CGSizeMake(340, 600);
-
-    picker.modalPresentationStyle=UIModalPresentationPageSheet;
-    if (@available(iOS 15.0, *)) {
-        UISheetPresentationController *sheet=picker.sheetPresentationController;
-        sheet.detents=@[UISheetPresentationControllerDetent.mediumDetent,
-                        UISheetPresentationControllerDetent.largeDetent];
-        sheet.selectedDetentIdentifier=UISheetPresentationControllerDetentIdentifierMedium;
-        sheet.largestUndimmedDetentIdentifier=UISheetPresentationControllerDetentIdentifierMedium;
-        sheet.prefersGrabberVisible=YES;
-        sheet.prefersScrollingExpandsWhenScrolledToEdge=NO;
-        if (@available(iOS 16.0, *)) {
-            sheet.widthFollowsPreferredContentSizeWhenEdgeAttached=YES;
-        }
-    }
+    // Use a genuinely compact floating presentation: page sheets can still
+    // expand to the full iPhone width even when preferredContentSize is set.
+    picker.preferredContentSize=CGSizeMake(340, 520);
+    picker.modalPresentationStyle=UIModalPresentationCustom;
+    picker.modalTransitionStyle=UIModalTransitionStyleCrossDissolve;
+    _colorPickerTransitionDelegate=[DmColorPickerTransitionDelegate new];
+    picker.transitioningDelegate=_colorPickerTransitionDelegate;
 
     _editorColorPicker=picker;
     [[self editorPresenter] presentViewController:picker animated:YES completion:nil];
