@@ -172,7 +172,7 @@ static void pads_start(void);   // Physical controllers, below
 
 @implementation DmGamepad {
     NSMapTable<UITouch *, NSNumber *> *_owner;     // touch → control (with the key for C_BTN or the stick for C_STICK, << 8)
-    UITouch *_stick[2]; CGPoint _stickNow[2];      // the touch holding each stick and where it is now (0 left, 1 right)
+    UITouch *_stick[2]; CGPoint _stickNow[2], _stickTouchOrigin[2]; // touch, current point, and initial anchor for each stick
     CGPoint _rCentre;                              // the right stick's centre: where its touch landed, dragged along past K_RSTICK_R
     uint64_t _faceBits, _dpadBits, _btnBits;
     NSMapTable<UITouch *, NSNumber *> *_faceOf;    // which keys each touch on the diamond currently holds
@@ -668,7 +668,7 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
         if (kind == C_NONE && _full && !_stick[1] && [self inRightArea:p]) { kind = C_STICK; idx = 1; _rCentre = p; }   // the right stick: centred where the touch lands
         if (kind == C_FACE) { [_owner setObject:@(C_FACE) forKey:t]; [_faceOf setObject:@([self faceAt:p]) forKey:t]; }
         else if (kind == C_DPAD) [_owner setObject:@(C_DPAD) forKey:t];
-        else if (kind == C_STICK) { [_owner setObject:@(C_STICK | (uint64_t)idx << 8) forKey:t]; _stick[idx] = t; _stickNow[idx] = p; }
+        else if (kind == C_STICK) { [_owner setObject:@(C_STICK | (uint64_t)idx << 8) forKey:t]; _stick[idx] = t; _stickTouchOrigin[idx] = p; _stickNow[idx] = idx == 0 ? self.stickHome : p; }
         else game |= [self gameBegin:t];
     }
     if (game) [self pushGame];
@@ -680,9 +680,20 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
     for (UITouch *t in ts) {
         uint64_t v = [_owner objectForKey:t].unsignedLongLongValue; int c = (int)(v & 0xff); CGPoint p = [t locationInView:self];
         if (c == C_FACE) [_faceOf setObject:@([self faceAt:p]) forKey:t];
-        else if (c == C_STICK) { _stickNow[v >> 8] = p;
-            if ((v >> 8) == 1) { CGFloat d = dist(p, _rCentre), R = [self stickR:1];   // the right stick's centre follows a finger past its radius, so turning back responds at once
-                if (d > R) _rCentre = CGPointMake(p.x - (p.x - _rCentre.x) * R / d, p.y - (p.y - _rCentre.y) * R / d); } }
+        else if (c == C_STICK) {
+            int idx=(int)(v >> 8);
+            if (idx == 0) {
+                // Anchor the left stick at the initial touch point. A finger landing
+                // slightly off-centre should not create an unintended rightward input.
+                CGPoint home=self.stickHome;
+                _stickNow[0]=CGPointMake(home.x+p.x-_stickTouchOrigin[0].x,
+                                         home.y+p.y-_stickTouchOrigin[0].y);
+            } else {
+                _stickNow[1]=p;
+                CGFloat d = dist(p, _rCentre), R = [self stickR:1];
+                if (d > R) _rCentre = CGPointMake(p.x - (p.x - _rCentre.x) * R / d, p.y - (p.y - _rCentre.y) * R / d);
+            }
+        }
         else if (c == C_GAME) game = YES;
     }
     if (game) [self pushGame];
