@@ -1579,7 +1579,13 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             UIButton *pick=[UIButton buttonWithType:UIButtonTypeSystem]; pick.frame=CGRectMake(0,row*rowHeight,212,rowHeight);
             [pick setTitle:title forState:UIControlStateNormal]; pick.contentHorizontalAlignment=UIControlContentHorizontalAlignmentLeft; pick.contentEdgeInsets=UIEdgeInsetsMake(0,12,0,0);
             pick.contentVerticalAlignment=UIControlContentVerticalAlignmentCenter; pick.titleLabel.font=[UIFont systemFontOfSize:14]; pick.titleLabel.lineBreakMode=NSLineBreakByTruncatingTail; pick.tintColor=UIColor.whiteColor;
-            if ([current isEqualToString:title]) [pick setTitle:[title stringByAppendingString:@"  ✓"] forState:UIControlStateNormal];
+            if ([current isEqualToString:title]) {
+                NSMutableAttributedString *selectedTitle=[[NSMutableAttributedString alloc] initWithString:[title stringByAppendingString:@"  ✓"]];
+                [selectedTitle addAttribute:NSForegroundColorAttributeName value:[UIColor colorWithRed:0.22 green:0.48 blue:0.28 alpha:1] range:NSMakeRange(title.length+2,1)];
+                [pick setAttributedTitle:selectedTitle forState:UIControlStateNormal];
+            } else {
+                [pick setTitle:title forState:UIControlStateNormal];
+            }
             pick.accessibilityLabel=[NSString stringWithFormat:@"Select %@",title];
             [pick addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; [weakSelf applyThemePath:path name:title]; [weakSelf closeThemeMenu]; }] forControlEvents:UIControlEventTouchUpInside]; [_themeMenuScroll addSubview:pick];
         }
