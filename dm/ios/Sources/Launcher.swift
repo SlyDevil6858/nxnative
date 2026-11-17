@@ -396,8 +396,8 @@ private struct LauncherView: View {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
         // Built-in themes stay read-only in the app bundle. Only imported themes live in Documents.
-        // Remove the retired Forest and Well built-ins left by older builds.
-        for retired in ["Forest", "Well"] {
+        // Remove the retired Well built-in left by older builds.
+        for retired in ["Well"] {
             try? FileManager.default.removeItem(at: directory.appendingPathComponent(retired, isDirectory: true))
         }
         // Remove identical legacy copies left by older builds, but preserve any user-customized folder.
