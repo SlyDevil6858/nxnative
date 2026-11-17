@@ -28,6 +28,11 @@ on:
         required: true
         type: boolean
         default: true
+      include_forest_theme:
+        description: "Bundle the FOREST touch controls theme"
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -61,6 +66,7 @@ jobs:
         env:
           INCLUDE_ANIMAL_WELL: ${{ inputs.include_animal_well_theme }}
           INCLUDE_CLASSIC: ${{ inputs.include_classic_theme }}
+          INCLUDE_FOREST: ${{ inputs.include_forest_theme }}
         run: |
           python3 - <<'PY'
           import os
@@ -72,6 +78,7 @@ jobs:
           selections = {
               "ANIMAL WELL": os.environ["INCLUDE_ANIMAL_WELL"].lower() == "true",
               "CLASSIC": os.environ["INCLUDE_CLASSIC"].lower() == "true",
+              "FOREST": os.environ["INCLUDE_FOREST"].lower() == "true",
           }
           if not any(selections.values()):
               raise SystemExit("Select at least one built-in touch control theme to bundle.")
