@@ -283,7 +283,7 @@ private struct LauncherView: View {
                     themeRenameFocused = true
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                         withAnimation(.easeInOut(duration: 0.25)) {
-                            themeScrollProxy.scrollTo("launcher-theme-\\(path)", anchor: .center)
+                            themeScrollProxy.scrollTo("launcher-theme-\(path)", anchor: .center)
                         }
                     }
                 }
@@ -426,7 +426,7 @@ private struct LauncherView: View {
                     }
                 }
                 .padding(.vertical, 4)
-                .id("launcher-theme-\\(theme.path)")
+                .id("launcher-theme-\(theme.path)")
                 Rectangle()
                     .fill(Color.white.opacity(0.12))
                     .frame(height: 0.5)
