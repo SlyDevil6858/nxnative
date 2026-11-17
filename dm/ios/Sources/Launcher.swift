@@ -500,7 +500,12 @@ private struct LauncherView: View {
               theme.name.caseInsensitiveCompare("ANIMAL WELL") != .orderedSame,
               theme.name.caseInsensitiveCompare("CLASSIC") != .orderedSame else { return false }
         let documentsRoot = themesDirectory().standardizedFileURL.path + "/"
-        return URL(fileURLWithPath: theme.path).standardizedFileURL.path.hasPrefix(documentsRoot)
+        let folderURL = URL(fileURLWithPath: theme.path).standardizedFileURL
+        let manifestURL = folderURL.appendingPathComponent("theme.json")
+        let belongsToCustomThemes = folderURL.path.hasPrefix(documentsRoot)
+        return belongsToCustomThemes &&
+            FileManager.default.isWritableFile(atPath: folderURL.path) &&
+            FileManager.default.isWritableFile(atPath: manifestURL.path)
     }
 
     private func renameTheme(_ theme: LauncherTheme, to proposedName: String) {
