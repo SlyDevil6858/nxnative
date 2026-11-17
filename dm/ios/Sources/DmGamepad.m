@@ -198,11 +198,39 @@ int dm_opmode(void);   // hle_oe.c: 0 = handheld
     [super presentationTransitionWillBegin];
     self.dimmingView.frame=self.containerView.bounds;
     [self.containerView insertSubview:self.dimmingView atIndex:0];
-    [UIView animateWithDuration:0.22 animations:^{ self.dimmingView.alpha=1; }];
+
+    // Drive the dimming from the same transition coordinator as the picker,
+    // so both animations begin, progress, and finish together.
+    id<UIViewControllerTransitionCoordinator> coordinator=self.presentedViewController.transitionCoordinator;
+    if (!coordinator) coordinator=self.presentingViewController.transitionCoordinator;
+    if (coordinator) {
+        [coordinator animateAlongsideTransition:^(id<UIViewControllerTransitionCoordinatorContext> context) {
+            self.dimmingView.alpha=1;
+        } completion:^(id<UIViewControllerTransitionCoordinatorContext> context) {
+            self.dimmingView.alpha=context.isCancelled ? 0 : 1;
+        }];
+    } else {
+        [UIView animateWithDuration:0.25 delay:0 options:UIViewAnimationOptionCurveEaseInOut animations:^{
+            self.dimmingView.alpha=1;
+        } completion:nil];
+    }
 }
 - (void)dismissalTransitionWillBegin {
     [super dismissalTransitionWillBegin];
-    [UIView animateWithDuration:0.20 animations:^{ self.dimmingView.alpha=0; }];
+
+    id<UIViewControllerTransitionCoordinator> coordinator=self.presentedViewController.transitionCoordinator;
+    if (!coordinator) coordinator=self.presentingViewController.transitionCoordinator;
+    if (coordinator) {
+        [coordinator animateAlongsideTransition:^(id<UIViewControllerTransitionCoordinatorContext> context) {
+            self.dimmingView.alpha=0;
+        } completion:^(id<UIViewControllerTransitionCoordinatorContext> context) {
+            self.dimmingView.alpha=context.isCancelled ? 1 : 0;
+        }];
+    } else {
+        [UIView animateWithDuration:0.25 delay:0 options:UIViewAnimationOptionCurveEaseInOut animations:^{
+            self.dimmingView.alpha=0;
+        } completion:nil];
+    }
 }
 - (void)dismissPicker {
     [self.presentedViewController dismissViewControllerAnimated:YES completion:nil];
