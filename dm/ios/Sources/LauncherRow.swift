@@ -68,11 +68,13 @@ struct SettingRow: View {
                         showingChoiceList = false
                     } label: {
                         HStack(spacing: 8) {
-                            Text(option[1]).lineLimit(1)
+                            Text(option[1])
+                                .foregroundStyle(accentColor)
+                                .lineLimit(1)
                             Spacer(minLength: 4)
                             if (m.values[s.env] ?? s.def) == option[0] {
                                 Image(systemName: "checkmark")
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(Color(red: 0.12, green: 0.42, blue: 0.22))
                             }
                         }
                         .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
@@ -125,6 +127,7 @@ struct SettingRow: View {
                     }
                     .contentShape(Rectangle())
                 }
+                .tint(locked ? Color(white: 0.58) : accentColor)
                 #else
                 Picker(selection: m.binding(s)) {
                     ForEach(s.options ?? [], id: \.self) { Text($0[1]).tag($0[0]) }
