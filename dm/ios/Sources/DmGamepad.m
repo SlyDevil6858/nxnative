@@ -1082,14 +1082,25 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     }
     NSArray<NSURL *> *unsortedFolders=[visibleBundled arrayByAddingObjectsFromArray:importedFolders];
     NSArray<NSURL *> *folders=[unsortedFolders sortedArrayUsingComparator:^NSComparisonResult(NSURL *left, NSURL *right) {
+        NSString *(^normalizedName)(NSString *) = ^NSString *(NSString *value) {
+            NSString *name=[[value uppercaseString] stringByReplacingOccurrencesOfString:@"_" withString:@" "];
+            name=[name stringByReplacingOccurrencesOfString:@"-" withString:@" "];
+            for (NSString *suffix in @[@" SKIN", @" THEME"]) {
+                if ([name hasSuffix:suffix]) {
+                    name=[[name substringToIndex:name.length-suffix.length]
+                        stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+                }
+            }
+            return [name stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+        };
         NSInteger (^priority)(NSURL *) = ^NSInteger(NSURL *folder) {
-            NSString *folderName=folder.lastPathComponent;
+            NSString *folderName=normalizedName(folder.lastPathComponent);
             NSDictionary *json=[self validThemeJSONAtFolder:folder];
-            NSString *themeName=[json[@"name"] isKindOfClass:NSString.class] ? json[@"name"] : folderName;
-            if ([folderName caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
-                [themeName caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame) return 0;
-            if ([folderName caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame ||
-                [themeName caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame) return 1;
+            NSString *themeName=[json[@"name"] isKindOfClass:NSString.class] ? json[@"name"] : folder.lastPathComponent;
+            themeName=normalizedName(themeName);
+            if ([folderName isEqualToString:@"ANIMAL WELL"] || [themeName isEqualToString:@"ANIMAL WELL"]) return 0;
+            if ([folderName isEqualToString:@"CLASSIC"] || [themeName isEqualToString:@"CLASSIC"]) return 1;
+            // FOREST is intentionally grouped with imported/user-added themes.
             return 2;
         };
         NSInteger leftPriority=priority(left), rightPriority=priority(right);
@@ -1099,7 +1110,9 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         NSDictionary *rightJSON=[self validThemeJSONAtFolder:right];
         NSString *leftName=[leftJSON[@"name"] isKindOfClass:NSString.class] ? leftJSON[@"name"] : left.lastPathComponent;
         NSString *rightName=[rightJSON[@"name"] isKindOfClass:NSString.class] ? rightJSON[@"name"] : right.lastPathComponent;
-        return [leftName localizedCaseInsensitiveCompare:rightName];
+        NSComparisonResult byName=[leftName localizedCaseInsensitiveCompare:rightName];
+        if (byName!=NSOrderedSame) return byName;
+        return [left.path localizedCaseInsensitiveCompare:right.path];
     }];
     NSString *documentsPrefix=[documentsRoot.path stringByAppendingString:@"/"];
     for (NSURL *folder in folders) {
