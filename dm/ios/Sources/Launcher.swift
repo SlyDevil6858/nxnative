@@ -204,6 +204,9 @@ private struct LauncherView: View {
                 }
                 .padding(16)
                 .frame(width: geometry.size.width * 0.30, height: geometry.size.height)
+                // Drawer expansion is confined to the settings list; the static
+                // game panel should not participate in its animation transaction.
+                .transaction { $0.animation = nil }
                 List {
                     ForEach(m.sections, id: \.self) { section in
                         let rows = m.rows(in: section)
@@ -349,7 +352,9 @@ private struct LauncherView: View {
                 HStack(spacing: 0) {
                     Button {
                         selectTheme(theme.path, name: theme.name)
-                        showingThemeList = false
+                        withAnimation(.easeInOut(duration: 0.24)) {
+                            showingThemeList = false
+                        }
                     } label: {
                         HStack(spacing: 8) {
                             Text(theme.name)
