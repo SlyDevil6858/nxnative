@@ -139,7 +139,7 @@ struct SettingRow: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .popover(isPresented: $showingChoicePopover, arrowEdge: .trailing) {
+                .popover(isPresented: $showingChoicePopover, attachmentAnchor: .point(.leading), arrowEdge: .trailing) {
                     choicePopover
                 }
                 #else
