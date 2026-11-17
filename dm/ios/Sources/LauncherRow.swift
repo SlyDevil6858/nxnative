@@ -60,9 +60,9 @@ struct LauncherDisclosureGroupStyle: DisclosureGroupStyle {
                 configuration.isExpanded.toggle()
             }
         } label: {
-            HStack(spacing: 8) {
+            HStack(spacing: 6) {
                 configuration.label
-                Spacer(minLength: 8)
+                Spacer(minLength: 6)
                 Image(systemName: "chevron.down")
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(isEnabled ? accentColor : Color(white: 0.58))
