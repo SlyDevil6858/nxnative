@@ -380,7 +380,7 @@ private struct LauncherView: View {
                             showingThemeRename = true
                         } label: {
                             Image(systemName: "pencil")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(.system(size: 17, weight: .bold))
                                 .foregroundStyle(accentColor)
                                 .frame(width: 32, height: 32)
                                 .contentShape(Rectangle())
