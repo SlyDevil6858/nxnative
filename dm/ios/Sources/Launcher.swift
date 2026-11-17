@@ -460,16 +460,20 @@ private struct LauncherView: View {
     }
 
     private func themeJSON(in folder: URL) -> [String: Any]? {
-        let file = folder.appendingPathComponent("theme.json")
-        guard let data = try? Data(contentsOf: file),
+        let manifest = (try? FileManager.default.contentsOfDirectory(
+            at: folder, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]
+        ))?.first { $0.lastPathComponent.caseInsensitiveCompare("theme.json") == .orderedSame }
+            ?? folder.appendingPathComponent("theme.json")
+        guard let data = try? Data(contentsOf: manifest),
               let object = try? JSONSerialization.jsonObject(with: data),
               let json = object as? [String: Any],
               let palette = json["palette"] as? [String: Any] else { return nil }
         let required = ["idle", "pressed", "outline", "ringFill", "text", "pressedText"]
         for key in required {
-            guard let value = palette[key] as? String else { return nil }
-            let hex = value.hasPrefix("#") ? String(value.dropFirst()) : value
-            guard hex.range(of: "^[0-9A-Fa-f]{6}$", options: .regularExpression) != nil else { return nil }
+            guard let value = palette.first(where: { $0.key.caseInsensitiveCompare(key) == .orderedSame })?.value as? String else { return nil }
+            let hex = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            let normalized = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
+            guard normalized.range(of: "^[0-9A-Fa-f]{6}$", options: .regularExpression) != nil else { return nil }
         }
         return json
     }
@@ -565,7 +569,7 @@ private struct LauncherView: View {
                 options: [.skipsHiddenFiles]
             ) {
                 var validFolders: [URL] = []
-                for case let entry as URL in enumerator where entry.lastPathComponent == "theme.json" {
+                for case let entry as URL in enumerator where entry.lastPathComponent.caseInsensitiveCompare("theme.json") == .orderedSame {
                     let folder = entry.deletingLastPathComponent()
                     if themeJSON(in: folder) != nil &&
                         !validFolders.contains(where: { $0.standardizedFileURL == folder.standardizedFileURL }) {
@@ -598,6 +602,12 @@ private struct LauncherView: View {
 
             do {
                 try fileManager.copyItem(at: candidate, to: staging)
+                if let manifest = try? fileManager.contentsOfDirectory(
+                    at: staging, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]
+                ).first(where: { $0.lastPathComponent.caseInsensitiveCompare("theme.json") == .orderedSame }),
+                   manifest.lastPathComponent != "theme.json" {
+                    try fileManager.moveItem(at: manifest, to: staging.appendingPathComponent("theme.json"))
+                }
                 if fileManager.fileExists(atPath: destination.path) {
                     try fileManager.removeItem(at: destination)
                 }
