@@ -211,33 +211,23 @@ private struct LauncherView: View {
                             Section(section == "Controls" ? "Touch controls" : section) {
                                 ForEach(rows) { SettingRow(s: $0, m: m, accentColor: accentColor) }
                                 if section == "Controls" {
-                                    VStack(spacing: 0) {
-                                        Button {
-                                            withAnimation(.easeInOut(duration: 0.2)) {
-                                                showingThemeList.toggle()
-                                            }
-                                            if showingThemeList { refreshThemes() }
-                                        } label: {
-                                            HStack {
-                                                Text("Touch controls theme")
-                                                    .foregroundStyle(.white)
-                                                Spacer()
-                                                Text(selectedTheme)
-                                                    .foregroundStyle(accentColor)
-                                                    .lineLimit(1)
-                                                Image(systemName: "chevron.down")
-                                                    .font(.system(size: 12, weight: .semibold))
-                                                    .foregroundStyle(accentColor)
-                                                    .rotationEffect(.degrees(showingThemeList ? 180 : 0))
-                                            }
-                                            .contentShape(Rectangle())
-                                        }
-                                        .buttonStyle(.plain)
-                                        if showingThemeList {
-                                            themeMenuContent
+                                    DisclosureGroup(isExpanded: $showingThemeList) {
+                                        themeMenuContent
+                                    } label: {
+                                        HStack {
+                                            Text("Touch controls theme")
+                                                .foregroundStyle(.white)
+                                            Spacer()
+                                            Text(selectedTheme)
+                                                .foregroundStyle(accentColor)
+                                                .lineLimit(1)
                                         }
                                     }
+                                    .tint(accentColor)
                                     .background(Color.black)
+                                    .onChange(of: showingThemeList) { isShowing in
+                                        if isShowing { refreshThemes() }
+                                    }
                                     Button("Edit touch controls layout…") {
                                         dm_gamepad_present_launcher_editor()
                                     }
