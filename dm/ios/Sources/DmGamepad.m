@@ -317,7 +317,11 @@ int dm_opmode(void);   // hle_oe.c: 0 = handheld
         BOOL isColorsTitle=[visibleText isEqualToString:@"colors"] ||
             [visibleText isEqualToString:@"color"];
         if ((isEyedropper || isTopLeftPickerButton) && [child isKindOfClass:UIControl.class]) {
-            child.hidden=YES;
+            // Keep the picker panel's dimensions unchanged: move this control
+            // above its parent so the panel clips it out of view. Reset first
+            // because this pass runs again after UIKit lays out the picker.
+            child.transform=CGAffineTransformIdentity;
+            child.transform=CGAffineTransformMakeTranslation(0,-CGRectGetHeight(frame)-8);
             child.userInteractionEnabled=NO;
             child.accessibilityElementsHidden=YES;
             continue;
