@@ -1543,8 +1543,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             UIButton *cancel=[UIButton buttonWithType:UIButtonTypeCustom]; cancel.frame=CGRectMake(252,row*rowHeight+8,32,32);
             [cancel setImage:[UIImage systemImageNamed:@"xmark" withConfiguration:[UIImageSymbolConfiguration configurationWithPointSize:15 weight:UIImageSymbolWeightSemibold]] forState:UIControlStateNormal];
             cancel.tintColor=[UIColor colorWithWhite:1 alpha:0.78]; cancel.accessibilityLabel=@"Cancel theme rename";
-            [cancel addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; [weakSelf->_themeRenameField resignFirstResponder]; weakSelf->_themeRenamePath=nil; weakSelf->_themeRenameField=nil; [weakSelf updateThemeMenu]; }] forControlEvents:UIControlEventTouchUpInside]; [_themeMenuScroll addSubview:cancel];
-            dispatch_async(dispatch_get_main_queue(), ^{ if (weakSelf->_themeRenameField==field) [field becomeFirstResponder]; });
+            [cancel addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; DmGamepad *strongSelf=weakSelf; if (!strongSelf) return; [strongSelf->_themeRenameField resignFirstResponder]; strongSelf->_themeRenamePath=nil; strongSelf->_themeRenameField=nil; [strongSelf updateThemeMenu]; }] forControlEvents:UIControlEventTouchUpInside]; [_themeMenuScroll addSubview:cancel];
+            dispatch_async(dispatch_get_main_queue(), ^{ DmGamepad *strongSelf=weakSelf; if (strongSelf && strongSelf->_themeRenameField==field) [field becomeFirstResponder]; });
         } else {
             UIButton *pick=[UIButton buttonWithType:UIButtonTypeSystem]; pick.frame=CGRectMake(0,row*rowHeight,212,rowHeight);
             [pick setTitle:title forState:UIControlStateNormal]; pick.contentHorizontalAlignment=UIControlContentHorizontalAlignmentLeft; pick.contentEdgeInsets=UIEdgeInsetsMake(0,12,0,0);
@@ -1577,7 +1577,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
                 [rename setImage:[[UIImage systemImageNamed:@"pencil" withConfiguration:actionSymbol] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate] forState:UIControlStateNormal];
                 rename.tintColor=[UIColor colorWithWhite:1 alpha:0.82]; rename.accessibilityLabel=[NSString stringWithFormat:@"Rename %@",title];
                 NSString *renamePath=[path copy];
-                [rename addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; weakSelf->_themeRenamePath=renamePath; weakSelf->_themeRenameField=nil; [weakSelf updateThemeMenu]; }] forControlEvents:UIControlEventTouchUpInside];
+                [rename addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; DmGamepad *strongSelf=weakSelf; if (!strongSelf) return; strongSelf->_themeRenamePath=renamePath; strongSelf->_themeRenameField=nil; [strongSelf updateThemeMenu]; }] forControlEvents:UIControlEventTouchUpInside];
                 [_themeMenuScroll addSubview:rename];
             }
             if (!editingThisTheme) {
