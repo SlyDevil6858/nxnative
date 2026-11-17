@@ -1145,12 +1145,12 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 }
 - (BOOL)isBuiltInThemeSelected {
     if (!_themePath.length) return YES;
-    // Only a direct child of the writable Documents theme folder is user-editable.
-    // Checking the bundle path alone misses built-ins whose selected path was restored
-    // from an older build or whose resource URL has a different canonical spelling.
+    // Any theme stored inside the app's writable Documents theme directory is
+    // user-editable, including themes inside nested folders and FOREST's writable copy.
     NSURL *documentsRoot=[self themesDirectoryCreating:YES].standardizedURL;
-    NSURL *selected=[NSURL fileURLWithPath:_themePath].standardizedURL;
-    BOOL isWritableTheme=[selected.URLByDeletingLastPathComponent.path isEqualToString:documentsRoot.path];
+    NSString *root=[documentsRoot.path stringByAppendingString:@"/"];
+    NSString *selected=[NSURL fileURLWithPath:_themePath].standardizedURL.path;
+    BOOL isWritableTheme=[selected hasPrefix:root] && ![selected isEqualToString:documentsRoot.path];
     return !isWritableTheme;
 }
 - (void)applyThemePath:(NSString *)path name:(NSString *)name {
@@ -1249,9 +1249,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             [folderName caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame ||
             [title caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
             [title caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame;
-        BOOL writable=NO;
-        for (NSURL *importedFolder in importedFolders)
-            if ([importedFolder.standardizedURL.path isEqualToString:path]) { writable=YES; break; }
+        NSString *documentsPrefix=[documentsRoot.standardizedURL.path stringByAppendingString:@"/"];
+        BOOL writable=[path hasPrefix:documentsPrefix];
         if (writable && !protectedTheme) {
             UIButton *rename=[UIButton buttonWithType:UIButtonTypeSystem];
             rename.frame=CGRectMake(216,row*rowHeight+4,32,32);
@@ -1292,7 +1291,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 - (void)renameThemeAtPath:(NSString *)path name:(NSString *)name {
     NSURL *documentsRoot=[self themesDirectoryCreating:YES].standardizedURL;
     NSURL *folder=[NSURL fileURLWithPath:path].standardizedURL;
-    if (![folder.URLByDeletingLastPathComponent.path isEqualToString:documentsRoot.path] ||
+    NSString *documentsPrefix=[documentsRoot.path stringByAppendingString:@"/"];
+    if (![folder.path hasPrefix:documentsPrefix] ||
         [folder.lastPathComponent caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
         [folder.lastPathComponent caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame ||
         [name caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
@@ -1311,17 +1311,20 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         NSString *newName=[weakPrompt.textFields.firstObject.text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
         if (!newName.length || [newName caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
             [newName caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame) return;
-        NSString *manifestPath=[[folder URLByAppendingPathComponent:@"theme.json"] path];
+        NSURL *manifestURL=[self themeJSONURLInFolder:folder];
+        NSString *manifestPath=manifestURL.path;
         NSMutableDictionary *json=[[NSJSONSerialization JSONObjectWithData:[NSData dataWithContentsOfFile:manifestPath]
             options:NSJSONReadingMutableContainers error:nil] mutableCopy];
         if (!json) return;
         json[@"name"]=newName;
         NSData *data=[NSJSONSerialization dataWithJSONObject:json options:NSJSONWritingPrettyPrinted error:nil];
         if (!data || ![data writeToFile:manifestPath atomically:YES]) return;
-        if ([self->_themePath isEqualToString:folder.path]) {
+        NSString *selectedPath=[NSURL fileURLWithPath:self->_themePath ?: @""].standardizedURL.path;
+        if ([selectedPath isEqualToString:folder.path]) {
             self->_themeName=newName;
             [NSUserDefaults.standardUserDefaults setObject:newName forKey:k_theme_name_key];
         }
+        [self updateThemeMenu];
         [self updateEditor];
     }]];
     UIViewController *presenter=[self editorPresenter];
