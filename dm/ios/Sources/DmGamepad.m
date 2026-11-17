@@ -998,18 +998,29 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     }
     return dir;
 }
+- (NSURL *)themeJSONURLInFolder:(NSURL *)folder {
+    NSArray<NSURL *> *items=[NSFileManager.defaultManager contentsOfDirectoryAtURL:folder
+        includingPropertiesForKeys:nil options:NSDirectoryEnumerationSkipsHiddenFiles error:nil];
+    for (NSURL *item in items)
+        if ([item.lastPathComponent caseInsensitiveCompare:@"theme.json"]==NSOrderedSame) return item;
+    return [folder URLByAppendingPathComponent:@"theme.json"];
+}
 - (NSDictionary *)validThemeJSONAtFolder:(NSURL *)folder {
-    NSData *data=[NSData dataWithContentsOfURL:[folder URLByAppendingPathComponent:@"theme.json"]];
+    NSData *data=[NSData dataWithContentsOfURL:[self themeJSONURLInFolder:folder]];
     NSDictionary *json=data?[NSJSONSerialization JSONObjectWithData:data options:0 error:nil]:nil;
     NSDictionary *palette=[json isKindOfClass:NSDictionary.class]?json[@"palette"]:nil;
     if (![palette isKindOfClass:NSDictionary.class]) return nil;
-    for (NSString *key in @[@"idle",@"pressed",@"outline",@"ringFill",@"text",@"pressedText"])
-        if (!themeHex(palette[key])) return nil;
+    for (NSString *key in @[@"idle",@"pressed",@"outline",@"ringFill",@"text",@"pressedText"]) {
+        id value=palette[key];
+        if (!value) for (id paletteKey in palette)
+            if ([paletteKey isKindOfClass:NSString.class] && [paletteKey caseInsensitiveCompare:key]==NSOrderedSame) { value=palette[paletteKey]; break; }
+        if (!themeHex(value)) return nil;
+    }
     return json;
 }
 - (BOOL)loadThemeAtPath:(NSString *)path {
     if (!path.length) return NO;
-    NSData *data=[NSData dataWithContentsOfFile:[path stringByAppendingPathComponent:@"theme.json"]];
+    NSData *data=[NSData dataWithContentsOfURL:[self themeJSONURLInFolder:[NSURL fileURLWithPath:path isDirectory:YES]]];
     if (!data) return NO;
     NSDictionary *json=[NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
     if (![json isKindOfClass:NSDictionary.class]) return NO;
@@ -1216,32 +1227,37 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     (void)controller;
     NSURL *source=urls.firstObject; if (!source) return;
     BOOL scoped=[source startAccessingSecurityScopedResource];
-    @try {
-        // Accept either the individual theme folder or a parent folder containing exactly one
-        // valid theme folder (for example, importing TouchControlThemes/Forest).
-        NSURL *themeFolder=source;
+    __block NSString *installedPath=nil, *installedName=nil, *failure=nil;
+    NSFileCoordinator *coordinator=[[NSFileCoordinator alloc] initWithFilePresenter:nil];
+    NSError *coordinationError=nil;
+    [coordinator coordinateReadingItemAtURL:source options:0 error:&coordinationError byAccessor:^(NSURL *readableSource) {
+        NSFileManager *fm=NSFileManager.defaultManager;
+        // Accept a theme folder or a parent containing exactly one theme. Coordinate reads
+        // through the Files provider so iCloud/On My iPhone folders are fully materialized.
+        NSURL *themeFolder=readableSource;
         NSDictionary *json=[self validThemeJSONAtFolder:themeFolder];
         if (!json) {
             NSMutableArray<NSURL *> *valid=[NSMutableArray array];
-            NSDirectoryEnumerator<NSURL *> *enumerator=[NSFileManager.defaultManager enumeratorAtURL:source
+            NSDirectoryEnumerator<NSURL *> *enumerator=[fm enumeratorAtURL:readableSource
                 includingPropertiesForKeys:@[NSURLIsDirectoryKey] options:NSDirectoryEnumerationSkipsHiddenFiles
                 errorHandler:^BOOL(NSURL *url, NSError *error) { (void)url; (void)error; return YES; }];
             for (NSURL *entry in enumerator) {
-                if (![entry.lastPathComponent isEqualToString:@"theme.json"]) continue;
+                if ([entry.lastPathComponent caseInsensitiveCompare:@"theme.json"]!=NSOrderedSame) continue;
                 NSURL *candidate=[entry URLByDeletingLastPathComponent];
-                if ([self validThemeJSONAtFolder:candidate] && ![valid containsObject:candidate]) [valid addObject:candidate];
+                if ([self validThemeJSONAtFolder:candidate] &&
+                    ![valid containsObject:candidate]) [valid addObject:candidate];
             }
             if (valid.count==1) {
                 themeFolder=valid.firstObject;
                 json=[self validThemeJSONAtFolder:themeFolder];
+            } else if (valid.count>1) {
+                failure=@"More than one valid theme was found. Select the folder for a single theme and try again.";
+                return;
             }
         }
         if (!json) {
-            UIAlertController *alert=[UIAlertController alertControllerWithTitle:@"Invalid Theme Folder"
-                message:@"Choose a theme folder containing theme.json with all six palette colors. You can also choose a parent folder if it contains one theme folder."
-                preferredStyle:UIAlertControllerStyleAlert];
-            [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
-            [[self editorPresenter] presentViewController:alert animated:YES completion:nil]; return;
+            failure=@"No valid theme.json was found. The selected theme must contain all six palette colors: idle, pressed, outline, ringFill, text, and pressedText.";
+            return;
         }
         NSString *folderName=[json[@"name"] isKindOfClass:NSString.class] && [json[@"name"] length]?json[@"name"]:themeFolder.lastPathComponent;
         NSCharacterSet *allowed=[NSCharacterSet characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 _-"];
@@ -1252,17 +1268,46 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         }
         NSString *safeName=[safeBuffer stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@" ._"]];
         if (!safeName.length) safeName=@"Imported Theme";
-        NSURL *destination=[[self themesDirectoryCreating:YES] URLByAppendingPathComponent:safeName isDirectory:YES];
-        NSFileManager *fm=NSFileManager.defaultManager; NSError *error=nil;
-        if ([fm fileExistsAtPath:destination.path]) [fm removeItemAtURL:destination error:nil];
-        if (![fm copyItemAtURL:themeFolder toURL:destination error:&error]) {
-            UIAlertController *alert=[UIAlertController alertControllerWithTitle:@"Theme Import Failed" message:error.localizedDescription
-                preferredStyle:UIAlertControllerStyleAlert];
-            [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
-            [[self editorPresenter] presentViewController:alert animated:YES completion:nil]; return;
+        NSURL *root=[self themesDirectoryCreating:YES];
+        NSURL *destination=[root URLByAppendingPathComponent:safeName isDirectory:YES];
+        NSURL *staging=[root URLByAppendingPathComponent:[NSString stringWithFormat:@".import-%@",NSUUID.UUID.UUIDString] isDirectory:YES];
+        NSError *copyError=nil;
+        if (![fm copyItemAtURL:themeFolder toURL:staging error:&copyError]) {
+            failure=[NSString stringWithFormat:@"The theme files could not be read or copied. %@",copyError.localizedDescription ?: @""];
+            return;
         }
-        [self applyThemePath:destination.path name:safeName];
-    } @finally { if (scoped) [source stopAccessingSecurityScopedResource]; }
+        // Canonicalize the manifest filename so the runtime loader always finds it.
+        NSURL *manifest=[self themeJSONURLInFolder:staging];
+        NSURL *canonical=[staging URLByAppendingPathComponent:@"theme.json"];
+        if (![manifest.lastPathComponent isEqualToString:@"theme.json"] &&
+            ![fm moveItemAtURL:manifest toURL:canonical error:&copyError]) {
+            [fm removeItemAtURL:staging error:nil];
+            failure=[NSString stringWithFormat:@"The theme manifest could not be normalized. %@",copyError.localizedDescription ?: @""];
+            return;
+        }
+        if ([fm fileExistsAtPath:destination.path] && ![fm removeItemAtURL:destination error:&copyError]) {
+            [fm removeItemAtURL:staging error:nil];
+            failure=[NSString stringWithFormat:@"The existing theme could not be replaced. %@",copyError.localizedDescription ?: @""];
+            return;
+        }
+        if (![fm moveItemAtURL:staging toURL:destination error:&copyError]) {
+            [fm removeItemAtURL:staging error:nil];
+            failure=[NSString stringWithFormat:@"The imported theme could not be installed. %@",copyError.localizedDescription ?: @""];
+            return;
+        }
+        installedPath=destination.path;
+        installedName=safeName;
+    }];
+    if (scoped) [source stopAccessingSecurityScopedResource];
+    if (coordinationError) failure=[NSString stringWithFormat:@"The selected folder could not be accessed. %@",coordinationError.localizedDescription];
+    if (installedPath) {
+        [self applyThemePath:installedPath name:installedName];
+        return;
+    }
+    UIAlertController *alert=[UIAlertController alertControllerWithTitle:@"Theme Import Failed"
+        message:failure ?: @"The selected folder could not be imported." preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+    [[self editorPresenter] presentViewController:alert animated:YES completion:nil];
 }
 - (void)documentPickerWasCancelled:(UIDocumentPickerViewController *)controller { (void)controller; }
 
