@@ -238,7 +238,7 @@ private struct LauncherView: View {
                                                             Spacer()
                                                             if selectedTheme == theme.name {
                                                                 Image(systemName: "checkmark")
-                                                                    .foregroundStyle(accentColor)
+                                                                    .foregroundStyle(.white)
                                                             }
                                                         }
                                                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -252,7 +252,7 @@ private struct LauncherView: View {
                                                             confirmingThemeDeletion = true
                                                         } label: {
                                                             Image(systemName: "trash")
-                                                                .foregroundStyle(.red)
+                                                                .foregroundStyle(Color(red: 0.55, green: 0.08, blue: 0.08))
                                                                 .frame(width: 32, height: 32)
                                                                 .contentShape(Rectangle())
                                                         }
