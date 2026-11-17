@@ -1098,8 +1098,10 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             NSDictionary *json=[self validThemeJSONAtFolder:folder];
             NSString *themeName=[json[@"name"] isKindOfClass:NSString.class] ? json[@"name"] : folder.lastPathComponent;
             themeName=normalizedName(themeName);
-            if ([folderName hasPrefix:@"ANIMAL WELL"] || [themeName hasPrefix:@"ANIMAL WELL"]) return 0;
-            if ([folderName hasPrefix:@"CLASSIC"] || [themeName hasPrefix:@"CLASSIC"]) return 1;
+            // Match the launcher's exact built-in theme ranking. Prefix matches can
+            // accidentally promote unrelated user themes such as "Classic Remix".
+            if ([folderName isEqualToString:@"ANIMAL WELL"] || [themeName isEqualToString:@"ANIMAL WELL"]) return 0;
+            if ([folderName isEqualToString:@"CLASSIC"] || [themeName isEqualToString:@"CLASSIC"]) return 1;
             // FOREST is intentionally grouped with imported/user-added themes.
             return 2;
         };
