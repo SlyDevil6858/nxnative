@@ -1259,12 +1259,14 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 
 // ---- In-game touch-control editor and named profiles ----
 - (NSString *)themeColorKeyForControl:(int)control {
+    if (control==16) return @"Stick";
+    if (control==17) return @"Dpad";
     switch (control) {
         case B_A:return @"A"; case B_B:return @"B"; case B_X:return @"X"; case B_Y:return @"Y";
         case B_LS:case B_RS:return @"Stick"; case B_L:return @"L"; case B_R:return @"R";
         case B_ZL:return @"ZL"; case B_ZR:return @"ZR"; case B_PLUS:return @"Plus";
-        case B_MINUS:return @"Minus"; case B_LEFT:case B_UP:case B_RIGHT:case B_DOWN:return @"Dpad";
-        default:return control==B_N?@"Layout":nil;
+        case B_MINUS:return @"Minus";
+        default:return nil;
     }
 }
 - (NSString *)hexForColor:(UIColor *)color {
@@ -1276,7 +1278,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     if (!_themePath.length) return;
     NSURL *documents=[self themesDirectoryCreating:YES];
     NSString *prefix=[documents.standardizedURL.path stringByAppendingString:@"/"];
-    if (![_themePath.stringByStandardizingPath hasPrefix:prefix]) return;
+    if (![[ _themePath stringByStandardizingPath] hasPrefix:prefix]) return;
     NSString *jsonPath=[_themePath stringByAppendingPathComponent:@"theme.json"];
     NSMutableDictionary *json=[[NSJSONSerialization JSONObjectWithData:[NSData dataWithContentsOfFile:jsonPath] options:NSJSONReadingMutableContainers error:nil] mutableCopy];
     if (!json) return;
