@@ -1457,7 +1457,15 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         [self updateEditor];
     }]];
     UIViewController *presenter=[self editorPresenter];
-    if (presenter) [presenter presentViewController:prompt animated:YES completion:nil];
+    if (!presenter || presenter.isBeingDismissed || presenter.isBeingPresented) return;
+
+    // UIAlertController does not reliably focus its text field when launched from
+    // the gamepad's custom overlay. Explicitly request focus after presentation so
+    // the software keyboard appears in both the pre-launch and live editors.
+    [presenter presentViewController:prompt animated:YES completion:^{
+        UITextField *field=prompt.textFields.firstObject;
+        [field becomeFirstResponder];
+    }];
 }
 - (void)confirmDeleteThemeAtPath:(NSString *)path name:(NSString *)name {
     NSURL *documentsRoot=[self themesDirectoryCreating:YES];
