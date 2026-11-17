@@ -1130,7 +1130,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         NSError *error=nil;
         if ([folderName caseInsensitiveCompare:@"FOREST"]==NSOrderedSame) {
             NSURL *marker=[documentsRoot URLByAppendingPathComponent:@".FOREST.deleted"];
-            [NSData data].writeToURL:marker atomically:YES;
+            [[NSData data] writeToURL:marker atomically:YES];
         }
         if (![NSFileManager.defaultManager removeItemAtPath:path error:&error]) {
             UIAlertController *failure=[UIAlertController alertControllerWithTitle:@"Could Not Delete Theme"
