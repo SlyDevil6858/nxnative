@@ -618,6 +618,7 @@ static BOOL isClick(int b) { return b == B_LS || b == B_RS; }
                       base.size.width * factor, base.size.height * factor);
 }
 - (CGPoint)controlCenter:(int)b {
+    if (b == 18) return self.swapCenter;
     if (b == 16) return self.stickHome;
     if (b == 17) return self.dpadCenter;
     if (b < 4) return [self facePos:b];
@@ -1005,6 +1006,7 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     }
 }
 - (CGFloat)editHighlightRadiusForControl:(int)b {
+    if (b == 18) return K_SWAP_R * self.u;
     if (b == 16) return [self stickR:0];
     if (b == 17) return self.dpadR;
     if (b < 4) return [self faceRadius:b];
@@ -1285,10 +1287,14 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     switch (_colorTarget) {
         case 1:return @"Border Color";
         case 2:return @"Left Stick Track";
+        case 3:return @"Text Color";
+        case 4:return @"Pressed Text";
         default:return @"Fill Color";
     }
 }
 - (UIColor *)currentColorForEditorSelection {
+    if (_colorTarget==3) return k_text;
+    if (_colorTarget==4) return k_textOn;
     if (_colorTarget==2) return _themeButtonColors[@"StickTrack"] ?: k_stickTrack;
     if (_colorTarget==1) {
         if (_selected<0) return _themeButtonColors[@"BorderA"] ?: k_line;
@@ -1698,6 +1704,10 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     NSMutableDictionary *buttons=[json[@"buttons"] isKindOfClass:NSDictionary.class]?[json[@"buttons"] mutableCopy]:[NSMutableDictionary dictionary];
     for (NSString *key in _themeButtonColors) buttons[key]=[self hexForColor:_themeButtonColors[key]];
     json[@"buttons"]=buttons;
+    NSMutableDictionary *palette=[json[@"palette"] isKindOfClass:NSDictionary.class]?[json[@"palette"] mutableCopy]:[NSMutableDictionary dictionary];
+    palette[@"text"]=[self hexForColor:k_text];
+    palette[@"pressedText"]=[self hexForColor:k_textOn];
+    json[@"palette"]=palette;
     NSData *data=[NSJSONSerialization dataWithJSONObject:json options:NSJSONWritingPrettyPrinted error:nil];
     if (data) [data writeToFile:jsonPath atomically:YES];
     [self updateThemeMenu];
@@ -1743,7 +1753,11 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 - (void)applyEditorColor:(UIColor *)color {
     if (!color) return;
     NSMutableDictionary *colors=[_themeButtonColors mutableCopy] ?: [NSMutableDictionary dictionary];
-    if (_colorTarget==2) {
+    if (_colorTarget==3) {
+        k_text=[color colorWithAlphaComponent:0.96];
+    } else if (_colorTarget==4) {
+        k_textOn=color;
+    } else if (_colorTarget==2) {
         // The track is an independent layer and never changes the stick fill or border.
         colors[@"StickTrack"]=color;
         k_stickTrack=[color colorWithAlphaComponent:0.25];
@@ -2068,7 +2082,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [_editorPopupOverlay bringSubviewToFront:_editorPopupPanel];
 }
 - (void)showColorTargetPopup {
-    NSArray<NSString *> *names=@[@"Fill Color",@"Border Color",@"Left Stick Track"];
+    NSArray<NSString *> *names=@[@"Fill Color",@"Border Color",@"Left Stick Track",@"Text Color",@"Pressed Text"];
     NSMutableArray *items=[NSMutableArray array];
     for (NSInteger target=0;target<names.count;target++) {
         NSInteger selectedTarget=target;
@@ -2137,7 +2151,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _sizeSlider.enabled=!styleOnly;
     _alphaSlider.enabled=!styleOnly;
     _resetControlButton.enabled=!styleOnly;
-    _editInfo.text=styleOnly ? @"Style only · Edit the fill and border colors." :
+    _editInfo.text=styleOnly ? @"Layout Switcher · Style only. Position and size are locked." :
         [NSString stringWithFormat:@"Size %.0f%% · Opacity %.0f%%\nDrag a control to move it.",_sizeSlider.value*100,_alphaSlider.value*100];
     // The control picker is shown by the custom rounded popup above.
     NSString *colorKey=_selected<0 ? nil : [self themeColorKeyForControl:_selected];
@@ -2147,7 +2161,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _editorColor=wellColor;
     [self refreshColorWellAppearance];
     BOOL builtInTheme=[self isBuiltInThemeSelected];
-    BOOL hasColorTarget=(_colorTarget==2 ? _selected!=18 : (_selected<0 || colorKey!=nil));
+    BOOL hasColorTarget=(_colorTarget==2 ? _selected!=18 : (_selected<0 || colorKey!=nil || _colorTarget>=3));
     _colorWellButton.enabled=(hasColorTarget && !builtInTheme);
     _colorTargetButton.enabled=!builtInTheme;
     _colorTargetButton.alpha=builtInTheme?0.55:1.0;
@@ -2375,6 +2389,9 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 - (void)editTouches:(NSSet<UITouch *> *)touches began:(BOOL)began {
     if (began && !_dragTouch) {
         UITouch *touch=touches.anyObject; CGPoint start=[touch locationInView:self];
+        if (dist(start,self.swapCenter)<=MAX(44*self.u,K_SWAP_R*self.u+12*self.u)) {
+            _selected=18; _dragAllHomes=nil; [self updateEditor]; return;
+        }
         CGFloat best=44*self.u; NSInteger closest=-1;
         for (int b=0;b<18;b++) if ([self editable:b]) {
             CGFloat distance=dist(start,[self controlCenter:b]);
