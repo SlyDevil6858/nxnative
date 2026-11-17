@@ -1758,37 +1758,41 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     importThemeButton.titleLabel.minimumScaleFactor=0.8;
     importThemeButton.titleLabel.lineBreakMode=NSLineBreakByClipping;
 
-    // Runtime HUD settings share the Create theme row in the live in-game editor.
-    if (!_launcherPreview) {
-        _fpsButton=[UIButton buttonWithType:UIButtonTypeSystem];
-        _fpsButton.frame=CGRectMake(272,258,36,32);
-        _fpsButton.accessibilityLabel=@"FPS counter";
-        _fpsButton.accessibilityHint=@"Toggle the FPS counter";
-        [_fpsButton setImage:[UIImage systemImageNamed:@"speedometer"] forState:UIControlStateNormal];
-        _fpsButton.imageView.contentMode=UIViewContentModeScaleAspectFit;
-        _fpsButton.tintColor=UIColor.whiteColor;
-        [_fpsButton addTarget:self action:@selector(toggleFPSCounter) forControlEvents:UIControlEventTouchUpInside];
-        [_tools addSubview:_fpsButton];
+    // Runtime HUD toggles appear in both the launcher preview and live editor.
+    _fpsButton=[UIButton buttonWithType:UIButtonTypeSystem];
+    _fpsButton.frame=CGRectMake(272,258,36,32);
+    _fpsButton.backgroundColor=[UIColor colorWithWhite:0.12 alpha:0.96];
+    _fpsButton.layer.cornerRadius=6;
+    _fpsButton.accessibilityLabel=@"FPS counter";
+    _fpsButton.accessibilityHint=@"Toggle the FPS counter";
+    [_fpsButton setImage:[UIImage systemImageNamed:@"speedometer"] forState:UIControlStateNormal];
+    _fpsButton.imageView.contentMode=UIViewContentModeScaleAspectFit;
+    _fpsButton.tintColor=UIColor.whiteColor;
+    [_fpsButton addTarget:self action:@selector(toggleFPSCounter) forControlEvents:UIControlEventTouchUpInside];
+    [_tools addSubview:_fpsButton];
 
-        _hudButton=[UIButton buttonWithType:UIButtonTypeSystem];
-        _hudButton.frame=CGRectMake(316,258,36,32);
-        _hudButton.accessibilityLabel=@"Performance HUD";
-        _hudButton.accessibilityHint=@"Toggle the performance HUD";
-        [_hudButton setImage:[UIImage systemImageNamed:@"chart.bar.xaxis"] forState:UIControlStateNormal];
-        _hudButton.imageView.contentMode=UIViewContentModeScaleAspectFit;
-        _hudButton.tintColor=UIColor.whiteColor;
-        [_hudButton addTarget:self action:@selector(togglePerformanceHUD) forControlEvents:UIControlEventTouchUpInside];
-        [_tools addSubview:_hudButton];
-        [self refreshHUDToggleButtons];
-    }
+    _hudButton=[UIButton buttonWithType:UIButtonTypeSystem];
+    _hudButton.frame=CGRectMake(316,258,36,32);
+    _hudButton.backgroundColor=[UIColor colorWithWhite:0.12 alpha:0.96];
+    _hudButton.layer.cornerRadius=6;
+    _hudButton.accessibilityLabel=@"Performance HUD";
+    _hudButton.accessibilityHint=@"Toggle the performance HUD";
+    [_hudButton setImage:[UIImage systemImageNamed:@"chart.bar.xaxis"] forState:UIControlStateNormal];
+    _hudButton.imageView.contentMode=UIViewContentModeScaleAspectFit;
+    _hudButton.tintColor=UIColor.whiteColor;
+    [_hudButton addTarget:self action:@selector(togglePerformanceHUD) forControlEvents:UIControlEventTouchUpInside];
+    [_tools addSubview:_hudButton];
+    [self refreshHUDToggleButtons];
 }
 - (void)refreshHUDToggleButtons {
     BOOL fps=front_ios_runtime_fps_enabled();
     BOOL hud=front_ios_runtime_metal_hud_enabled();
-    _fpsButton.tintColor=fps ? [UIColor colorWithRed:0.20 green:0.43 blue:0.25 alpha:1] :
-        [UIColor colorWithRed:0.48 green:0.16 blue:0.16 alpha:1];
-    _hudButton.tintColor=hud ? [UIColor colorWithRed:0.20 green:0.43 blue:0.25 alpha:1] :
-        [UIColor colorWithRed:0.48 green:0.16 blue:0.16 alpha:1];
+    UIColor *normal=[UIColor colorWithWhite:0.12 alpha:0.96];
+    UIColor *enabled=[UIColor colorWithRed:0.16 green:0.34 blue:0.20 alpha:1];
+    _fpsButton.backgroundColor=fps ? enabled : normal;
+    _hudButton.backgroundColor=hud ? enabled : normal;
+    _fpsButton.tintColor=UIColor.whiteColor;
+    _hudButton.tintColor=UIColor.whiteColor;
     _fpsButton.accessibilityValue=fps?@"On":@"Off";
     _hudButton.accessibilityValue=hud?@"On":@"Off";
 }
