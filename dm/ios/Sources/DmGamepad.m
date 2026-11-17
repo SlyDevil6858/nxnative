@@ -1606,7 +1606,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             if (!editingThisTheme) {
                 UIButton *rename=[UIButton buttonWithType:UIButtonTypeCustom]; rename.frame=CGRectMake(216,row*rowHeight+8,32,32);
                 [rename setImage:[[UIImage systemImageNamed:@"pencil" withConfiguration:renameSymbol] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate] forState:UIControlStateNormal];
-                rename.tintColor=[UIColor colorWithWhite:1 alpha:0.82]; rename.accessibilityLabel=[NSString stringWithFormat:@"Rename %@",title];
+                rename.tintColor=[self editorAccentColor]; rename.accessibilityLabel=[NSString stringWithFormat:@"Rename %@",title];
                 NSString *renamePath=[path copy];
                 [rename addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; DmGamepad *strongSelf=weakSelf; if (!strongSelf) return; strongSelf->_themeMenuPinnedFrame=strongSelf->_themeMenuPanel.frame; strongSelf->_themeMenuFramePinned=YES; strongSelf->_themeRenamePath=renamePath; strongSelf->_themeRenameField=nil; [strongSelf updateThemeMenu]; }] forControlEvents:UIControlEventTouchUpInside];
                 [_themeMenuScroll addSubview:rename];
