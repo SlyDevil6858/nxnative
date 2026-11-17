@@ -467,6 +467,7 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
 - (instancetype)initWithFrame:(CGRect)f {
     if ((self = [super initWithFrame:f])) {
         self.multipleTouchEnabled = YES; self.opaque = NO; self.backgroundColor = UIColor.clearColor;
+        [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(themeRenameKeyboardWillShow:) name:UIKeyboardWillShowNotification object:nil];
         _launcherPreview = g_launcher_preview;
         const char *feedback = getenv("DM_TOUCH_HAPTICS");
         if (!feedback || atoi(feedback)) {
@@ -1481,6 +1482,25 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _themeMenuOverlay.hidden=YES;
     if (_themeRenameField.isFirstResponder) [_themeRenameField resignFirstResponder];
     _themeMenuFramePinned=NO;
+}
+- (void)themeRenameKeyboardWillShow:(NSNotification *)notification {
+    if (!_themeMenuFramePinned || !_themeRenameField || _themeMenuOverlay.hidden) return;
+    NSDictionary *info=notification.userInfo;
+    NSValue *keyboardValue=info[UIKeyboardFrameEndUserInfoKey];
+    if (![keyboardValue isKindOfClass:NSValue.class]) return;
+    CGRect keyboardScreen=keyboardValue.CGRectValue;
+    CGRect keyboardFrame=[self convertRect:keyboardScreen fromView:nil];
+    CGFloat panelHeight=_themeMenuPanel.frame.size.height;
+    CGFloat availableBottom=CGRectGetMinY(keyboardFrame)-8;
+    CGFloat targetY=MIN(_themeMenuPinnedFrame.origin.y,availableBottom-panelHeight);
+    targetY=MAX(8,targetY);
+    if (fabs(targetY-_themeMenuPinnedFrame.origin.y)<0.5) return;
+    _themeMenuPinnedFrame.origin.y=targetY;
+    NSTimeInterval duration=[info[UIKeyboardAnimationDurationUserInfoKey] doubleValue];
+    UIViewAnimationOptions curve=(UIViewAnimationOptions)([info[UIKeyboardAnimationCurveUserInfoKey] integerValue]<<16);
+    [UIView animateWithDuration:duration delay:0 options:curve|UIViewAnimationOptionBeginFromCurrentState animations:^{
+        self->_themeMenuPanel.frame=CGRectMake(self->_themeMenuPinnedFrame.origin.x,targetY,self->_themeMenuPanel.frame.size.width,self->_themeMenuPanel.frame.size.height);
+    } completion:nil];
 }
 - (void)updateThemeMenu {
     NSString *current=[NSUserDefaults.standardUserDefaults stringForKey:k_theme_name_key] ?: @"ANIMAL WELL";
