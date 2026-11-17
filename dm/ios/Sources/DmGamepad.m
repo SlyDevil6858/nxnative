@@ -207,7 +207,10 @@ static void pads_start(void);   // Physical controllers, below
     UILongPressGestureRecognizer *_editHold;
     UIView *_tools;
     UISlider *_sizeSlider, *_alphaSlider;
-    UISwitch *_fpsSwitch, *_hudSwitch;
+    UIButton *_fpsButton, *_hudButton;
+    UIButton *_themeMenuOverlay;
+    UIView *_themeMenuPanel;
+    UIScrollView *_themeMenuScroll;
     UILabel *_editInfo;
     CAShapeLayer *_editHighlight;
     NSDictionary<NSString *, NSValue *> *_dragAllHomes;
@@ -905,6 +908,16 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
         toolsContentBottom=MAX(toolsContentBottom,CGRectGetMaxY(item.frame));
     CGFloat toolsHeight=ceil(toolsContentBottom+8);
     _tools.frame=CGRectMake(CGRectGetMidX(safe)-180,CGRectGetMidY(safe)-toolsHeight/2,360,toolsHeight);
+    _themeMenuOverlay.frame=self.bounds;
+    if (!_themeMenuOverlay.hidden) {
+        CGRect anchor=[_themeButton convertRect:_themeButton.bounds toView:self];
+        CGFloat panelHeight=_themeMenuPanel.bounds.size.height;
+        CGFloat panelX=MIN(MAX(8,CGRectGetMidX(anchor)-_themeMenuPanel.bounds.size.width/2),MAX(8,self.bounds.size.width-_themeMenuPanel.bounds.size.width-8));
+        CGFloat below=CGRectGetMaxY(anchor)+6;
+        CGFloat panelY=(below+panelHeight<=self.bounds.size.height-8)?below:MAX(8,CGRectGetMinY(anchor)-panelHeight-6);
+        _themeMenuPanel.frame=CGRectMake(panelX,panelY,_themeMenuPanel.bounds.size.width,panelHeight);
+        [_themeMenuOverlay bringSubviewToFront:_themeMenuPanel];
+    }
     _controls.frame = self.layer.bounds;
     for (int b = B_A; b <= B_Y; b++) { CGPoint c = [self facePos:b]; setPath(_key[b], circlePath(c, [self faceRadius:b])); placeLabel(_label[b], c, 20 * u * [self scale:b]); }
     for (int i = 0; i < (int)(sizeof k_btns / sizeof *k_btns); i++) { int b = k_btns[i];
@@ -1085,10 +1098,25 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [NSUserDefaults.standardUserDefaults setObject:_themeName ?: name forKey:k_theme_name_key];
     [self refresh]; [self setNeedsLayout]; [self layoutIfNeeded]; [self updateEditor];
 }
+- (void)toggleThemeMenu {
+    if (_themeMenuOverlay.hidden) {
+        [self updateThemeMenu];
+        _themeMenuOverlay.hidden=NO;
+        [self setNeedsLayout];
+        [self layoutIfNeeded];
+        [_themeMenuOverlay bringSubviewToFront:_themeMenuPanel];
+    } else {
+        [self closeThemeMenu];
+    }
+}
+- (void)closeThemeMenu {
+    _themeMenuOverlay.hidden=YES;
+}
 - (void)updateThemeMenu {
     NSString *current=[NSUserDefaults.standardUserDefaults stringForKey:k_theme_name_key] ?: @"ANIMAL WELL";
     [_themeButton setTitle:[NSString stringWithFormat:@"Theme: %@ ▾",current] forState:UIControlStateNormal];
-    NSMutableArray *items=[NSMutableArray array];
+    for (UIView *view in _themeMenuScroll.subviews) [view removeFromSuperview];
+
     NSURL *documentsRoot=[self themesDirectoryCreating:YES];
     NSURL *bundledRoot=[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES];
     NSArray<NSURL *> *bundledFolders=[NSFileManager.defaultManager contentsOfDirectoryAtURL:bundledRoot
@@ -1108,88 +1136,96 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         NSString *(^normalizedName)(NSString *) = ^NSString *(NSString *value) {
             NSString *name=[[value uppercaseString] stringByReplacingOccurrencesOfString:@"_" withString:@" "];
             name=[name stringByReplacingOccurrencesOfString:@"-" withString:@" "];
-            for (NSString *suffix in @[@" SKIN", @" THEME"]) {
-                if ([name hasSuffix:suffix]) {
-                    name=[[name substringToIndex:name.length-suffix.length]
-                        stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
-                }
-            }
+            for (NSString *suffix in @[@" SKIN", @" THEME"]) if ([name hasSuffix:suffix])
+                name=[[name substringToIndex:name.length-suffix.length] stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
             return [name stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
         };
         NSInteger (^priority)(NSURL *) = ^NSInteger(NSURL *folder) {
             NSString *folderName=normalizedName(folder.lastPathComponent);
             NSDictionary *json=[self validThemeJSONAtFolder:folder];
-            NSString *themeName=[json[@"name"] isKindOfClass:NSString.class] ? json[@"name"] : folder.lastPathComponent;
-            themeName=normalizedName(themeName);
-            // Match the launcher's exact built-in theme ranking. Prefix matches can
-            // accidentally promote unrelated user themes such as "Classic Remix".
+            NSString *themeName=normalizedName([json[@"name"] isKindOfClass:NSString.class] ? json[@"name"] : folder.lastPathComponent);
             if ([folderName isEqualToString:@"ANIMAL WELL"] || [themeName isEqualToString:@"ANIMAL WELL"]) return 0;
             if ([folderName isEqualToString:@"CLASSIC"] || [themeName isEqualToString:@"CLASSIC"]) return 1;
-            // FOREST is intentionally grouped with imported/user-added themes.
             return 2;
         };
-        NSInteger leftPriority=priority(left), rightPriority=priority(right);
-        if (leftPriority<rightPriority) return NSOrderedAscending;
-        if (leftPriority>rightPriority) return NSOrderedDescending;
-        NSDictionary *leftJSON=[self validThemeJSONAtFolder:left];
-        NSDictionary *rightJSON=[self validThemeJSONAtFolder:right];
-        NSString *leftName=[leftJSON[@"name"] isKindOfClass:NSString.class] ? leftJSON[@"name"] : left.lastPathComponent;
-        NSString *rightName=[rightJSON[@"name"] isKindOfClass:NSString.class] ? rightJSON[@"name"] : right.lastPathComponent;
-        NSComparisonResult byName=[leftName localizedCaseInsensitiveCompare:rightName];
-        if (byName!=NSOrderedSame) return byName;
-        return [left.path localizedCaseInsensitiveCompare:right.path];
+        NSInteger lp=priority(left),rp=priority(right);
+        if(lp<rp)return NSOrderedAscending;if(lp>rp)return NSOrderedDescending;
+        NSDictionary *lj=[self validThemeJSONAtFolder:left],*rj=[self validThemeJSONAtFolder:right];
+        NSString *ln=[lj[@"name"] isKindOfClass:NSString.class]?lj[@"name"]:left.lastPathComponent;
+        NSString *rn=[rj[@"name"] isKindOfClass:NSString.class]?rj[@"name"]:right.lastPathComponent;
+        NSComparisonResult byName=[ln localizedCaseInsensitiveCompare:rn];
+        return byName==NSOrderedSame?[left.path localizedCaseInsensitiveCompare:right.path]:byName;
     }];
-    NSString *documentsPrefix=[documentsRoot.path stringByAppendingString:@"/"];
+
+    CGFloat rowHeight=40;
+    NSUInteger row=0;
     for (NSURL *folder in folders) {
-        BOOL isDir=NO; if (![NSFileManager.defaultManager fileExistsAtPath:folder.path isDirectory:&isDir] || !isDir) continue;
-        NSString *themePath=folder.path;
-        NSData *data=[NSData dataWithContentsOfFile:[themePath stringByAppendingPathComponent:@"theme.json"]];
-        NSDictionary *json=data?[NSJSONSerialization JSONObjectWithData:data options:0 error:nil]:nil;
-        json=[self validThemeJSONAtFolder:folder];
+        BOOL isDir=NO;
+        if (![NSFileManager.defaultManager fileExistsAtPath:folder.path isDirectory:&isDir] || !isDir) continue;
+        NSDictionary *json=[self validThemeJSONAtFolder:folder];
         if (!json) continue;
+        NSString *path=folder.standardizedURL.path;
         NSString *title=[json[@"name"] isKindOfClass:NSString.class] && [json[@"name"] length] ? json[@"name"] : folder.lastPathComponent;
-        UIAction *pick=[UIAction actionWithTitle:title image:nil identifier:nil handler:^(__unused UIAction *a) {
-            [self applyThemePath:themePath name:title];
-        }];
-        pick.state=[current isEqualToString:title]?UIMenuElementStateOn:UIMenuElementStateOff; [items addObject:pick];
+        UIButton *pick=[UIButton buttonWithType:UIButtonTypeSystem];
+        pick.frame=CGRectMake(0,row*rowHeight,250,rowHeight);
+        [pick setTitle:title forState:UIControlStateNormal];
+        pick.contentHorizontalAlignment=UIControlContentHorizontalAlignmentLeft;
+        pick.titleLabel.font=[UIFont systemFontOfSize:14];
+        pick.titleLabel.lineBreakMode=NSLineBreakByTruncatingTail;
+        pick.tintColor=UIColor.whiteColor;
+        if ([current isEqualToString:title]) [pick setTitle:[title stringByAppendingString:@"  ✓"] forState:UIControlStateNormal];
+        pick.accessibilityLabel=[NSString stringWithFormat:@"Select %@",title];
+        __weak typeof(self) weakSelf=self;
+        [pick addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) {
+            (void)action;
+            [weakSelf applyThemePath:path name:title];
+            [weakSelf closeThemeMenu];
+        }] forControlEvents:UIControlEventTouchUpInside];
+        [_themeMenuScroll addSubview:pick];
+
         NSString *folderName=folder.lastPathComponent;
         BOOL protectedTheme=[folderName caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
             [folderName caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame ||
             [title caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
             [title caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame;
-        // Compare canonical filesystem paths so the Documents copy is reliably recognized.
-        NSString *standardFolderPath=folder.standardizedURL.path;
-        // Determine writability by membership in the actual Documents directory listing,
-        // not by URL prefix checks (which can fail when iOS returns differently
-        // standardized container URLs). This guarantees the copied FOREST theme gets
-        // its delete action while bundled-only themes remain protected.
         BOOL writable=NO;
-        for (NSURL *importedFolder in importedFolders) {
-            if ([importedFolder.standardizedURL.path isEqualToString:standardFolderPath]) {
-                writable=YES;
-                break;
-            }
-        }
+        for (NSURL *importedFolder in importedFolders)
+            if ([importedFolder.standardizedURL.path isEqualToString:path]) { writable=YES; break; }
         if (writable && !protectedTheme) {
-            UIAction *remove=[UIAction actionWithTitle:[NSString stringWithFormat:@"Delete %@",title]
-                image:[UIImage systemImageNamed:@"trash.fill"] identifier:nil handler:^(__unused UIAction *a) {
-                    [self confirmDeleteThemeAtPath:themePath name:title];
-                }];
-            remove.attributes=UIMenuElementAttributesDestructive;
-            [items addObject:remove];
+            UIButton *remove=[UIButton buttonWithType:UIButtonTypeSystem];
+            remove.frame=CGRectMake(252,row*rowHeight+4,32,32);
+            [remove setImage:[UIImage systemImageNamed:@"trash"] forState:UIControlStateNormal];
+            remove.tintColor=[UIColor colorWithRed:0.55 green:0.08 blue:0.08 alpha:1];
+            remove.accessibilityLabel=[NSString stringWithFormat:@"Delete %@",title];
+            NSString *deletePath=[path copy],*deleteName=[title copy];
+            [remove addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) {
+                (void)action;
+                [weakSelf closeThemeMenu];
+                [weakSelf confirmDeleteThemeAtPath:deletePath name:deleteName];
+            }] forControlEvents:UIControlEventTouchUpInside];
+            [_themeMenuScroll addSubview:remove];
         }
+        UIView *separator=[[UIView alloc] initWithFrame:CGRectMake(0,(row+1)*rowHeight-1,288,0.5)];
+        separator.backgroundColor=[UIColor colorWithWhite:1 alpha:0.12];
+        [_themeMenuScroll addSubview:separator];
+        row++;
     }
-    // UIKit displays these menu children in reverse visual order in this editor.
-// Reverse the sorted actions so the visible order is ANIMAL WELL, CLASSIC, then the rest.
-    _themeButton.menu=[UIMenu menuWithTitle:@"Touch Control Theme"
-        children:[[items reverseObjectEnumerator] allObjects]];
-    _themeButton.showsMenuAsPrimaryAction=YES;
+    CGFloat contentHeight=row*rowHeight;
+    _themeMenuScroll.contentSize=CGSizeMake(288,contentHeight);
+    _themeMenuScroll.frame=CGRectMake(8,8,288,MIN(contentHeight,240));
+    _themeMenuPanel.frame=CGRectMake(0,0,304,MIN(contentHeight,240)+16);
 }
 - (void)confirmDeleteThemeAtPath:(NSString *)path name:(NSString *)name {
     NSURL *documentsRoot=[self themesDirectoryCreating:YES];
-    NSString *prefix=[documentsRoot.path stringByAppendingString:@"/"];
-    NSString *folderName=[NSURL fileURLWithPath:path].lastPathComponent;
-    if (![path hasPrefix:prefix] ||
+    NSURL *target=[NSURL fileURLWithPath:path].standardizedURL;
+    NSString *folderName=target.lastPathComponent;
+    BOOL isDirectDocumentsTheme=NO;
+    NSArray<NSURL *> *importedFolders=[NSFileManager.defaultManager contentsOfDirectoryAtURL:documentsRoot
+        includingPropertiesForKeys:nil options:NSDirectoryEnumerationSkipsHiddenFiles error:nil] ?: @[];
+    for (NSURL *folder in importedFolders) {
+        if ([folder.standardizedURL.path isEqualToString:target.path]) { isDirectDocumentsTheme=YES; break; }
+    }
+    if (!isDirectDocumentsTheme ||
         [folderName caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
         [folderName caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame ||
         [name caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
@@ -1201,11 +1237,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
     [alert addAction:[UIAlertAction actionWithTitle:@"Delete" style:UIAlertActionStyleDestructive handler:^(__unused UIAlertAction *action) {
         NSError *error=nil;
-        if ([folderName caseInsensitiveCompare:@"FOREST"]==NSOrderedSame) {
-            NSURL *marker=[documentsRoot URLByAppendingPathComponent:@".FOREST.deleted"];
-            [[NSData data] writeToURL:marker atomically:YES];
-        }
-        if (![NSFileManager.defaultManager removeItemAtPath:path error:&error]) {
+        if (![NSFileManager.defaultManager removeItemAtURL:target error:&error]) {
             UIAlertController *failure=[UIAlertController alertControllerWithTitle:@"Could Not Delete Theme"
                 message:error.localizedDescription ?: @"The theme folder could not be deleted."
                 preferredStyle:UIAlertControllerStyleAlert];
@@ -1213,10 +1245,16 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             [[self editorPresenter] presentViewController:failure animated:YES completion:nil];
             return;
         }
+        if ([folderName caseInsensitiveCompare:@"FOREST"]==NSOrderedSame) {
+            NSURL *marker=[documentsRoot URLByAppendingPathComponent:@".FOREST.deleted"];
+            if (![NSData.data writeToURL:marker atomically:YES]) {
+                LOG("touch theme: FOREST removed, but its deletion marker could not be written");
+            }
+        }
         NSString *selectedPath=[NSUserDefaults.standardUserDefaults stringForKey:k_theme_path_key];
-        if ([selectedPath isEqualToString:path]) {
+        if ([selectedPath isEqualToString:path] || [selectedPath isEqualToString:target.path]) {
             NSURL *animalWell=[[[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES]
-                URLByAppendingPathComponent:@"ANIMAL WELL" isDirectory:YES] URLByStandardizingPath];
+                URLByAppendingPathComponent:@"ANIMAL WELL" isDirectory:YES] standardizedURL];
             [self applyThemePath:animalWell.path name:@"ANIMAL WELL"];
         } else {
             [self updateThemeMenu];
@@ -1467,7 +1505,22 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _editInfo=[[UILabel alloc] initWithFrame:CGRectMake(8,184,344,32)];
     _editInfo.numberOfLines=2; _editInfo.font=[UIFont systemFontOfSize:11];
     _editInfo.textColor=UIColor.whiteColor; [_tools addSubview:_editInfo];
-    _themeButton=[self editorButton:@"Theme: ANIMAL WELL ▾" action:NULL frame:CGRectMake(8,220,244,32) parent:_tools];
+    _themeButton=[self editorButton:@"Theme: ANIMAL WELL ▾" action:@selector(toggleThemeMenu) frame:CGRectMake(8,220,244,32) parent:_tools];
+    _themeMenuOverlay=[UIButton buttonWithType:UIButtonTypeCustom];
+    _themeMenuOverlay.backgroundColor=UIColor.clearColor;
+    _themeMenuOverlay.hidden=YES;
+    [_themeMenuOverlay addTarget:self action:@selector(closeThemeMenu) forControlEvents:UIControlEventTouchUpInside];
+    [self addSubview:_themeMenuOverlay];
+    _themeMenuPanel=[UIView new];
+    _themeMenuPanel.backgroundColor=[UIColor colorWithWhite:0.035 alpha:0.98];
+    _themeMenuPanel.layer.cornerRadius=10;
+    _themeMenuPanel.layer.borderWidth=1;
+    _themeMenuPanel.layer.borderColor=[UIColor colorWithWhite:1 alpha:0.16].CGColor;
+    _themeMenuPanel.clipsToBounds=YES;
+    [_themeMenuOverlay addSubview:_themeMenuPanel];
+    _themeMenuScroll=[UIScrollView new];
+    _themeMenuScroll.showsVerticalScrollIndicator=YES;
+    [_themeMenuPanel addSubview:_themeMenuScroll];
     UIButton *importThemeButton=[self editorButton:@"Import…" action:@selector(importThemeFolder) frame:CGRectMake(260,220,92,32) parent:_tools];
     importThemeButton.titleLabel.font=[UIFont systemFontOfSize:11 weight:UIFontWeightMedium];
     [self editorButton:@"Create theme" action:@selector(createCustomTheme) frame:CGRectMake(105,258,150,32) parent:_tools];
@@ -1480,28 +1533,50 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         UILabel *fpsTitle=[[UILabel alloc] initWithFrame:CGRectMake(10,298,210,28)];
         fpsTitle.text=@"FPS counter"; fpsTitle.textColor=UIColor.whiteColor;
         fpsTitle.font=[UIFont systemFontOfSize:13]; [_tools addSubview:fpsTitle];
-        _fpsSwitch=[[UISwitch alloc] initWithFrame:CGRectMake(298,296,52,31)];
-        _fpsSwitch.onTintColor=accent;
-        _fpsSwitch.tintColor=[UIColor colorWithWhite:0.14 alpha:1.0];
-        _fpsSwitch.on=front_ios_runtime_fps_enabled();
-        [_fpsSwitch addTarget:self action:@selector(editorHUDChanged) forControlEvents:UIControlEventValueChanged];
-        [_tools addSubview:_fpsSwitch];
+        _fpsButton=[UIButton buttonWithType:UIButtonTypeSystem];
+        _fpsButton.frame=CGRectMake(298,296,44,32);
+        _fpsButton.accessibilityLabel=@"FPS counter";
+        [_fpsButton setImage:[UIImage systemImageNamed:@"speedometer"] forState:UIControlStateNormal];
+        _fpsButton.imageView.contentMode=UIViewContentModeScaleAspectFit;
+        _fpsButton.tintColor=UIColor.whiteColor;
+        [_fpsButton addTarget:self action:@selector(toggleFPSCounter) forControlEvents:UIControlEventTouchUpInside];
+        [_tools addSubview:_fpsButton];
 
         UILabel *hudTitle=[[UILabel alloc] initWithFrame:CGRectMake(10,332,210,28)];
         hudTitle.text=@"Performance HUD"; hudTitle.textColor=UIColor.whiteColor;
         hudTitle.font=[UIFont systemFontOfSize:13]; [_tools addSubview:hudTitle];
-        _hudSwitch=[[UISwitch alloc] initWithFrame:CGRectMake(298,330,52,31)];
-        _hudSwitch.onTintColor=accent;
-        _hudSwitch.tintColor=[UIColor colorWithWhite:0.14 alpha:1.0];
-        _hudSwitch.on=front_ios_runtime_metal_hud_enabled();
-        [_hudSwitch addTarget:self action:@selector(editorHUDChanged) forControlEvents:UIControlEventValueChanged];
-        [_tools addSubview:_hudSwitch];
+        _hudButton=[UIButton buttonWithType:UIButtonTypeSystem];
+        _hudButton.frame=CGRectMake(298,330,44,32);
+        _hudButton.accessibilityLabel=@"Performance HUD";
+        [_hudButton setImage:[UIImage systemImageNamed:@"chart.bar.xaxis"] forState:UIControlStateNormal];
+        _hudButton.imageView.contentMode=UIViewContentModeScaleAspectFit;
+        _hudButton.tintColor=UIColor.whiteColor;
+        [_hudButton addTarget:self action:@selector(togglePerformanceHUD) forControlEvents:UIControlEventTouchUpInside];
+        [_tools addSubview:_hudButton];
+        [self refreshHUDToggleButtons];
     }
 }
-- (void)editorHUDChanged {
-    [_touchFeedback impactOccurredWithIntensity:0.6];
-    [_touchFeedback prepare];
-    front_ios_set_runtime_hud(_fpsSwitch.on, _hudSwitch.on);
+- (void)refreshHUDToggleButtons {
+    BOOL fps=front_ios_runtime_fps_enabled();
+    BOOL hud=front_ios_runtime_metal_hud_enabled();
+    _fpsButton.tintColor=fps ? [UIColor colorWithRed:0.20 green:0.43 blue:0.25 alpha:1] :
+        [UIColor colorWithRed:0.48 green:0.16 blue:0.16 alpha:1];
+    _hudButton.tintColor=hud ? [UIColor colorWithRed:0.20 green:0.43 blue:0.25 alpha:1] :
+        [UIColor colorWithRed:0.48 green:0.16 blue:0.16 alpha:1];
+    _fpsButton.accessibilityValue=fps?@"On":@"Off";
+    _hudButton.accessibilityValue=hud?@"On":@"Off";
+}
+- (void)toggleFPSCounter {
+    BOOL fps=!front_ios_runtime_fps_enabled();
+    front_ios_set_runtime_hud(fps,front_ios_runtime_metal_hud_enabled());
+    [_touchFeedback impactOccurredWithIntensity:0.6]; [_touchFeedback prepare];
+    [self refreshHUDToggleButtons];
+}
+- (void)togglePerformanceHUD {
+    BOOL hud=!front_ios_runtime_metal_hud_enabled();
+    front_ios_set_runtime_hud(front_ios_runtime_fps_enabled(),hud);
+    [_touchFeedback impactOccurredWithIntensity:0.6]; [_touchFeedback prepare];
+    [self refreshHUDToggleButtons];
 }
 - (void)updateEditor {
     [self updateProfileMenu];
