@@ -208,6 +208,7 @@ static void pads_start(void);   // Physical controllers, below
     UIButton *_chooseButton, *_profileButton, *_saveAsButton;
     DmPaddedTipLabel *_menuTip;
     CAShapeLayer *_menuTipBubble;
+    BOOL _launcherReopenTip;
     UILongPressGestureRecognizer *_editHold;
     UIView *_tools;
     UISlider *_sizeSlider, *_alphaSlider;
@@ -651,12 +652,56 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
     for (int i = 0; i < 16; i++) if (!_game[i]) { _game[i] = t; [_owner setObject:@(C_GAME | (uint64_t)i << 8) forKey:t]; return YES; }
     return NO;
 }
+- (void)showLauncherReopenTip {
+    [self dismissMenuTip];
+    _launcherReopenTip=YES;
+    _menuTip=[DmPaddedTipLabel new];
+    _menuTip.text=@"To reopen the control config menu, press and hold the layout mode switcher.";
+    _menuTip.textColor=UIColor.whiteColor;
+    _menuTip.font=[UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
+    _menuTip.textAlignment=NSTextAlignmentCenter;
+    _menuTip.numberOfLines=0;
+    _menuTip.textInsets=UIEdgeInsetsMake(10,14,10,14);
+    UIColor *tipAccent=[self editorAccentColor];
+    CGFloat red=0,green=0,blue=0,alpha=1;
+    [tipAccent getRed:&red green:&green blue:&blue alpha:&alpha];
+    UIColor *tipFill=[UIColor colorWithRed:red*0.72 green:green*0.72 blue:blue*0.72 alpha:alpha];
+    UIColor *tipBorder=[UIColor colorWithRed:red+(1.0-red)*0.22
+                                      green:green+(1.0-green)*0.22
+                                       blue:blue+(1.0-blue)*0.22 alpha:alpha];
+    CGFloat fillLuminance=0.2126*red*0.72+0.7152*green*0.72+0.0722*blue*0.72;
+    _menuTip.textColor=fillLuminance>0.58?UIColor.blackColor:UIColor.whiteColor;
+    _menuTip.backgroundColor=UIColor.clearColor;
+    _menuTip.layer.cornerRadius=0;
+    _menuTip.layer.borderWidth=0;
+    _menuTipBubble=[CAShapeLayer layer];
+    _menuTipBubble.fillColor=tipFill.CGColor;
+    _menuTipBubble.strokeColor=tipBorder.CGColor;
+    _menuTipBubble.lineWidth=1.5;
+    _menuTipBubble.lineJoin=kCALineJoinRound;
+    _menuTipBubble.frame=self.bounds;
+    _menuTipBubble.opacity=0;
+    _menuTip.alpha=0;
+    [self.layer addSublayer:_menuTipBubble];
+    [self addSubview:_menuTip];
+    [self setNeedsLayout];
+    [UIView animateWithDuration:0.25 animations:^{ self->_menuTip.alpha=1; }];
+    CABasicAnimation *showBubble=[CABasicAnimation animationWithKeyPath:@"opacity"];
+    showBubble.fromValue=@0; showBubble.toValue=@1; showBubble.duration=0.25;
+    showBubble.timingFunction=[CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseOut];
+    _menuTipBubble.opacity=1;
+    [_menuTipBubble addAnimation:showBubble forKey:@"bubbleFade"];
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(6*NSEC_PER_SEC)),dispatch_get_main_queue(),^{
+        [self dismissMenuTip];
+    });
+}
 - (void)dismissMenuTip {
     if (!_menuTip && !_menuTipBubble) return;
     DmPaddedTipLabel *tip=_menuTip;
     CAShapeLayer *bubble=_menuTipBubble;
     _menuTip=nil;
     _menuTipBubble=nil;
+    _launcherReopenTip=NO;
     [UIView animateWithDuration:0.16 delay:0 options:UIViewAnimationOptionBeginFromCurrentState|UIViewAnimationOptionCurveEaseOut animations:^{
         tip.alpha=0;
     } completion:^(__unused BOOL finished) {
@@ -914,7 +959,13 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     if (_menuTip) {
         CGFloat tipWidth=MIN(340, MAX(0,self.bounds.size.width-32));
         CGSize tipSize=[_menuTip sizeThatFits:CGSizeMake(tipWidth,CGFLOAT_MAX)];
-        _menuTip.frame=CGRectMake((self.bounds.size.width-tipWidth)/2, self.safeAreaInsets.top+44, tipWidth, tipSize.height);
+        CGFloat tipY=self.safeAreaInsets.top+44;
+        if (_launcherReopenTip) {
+            tipY=CGRectGetMaxY(CGRectMake(self.swapCenter.x-K_SWAP_R*self.u*1.6,
+                                          self.swapCenter.y-K_SWAP_R*self.u*1.6,
+                                          K_SWAP_R*self.u*3.2,K_SWAP_R*self.u*3.2))+12;
+        }
+        _menuTip.frame=CGRectMake((self.bounds.size.width-tipWidth)/2, tipY, tipWidth, tipSize.height);
         CGRect r=_menuTip.frame;
         CGFloat radius=10.0, arrowHalf=10.0, arrowHeight=11.0;
         CGFloat left=CGRectGetMinX(r), right=CGRectGetMaxX(r);
@@ -1986,7 +2037,18 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [self toggleEditor];
 }
 - (void)toggleEditor {
-    if (_editing) { _tools.hidden=!_tools.hidden; return; }
+    if (_editing) {
+        BOOL wasVisible=!_tools.hidden;
+        _tools.hidden=!_tools.hidden;
+        // In the pre-launch editor, show this hint the first time its settings
+        // panel is dismissed. The layout-mode switcher is the way to reopen it.
+        if (_launcherPreview && wasVisible && _tools.hidden &&
+            ![NSUserDefaults.standardUserDefaults boolForKey:@"DmPadLauncherReopenTipShown"]) {
+            [NSUserDefaults.standardUserDefaults setBool:YES forKey:@"DmPadLauncherReopenTipShown"];
+            [self showLauncherReopenTip];
+        }
+        return;
+    }
     _editWasTap=_tap;
     if (_tap) { _tap=NO; [self loadControls]; [self applyLayout]; }
     [self reset]; _editing=YES; _controls.hidden=_padOff; _selected=B_A; _tools.hidden=NO;
