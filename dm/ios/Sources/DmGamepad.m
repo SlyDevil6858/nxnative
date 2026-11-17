@@ -670,15 +670,15 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
     });
 }
 - (void)touchesBegan:(NSSet<UITouch *> *)ts withEvent:(UIEvent *)e {
-    // Dismiss the first-launch hint as soon as the player interacts.
-    // Do this before any editor / pad-off early return so every touch path is covered.
-    [self dismissMenuTip];
     if (_editing) { [self editTouches:ts began:YES]; return; }
     BOOL game = NO;
     for (UITouch *t in ts) {
         if (_padOff) { game |= [self gameBegin:t]; continue; }
         CGPoint p = [t locationInView:self];
         int hit = _tap ? -1 : [self btnAt:p];
+        // Only the Start (+), Select (−), and layout (2D / 3D / Tap) buttons
+        // should interrupt the first-launch hint. Ordinary gameplay touches do not.
+        if (hit == B_PLUS || hit == B_MINUS || [self inSwap:p]) [self dismissMenuTip];
         if (hit >= 0) { [_owner setObject:@(C_BTN | (uint64_t)hit << 8) forKey:t]; continue; }
         if ([self inSwap:p]) { [_owner setObject:@(C_SWAP) forKey:t]; continue; }
         if (_tap) { game |= [self gameBegin:t]; continue; }
