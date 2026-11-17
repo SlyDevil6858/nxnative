@@ -499,12 +499,12 @@ static CGPoint side(CGRect s, int right, CGFloat dx, CGFloat y) { return CGPoint
 - (CGPoint)position:(int)b base:(CGPoint)base {
     NSDictionary *value = _custom[[self controlID:b]];
     CGRect safe = self.safe;
-    CGFloat margin = (b == 16 ? K_STICK_R : b == 17 ? K_DPAD_R : isDrop(b) ? 38 : isClick(b) ? 22 : 28) * self.u * [self scale:b];
-    // An opacity-only entry can exist from earlier buggy builds. It has no saved
-    // coordinates, so treat it as an untouched control instead of interpreting
-    // missing x/y as zero (which teleports it to the safe area's top-left).
+    // Keep the control centre within the safe area, but do not force its full
+    // visual bounds inside it. The default left stick intentionally overlaps
+    // the side safe-area inset, so a radius-based margin makes it jump on edit.
+    // An opacity-only entry has no saved coordinates; treat it as untouched.
     if (![value[@"x"] isKindOfClass:NSNumber.class] || ![value[@"y"] isKindOfClass:NSNumber.class]) value=nil;
-    return dm_pad_position(value, base, safe, margin);
+    return dm_pad_position(value, base, safe, 0);
 }
 - (CGFloat)faceRadius:(int)b { return self.faceR * [self scale:b]; }
 - (CGPoint)baseFacePos:(int)b {
@@ -2181,17 +2181,17 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     if (_selected<0 && _dragAllHomes.count) {
         CGPoint delta=CGPointMake(point.x-_dragHome.x,point.y-_dragHome.y);
         for (NSString *key in _dragAllHomes) {
-            int b=(int)[key integerValue]; CGPoint home=_dragAllHomes[key].CGPointValue;
-            CGFloat margin=(b==16?K_STICK_R:b==17?K_DPAD_R:isDrop(b)?38:isClick(b)?22:28)*self.u*[self scale:b];
-            CGPoint moved=dm_pad_clamp(CGPointMake(home.x+delta.x,home.y+delta.y),safe,margin);
+            CGPoint home=_dragAllHomes[key].CGPointValue;
+            // Clamp only the centre, not the control's full radius. Default
+            // controls are deliberately allowed to overlap the safe-area edge.
+            CGPoint moved=dm_pad_clamp(CGPointMake(home.x+delta.x,home.y+delta.y),safe,0);
             NSMutableDictionary *value=[_custom[key] mutableCopy] ?: [NSMutableDictionary dictionary];
             value[@"x"]=@((moved.x-safe.origin.x)/safe.size.width);
             value[@"y"]=@((moved.y-safe.origin.y)/safe.size.height);
             _custom[key]=value;
         }
     } else {
-        CGFloat margin=(_selected==16?K_STICK_R:_selected==17?K_DPAD_R:isDrop(_selected)?38:isClick(_selected)?22:28)*self.u*_sizeSlider.value;
-        point=dm_pad_clamp(point,safe,margin);
+        point=dm_pad_clamp(point,safe,0);
         _custom[[self controlID:_selected]]=@{@"x":@((point.x-safe.origin.x)/safe.size.width),
             @"y":@((point.y-safe.origin.y)/safe.size.height),@"scale":@(_sizeSlider.value),@"alpha":@(_alphaSlider.value)};
     }
