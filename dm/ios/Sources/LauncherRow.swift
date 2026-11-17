@@ -164,7 +164,7 @@ struct SettingRow: View {
                 } label: {
                     HStack(spacing: 8) {
                         settingLabel
-                        Spacer(minLength: 8)
+                        Spacer(minLength: 6)
                         Text(selectedChoiceLabel)
                             .foregroundStyle(locked ? Color(white: 0.58) : accentColor)
                             .lineLimit(1)
