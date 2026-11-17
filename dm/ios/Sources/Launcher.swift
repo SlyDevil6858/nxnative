@@ -410,7 +410,9 @@ private struct LauncherView: View {
                                                 .frame(width: 210)
                                                 .frame(maxHeight: 180)
                                                 .padding(6)
-                                                .presentationBackground(Color(red: 0.035, green: 0.035, blue: 0.035).opacity(0.98))
+                                                .background(Color(red: 0.035, green: 0.035, blue: 0.035))
+                                                // Keep the native popover arrow on the same opaque dark surface as the list.
+                                                .presentationBackground(Color(red: 0.035, green: 0.035, blue: 0.035))
                                                 .presentationCompactAdaptation(.popover)
                                                 .environment(\.colorScheme, .dark)
     }
