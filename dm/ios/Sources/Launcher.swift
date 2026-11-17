@@ -170,11 +170,42 @@ private struct LauncherTheme: Identifiable {
     var id: String { path }
 }
 
+private struct LauncherControlTipBubble: Shape {
+    func path(in rect: CGRect) -> Path {
+        let radius: CGFloat = 10
+        let arrowHalf: CGFloat = 10
+        let arrowHeight: CGFloat = 11
+        let left = rect.minX, right = rect.maxX
+        let top = rect.minY, bottom = rect.maxY - arrowHeight
+        let mid = rect.midX
+        var path = Path()
+        path.move(to: CGPoint(x: left + radius, y: top))
+        path.addLine(to: CGPoint(x: mid - arrowHalf, y: top))
+        path.addLine(to: CGPoint(x: mid, y: rect.maxY))
+        path.addLine(to: CGPoint(x: mid + arrowHalf, y: bottom))
+        path.addLine(to: CGPoint(x: right - radius, y: bottom))
+        path.addArc(center: CGPoint(x: right - radius, y: bottom - radius),
+                    radius: radius, startAngle: .degrees(90), endAngle: .degrees(0), clockwise: true)
+        path.addLine(to: CGPoint(x: right, y: top + radius))
+        path.addArc(center: CGPoint(x: right - radius, y: top + radius),
+                    radius: radius, startAngle: .degrees(0), endAngle: .degrees(-90), clockwise: true)
+        path.addLine(to: CGPoint(x: left + radius, y: top))
+        path.addArc(center: CGPoint(x: left + radius, y: top + radius),
+                    radius: radius, startAngle: .degrees(-90), endAngle: .degrees(-180), clockwise: true)
+        path.addLine(to: CGPoint(x: left, y: bottom - radius))
+        path.addArc(center: CGPoint(x: left + radius, y: bottom - radius),
+                    radius: radius, startAngle: .degrees(180), endAngle: .degrees(90), clockwise: true)
+        path.closeSubpath()
+        return path
+    }
+}
+
 private struct LauncherView: View {
     @ObservedObject var m: LauncherModel
     let play: () -> Void
     @State private var memory = os_proc_available_memory()
     @State private var isControlLayoutEditing = false
+    @State private var showControlReopenTip = false
     @State private var themes: [LauncherTheme] = []
     @State private var selectedTheme = UserDefaults.standard.string(forKey: "DmTouchControlThemeName") ?? "ANIMAL WELL"
     @State private var pickingTheme = false
@@ -299,8 +330,34 @@ private struct LauncherView: View {
                                         .presentationBackground(Color(red: 0.035, green: 0.035, blue: 0.035))
                                         .presentationCompactAdaptation(.popover)
                                     }
-                                    Button("Edit touch controls layout…") { dm_gamepad_present_launcher_editor() }
-                                        .foregroundStyle(accentColor)
+                                    Button("Edit touch controls layout…") {
+                                        showControlReopenTip = false
+                                        dm_gamepad_present_launcher_editor()
+                                    }
+                                    .foregroundStyle(accentColor)
+                                    .overlay(alignment: .top) {
+                                        if showControlReopenTip && !isControlLayoutEditing {
+                                            Text("To reopen the control config menu press and hold this button")
+                                                .font(.system(size: 13, weight: .semibold))
+                                                .multilineTextAlignment(.center)
+                                                .foregroundStyle(accentTextColor)
+                                                .fixedSize(horizontal: false, vertical: true)
+                                                .padding(.horizontal, 14)
+                                                .padding(.vertical, 10)
+                                                .background {
+                                                    LauncherControlTipBubble()
+                                                        .fill(launcherAccentColor().opacity(0.72))
+                                                        .overlay {
+                                                            LauncherControlTipBubble()
+                                                                .stroke(launcherAccentColor().opacity(0.9), lineWidth: 1.5)
+                                                        }
+                                                }
+                                                .frame(width: 270)
+                                                .offset(y: -72)
+                                                .transition(.opacity)
+                                                .zIndex(30)
+                                        }
+                                    }
                                     Button("Import touch controls theme…") { pickingTheme = true }
                                         .foregroundStyle(accentColor)
                                     (Text("QUICK TIP: ")
@@ -398,7 +455,16 @@ private struct LauncherView: View {
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("DmPadLauncherEditorVisibilityChanged"))) { notification in
             let editing = (notification.userInfo?["editing"] as? Bool) ?? false
             isControlLayoutEditing = editing
-            if !editing { refreshThemes() }
+            if !editing {
+                refreshThemes()
+                if !UserDefaults.standard.bool(forKey: "DmPadLauncherReopenTipShown") {
+                    UserDefaults.standard.set(true, forKey: "DmPadLauncherReopenTipShown")
+                    withAnimation(.easeOut(duration: 0.2)) { showControlReopenTip = true }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
+                        withAnimation(.easeOut(duration: 0.16)) { showControlReopenTip = false }
+                    }
+                }
+            }
         }
         .onAppear(perform: refreshThemes)
         .task {
