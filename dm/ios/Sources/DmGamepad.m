@@ -1525,25 +1525,31 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         if (!json) continue;
         NSString *path=folder.standardizedURL.path;
         NSString *title=[json[@"name"] isKindOfClass:NSString.class] && [json[@"name"] length] ? json[@"name"] : folder.lastPathComponent;
-        UIButton *pick=[UIButton buttonWithType:UIButtonTypeSystem];
-        pick.frame=CGRectMake(0,row*rowHeight,212,rowHeight);
-        [pick setTitle:title forState:UIControlStateNormal];
-        pick.contentHorizontalAlignment=UIControlContentHorizontalAlignmentLeft;
-        pick.contentEdgeInsets=UIEdgeInsetsMake(0,12,0,0);
-        pick.contentVerticalAlignment=UIControlContentVerticalAlignmentCenter;
-        pick.titleLabel.font=[UIFont systemFontOfSize:14];
-        pick.titleLabel.lineBreakMode=NSLineBreakByTruncatingTail;
-        pick.tintColor=UIColor.whiteColor;
-        if ([current isEqualToString:title]) [pick setTitle:[title stringByAppendingString:@"  ✓"] forState:UIControlStateNormal];
-        pick.accessibilityLabel=[NSString stringWithFormat:@"Select %@",title];
-        __weak typeof(self) weakSelf=self;
-        [pick addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) {
-            (void)action;
-            [weakSelf applyThemePath:path name:title];
-            [weakSelf closeThemeMenu];
-        }] forControlEvents:UIControlEventTouchUpInside];
-        [_themeMenuScroll addSubview:pick];
-
+        BOOL editingThisTheme=[_themeRenamePath isEqualToString:path];
+        if (editingThisTheme) {
+            UITextField *field=[[UITextField alloc] initWithFrame:CGRectMake(4,row*rowHeight+7,204,34)];
+            field.text=title; field.placeholder=@"Theme name"; field.borderStyle=UITextBorderStyleRoundedRect;
+            field.backgroundColor=[UIColor colorWithWhite:1 alpha:0.10]; field.textColor=UIColor.whiteColor; field.tintColor=UIColor.whiteColor;
+            field.font=[UIFont systemFontOfSize:13]; field.autocapitalizationType=UITextAutocapitalizationTypeWords; field.clearButtonMode=UITextFieldViewModeWhileEditing;
+            field.returnKeyType=UIReturnKeyDone; field.accessibilityLabel=@"New theme name"; _themeRenameField=field; [_themeMenuScroll addSubview:field];
+            UIButton *save=[UIButton buttonWithType:UIButtonTypeCustom]; save.frame=CGRectMake(216,row*rowHeight+8,32,32);
+            [save setImage:[UIImage systemImageNamed:@"checkmark" withConfiguration:[UIImageSymbolConfiguration configurationWithPointSize:17 weight:UIImageSymbolWeightSemibold]] forState:UIControlStateNormal];
+            save.tintColor=[UIColor colorWithRed:0.25 green:0.78 blue:0.38 alpha:1]; save.accessibilityLabel=@"Save theme name";
+            __weak typeof(self) weakSelf=self; NSString *savePath=[path copy];
+            [save addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; [weakSelf saveInlineThemeRenameAtPath:savePath]; }] forControlEvents:UIControlEventTouchUpInside]; [_themeMenuScroll addSubview:save];
+            UIButton *cancel=[UIButton buttonWithType:UIButtonTypeCustom]; cancel.frame=CGRectMake(252,row*rowHeight+8,32,32);
+            [cancel setImage:[UIImage systemImageNamed:@"xmark" withConfiguration:[UIImageSymbolConfiguration configurationWithPointSize:15 weight:UIImageSymbolWeightSemibold]] forState:UIControlStateNormal];
+            cancel.tintColor=[UIColor colorWithWhite:1 alpha:0.78]; cancel.accessibilityLabel=@"Cancel theme rename";
+            [cancel addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; [weakSelf->_themeRenameField resignFirstResponder]; weakSelf->_themeRenamePath=nil; weakSelf->_themeRenameField=nil; [weakSelf updateThemeMenu]; }] forControlEvents:UIControlEventTouchUpInside]; [_themeMenuScroll addSubview:cancel];
+            dispatch_async(dispatch_get_main_queue(), ^{ if (weakSelf->_themeRenameField==field) [field becomeFirstResponder]; });
+        } else {
+            UIButton *pick=[UIButton buttonWithType:UIButtonTypeSystem]; pick.frame=CGRectMake(0,row*rowHeight,212,rowHeight);
+            [pick setTitle:title forState:UIControlStateNormal]; pick.contentHorizontalAlignment=UIControlContentHorizontalAlignmentLeft; pick.contentEdgeInsets=UIEdgeInsetsMake(0,12,0,0);
+            pick.contentVerticalAlignment=UIControlContentVerticalAlignmentCenter; pick.titleLabel.font=[UIFont systemFontOfSize:14]; pick.titleLabel.lineBreakMode=NSLineBreakByTruncatingTail; pick.tintColor=UIColor.whiteColor;
+            if ([current isEqualToString:title]) [pick setTitle:[title stringByAppendingString:@"  ✓"] forState:UIControlStateNormal];
+            pick.accessibilityLabel=[NSString stringWithFormat:@"Select %@",title]; __weak typeof(self) weakSelf=self;
+            [pick addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; [weakSelf applyThemePath:path name:title]; [weakSelf closeThemeMenu]; }] forControlEvents:UIControlEventTouchUpInside]; [_themeMenuScroll addSubview:pick];
+        }
         NSString *folderName=folder.lastPathComponent;
         BOOL protectedTheme=[folderName caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
             [folderName caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame ||
@@ -1562,33 +1568,15 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         NSURL *manifestURL=[self themeJSONURLInFolder:folder];
         BOOL manifestExists=manifestURL && [NSFileManager.defaultManager fileExistsAtPath:manifestURL.path];
         if (isImportedTheme && manifestExists && !protectedTheme) {
-            // Match the launcher's plain 32x32 pencil and trash actions exactly.
-            // This selector is shared by the pre-launch preview and live editor.
-            UIImageSymbolConfiguration *actionSymbol=[UIImageSymbolConfiguration configurationWithPointSize:17 weight:UIImageSymbolWeightSemibold];
-
-            UIButton *rename=[UIButton buttonWithType:UIButtonTypeCustom];
-            rename.frame=CGRectMake(216,row*rowHeight+8,32,32);
-            rename.backgroundColor=UIColor.clearColor;
-            [rename setImage:[[UIImage systemImageNamed:@"pencil" withConfiguration:actionSymbol] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate]
-                forState:UIControlStateNormal];
-            rename.tintColor=[UIColor colorWithWhite:1 alpha:0.82];
-            rename.contentHorizontalAlignment=UIControlContentHorizontalAlignmentCenter;
-            rename.contentVerticalAlignment=UIControlContentVerticalAlignmentCenter;
-            rename.adjustsImageWhenHighlighted=NO;
-            rename.accessibilityLabel=[NSString stringWithFormat:@"Rename %@",title];
-            NSString *renamePath=[path copy],*renameName=[title copy];
-            [rename addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) {
-                (void)action;
-                // Keep the selector attached while the alert is presented. Hiding
-                // the overlay first can invalidate the presentation context in
-                // some editor/LiveContainer hosting arrangements.
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    [weakSelf renameThemeAtPath:renamePath name:renameName];
-                });
-            }] forControlEvents:UIControlEventTouchUpInside];
-            [_themeMenuScroll addSubview:rename];
-
-            UIButton *remove=[UIButton buttonWithType:UIButtonTypeCustom];
+            if (!editingThisTheme) {
+                UIImageSymbolConfiguration *actionSymbol=[UIImageSymbolConfiguration configurationWithPointSize:17 weight:UIImageSymbolWeightSemibold];
+                UIButton *rename=[UIButton buttonWithType:UIButtonTypeCustom]; rename.frame=CGRectMake(216,row*rowHeight+8,32,32);
+                [rename setImage:[[UIImage systemImageNamed:@"pencil" withConfiguration:actionSymbol] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate] forState:UIControlStateNormal];
+                rename.tintColor=[UIColor colorWithWhite:1 alpha:0.82]; rename.accessibilityLabel=[NSString stringWithFormat:@"Rename %@",title];
+                NSString *renamePath=[path copy];
+                [rename addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; weakSelf->_themeRenamePath=renamePath; weakSelf->_themeRenameField=nil; [weakSelf updateThemeMenu]; }] forControlEvents:UIControlEventTouchUpInside];
+                [_themeMenuScroll addSubview:rename];
+            }            UIButton *remove=[UIButton buttonWithType:UIButtonTypeCustom];
             remove.frame=CGRectMake(252,row*rowHeight+8,32,32);
             remove.backgroundColor=UIColor.clearColor;
             [remove setImage:[[UIImage systemImageNamed:@"trash" withConfiguration:actionSymbol] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate]
