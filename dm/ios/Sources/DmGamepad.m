@@ -1786,7 +1786,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     // The custom rectangular button owns the full hit area; this view supplies
     // the rectangular rainbow border and color swatch artwork.
     _colorWellAppearance=[UIView new];
-    _colorWellAppearance.frame=_colorWell.frame;
+    _colorWellAppearance.frame=_colorWellButton.frame;
     _colorWellAppearance.backgroundColor=[UIColor colorWithWhite:0.12 alpha:1];
     _colorWellAppearance.layer.cornerRadius=6;
     _colorWellAppearance.clipsToBounds=YES;
@@ -1809,7 +1809,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [_colorWellAppearance.layer addSublayer:_colorWellRainbowBorder];
 
     _colorWellSwatch=[UIView new];
-    _colorWellSwatch.frame=CGRectInset(_colorWellAppearance.bounds,4,4);
+    _colorWellSwatch.frame=CGRectInset(_colorWellButton.bounds,4,4);
     _colorWellSwatch.autoresizingMask=UIViewAutoresizingFlexibleWidth|UIViewAutoresizingFlexibleHeight;
     _colorWellSwatch.layer.cornerRadius=3;
     _colorWellSwatch.clipsToBounds=YES;
