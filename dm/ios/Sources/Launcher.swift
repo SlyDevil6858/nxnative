@@ -176,7 +176,7 @@ private struct LauncherView: View {
     @State private var memory = os_proc_available_memory()
     @State private var isControlLayoutEditing = false
     @State private var themes: [LauncherTheme] = []
-    @State private var selectedTheme = UserDefaults.standard.string(forKey: "DmTouchControlThemeName") ?? "Classic"
+    @State private var selectedTheme = UserDefaults.standard.string(forKey: "DmTouchControlThemeName") ?? "ANIMAL WELL"
     @State private var pickingTheme = false
     @State private var showingThemeMenu = false
     @State private var confirmingThemeDeletion = false
@@ -213,7 +213,7 @@ private struct LauncherView: View {
                                             Text("Touch controls theme")
                                                 .foregroundStyle(.white)
                                             Spacer()
-                                            Text(selectedTheme == "Classic" ? "CLASSIC" : selectedTheme)
+                                            Text(selectedTheme)
                                                 .foregroundStyle(accentColor)
                                             Image(systemName: "chevron.down")
                                                 .font(.caption.weight(.semibold))
@@ -224,23 +224,6 @@ private struct LauncherView: View {
                                     .buttonStyle(.plain)
                                     .popover(isPresented: $showingThemeMenu, arrowEdge: .trailing) {
                                         VStack(alignment: .leading, spacing: 0) {
-                                            Button {
-                                                selectTheme(nil, name: "Classic")
-                                                showingThemeMenu = false
-                                            } label: {
-                                                HStack {
-                                                    Text("CLASSIC")
-                                                    Spacer()
-                                                    if selectedTheme == "Classic" {
-                                                        Image(systemName: "checkmark")
-                                                            .foregroundStyle(accentColor)
-                                                    }
-                                                }
-                                                .frame(maxWidth: .infinity, alignment: .leading)
-                                                .padding(.vertical, 10)
-                                                .contentShape(Rectangle())
-                                            }
-                                            .buttonStyle(.plain)
                                             ForEach(themes) { theme in
                                                 Divider()
                                                 HStack(spacing: 12) {
@@ -435,8 +418,9 @@ private struct LauncherView: View {
         guard !isBundledTheme(theme) else { return }
         do {
             try FileManager.default.removeItem(at: URL(fileURLWithPath: theme.path))
-            if selectedTheme == theme.name {
-                selectTheme(nil, name: "Classic")
+            if selectedTheme == theme.name,
+               let animalWell = themes.first(where: { URL(fileURLWithPath: $0.path).lastPathComponent.caseInsensitiveCompare("ANIMAL WELL") == .orderedSame }) {
+                selectTheme(animalWell.path, name: animalWell.name)
             }
             refreshThemes()
         } catch {
@@ -475,10 +459,6 @@ private struct LauncherView: View {
         let path = defaults.string(forKey: "DmTouchControlThemePath")
         if let selected = themes.first(where: { $0.path == path }) {
             selectedTheme = selected.name
-        } else if defaults.bool(forKey: "DmTouchControlThemeExplicitlySelected") {
-            selectedTheme = "Classic"
-            if path != nil { defaults.removeObject(forKey: "DmTouchControlThemePath") }
-            defaults.set("Classic", forKey: "DmTouchControlThemeName")
         } else if let animalWell = themes.first(where: {
             URL(fileURLWithPath: $0.path).lastPathComponent.caseInsensitiveCompare("ANIMAL WELL") == .orderedSame
         }) {
@@ -486,7 +466,8 @@ private struct LauncherView: View {
             defaults.set(animalWell.name, forKey: "DmTouchControlThemeName")
             selectedTheme = animalWell.name
         } else {
-            selectedTheme = "Classic"
+            selectedTheme = "ANIMAL WELL"
+            defaults.set("ANIMAL WELL", forKey: "DmTouchControlThemeName")
         }
     }
 
