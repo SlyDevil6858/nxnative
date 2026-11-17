@@ -128,11 +128,11 @@ struct SettingRow: View {
                         settingLabel
                         Spacer(minLength: 8)
                         Text(selectedChoiceLabel)
-                            .foregroundStyle(accentColor)
+                            .foregroundStyle(locked ? Color(white: 0.58) : accentColor)
                             .lineLimit(1)
                         Image(systemName: "chevron.down")
                             .font(.caption.weight(.semibold))
-                            .foregroundStyle(accentColor)
+                            .foregroundStyle(locked ? Color(white: 0.58) : accentColor)
                     }
                     .contentShape(Rectangle())
                 }
