@@ -47,6 +47,41 @@ private struct LauncherToggleStyle: ToggleStyle {
     }
 }
 
+#if os(iOS)
+/// Keeps the native expanding drawer behavior while giving its disclosure indicator
+/// a larger, explicit app-dominant tint.
+struct LauncherDisclosureGroupStyle: DisclosureGroupStyle {
+    let accentColor: Color
+
+    func makeBody(configuration: Configuration) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    configuration.isExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    configuration.label
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundStyle(accentColor)
+                        .rotationEffect(.degrees(configuration.isExpanded ? 0 : -90))
+                        .frame(width: 30, height: 30)
+                        .contentShape(Rectangle())
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if configuration.isExpanded {
+                configuration.content
+            }
+        }
+    }
+}
+#endif
+
 struct SettingRow: View {
     let s: Setting
     @ObservedObject var m: LauncherModel
@@ -127,7 +162,7 @@ struct SettingRow: View {
                             .lineLimit(1)
                     }
                 }
-                .tint(locked ? Color(white: 0.58) : accentColor)
+                .disclosureGroupStyle(LauncherDisclosureGroupStyle(accentColor: accentColor))
                 .background(Color.black)
                 #else
                 Picker(selection: m.binding(s)) {
