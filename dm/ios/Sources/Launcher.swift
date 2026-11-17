@@ -181,9 +181,9 @@ private struct LauncherView: View {
     @State private var showingThemeList = false
     @State private var confirmingThemeDeletion = false
     @State private var themeToDelete: LauncherTheme?
-    @State private var showingThemeRename = false
-    @State private var themeToRename: LauncherTheme?
+    @State private var themeRenamePath: String?
     @State private var themeRenameText = ""
+    @FocusState private var themeRenameFocused: Bool
     @State private var showingThemeImportAlert = false
     @State private var themeImportMessage = ""
 
@@ -207,6 +207,7 @@ private struct LauncherView: View {
                 // Drawer expansion is confined to the settings list; the static
                 // game panel should not participate in its animation transaction.
                 .transaction { $0.animation = nil }
+                ScrollViewReader { themeScrollProxy in
                 List {
                     ForEach(m.sections, id: \.self) { section in
                         let rows = m.rows(in: section)
@@ -277,6 +278,14 @@ private struct LauncherView: View {
                 .frame(width: geometry.size.width * 0.70)
                 .scrollContentBackground(.hidden)
                 .environment(\.colorScheme, .dark)
+                .onChange(of: themeRenamePath) { path in
+                    guard let path else { return }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                        themeScrollProxy.scrollTo("launcher-theme-\(path)", anchor: .center)
+                        themeRenameFocused = true
+                    }
+                }
+                }
             }
             .opacity(isControlLayoutEditing ? 0 : 1)
             .animation(.easeInOut(duration: 0.25), value: isControlLayoutEditing)
@@ -289,7 +298,6 @@ private struct LauncherView: View {
                 }
             }
         }
-        .ignoresSafeArea(.keyboard, edges: .bottom)
         .preferredColorScheme(.dark)
         .sheet(isPresented: $pickingTheme) {
             DocumentPicker(types: [.folder]) { url in
@@ -297,29 +305,10 @@ private struct LauncherView: View {
                 importTheme(from: url)
             } onCancel: { pickingTheme = false }
         }
-        .alert(showingThemeRename ? "Rename theme" : "Touch controls theme",
-               isPresented: Binding(
-                get: { showingThemeRename || showingThemeImportAlert },
-                set: { presented in
-                    if !presented {
-                        showingThemeRename = false
-                        showingThemeImportAlert = false
-                        themeToRename = nil
-                    }
-                })) {
-            if showingThemeRename {
-                TextField("Theme name", text: $themeRenameText)
-                Button("Cancel", role: .cancel) { themeToRename = nil; showingThemeRename = false }
-                Button("Rename") {
-                    if let theme = themeToRename { renameTheme(theme, to: themeRenameText) }
-                    themeToRename = nil
-                    showingThemeRename = false
-                }
-            } else {
-                Button("OK", role: .cancel) { showingThemeImportAlert = false }
-            }
+        .alert("Touch controls theme", isPresented: $showingThemeImportAlert) {
+            Button("OK", role: .cancel) { showingThemeImportAlert = false }
         } message: {
-            Text(showingThemeRename ? "Choose a new name for this custom theme." : themeImportMessage)
+            Text(themeImportMessage)
         }
         .confirmationDialog("Delete imported touch control theme?", isPresented: $confirmingThemeDeletion, titleVisibility: .visible) {
             Button("Delete \(themeToDelete?.name ?? "theme")", role: .destructive) {
@@ -350,57 +339,93 @@ private struct LauncherView: View {
         VStack(spacing: 0) {
             ForEach(themes) { theme in
                 HStack(spacing: 0) {
-                    Button {
-                        selectTheme(theme.path, name: theme.name)
-                        withAnimation(.easeInOut(duration: 0.24)) {
-                            showingThemeList = false
-                        }
-                    } label: {
-                        HStack(spacing: 8) {
-                            Text(theme.name)
-                                .foregroundStyle(accentColor)
-                                .lineLimit(1)
-                            Spacer(minLength: 4)
-                            if selectedTheme == theme.name {
-                                Image(systemName: "checkmark")
-                                    .foregroundStyle(Color(red: 0.22, green: 0.48, blue: 0.28))
-                            }
-                        }
-                        .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 4)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    if canDeleteTheme(theme) {
+                    if themeRenamePath == theme.path {
+                        TextField("Theme name", text: $themeRenameText)
+                            .focused($themeRenameFocused)
+                            .submitLabel(.done)
+                            .textInputAutocapitalization(.words)
+                            .autocorrectionDisabled()
+                            .padding(.horizontal, 10)
+                            .frame(height: 36)
+                            .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
+                            .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.white.opacity(0.18), lineWidth: 1))
+                            .onSubmit { saveLauncherThemeRename(theme) }
+                            .padding(.leading, 8)
                         Button {
-                            showingThemeList = false
-                            themeToRename = theme
-                            themeRenameText = theme.name
-                            showingThemeRename = true
+                            saveLauncherThemeRename(theme)
                         } label: {
-                            Image(systemName: "pencil")
-                                .font(.system(size: 17, weight: .bold))
-                                .foregroundStyle(accentColor)
-                                .frame(width: 32, height: 32)
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundStyle(Color(red: 0.25, green: 0.78, blue: 0.38))
+                                .frame(width: 36, height: 36)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel("Rename \\(theme.name)")
-                        Button(role: .destructive) {
-                            showingThemeList = false
-                            themeToDelete = theme
-                            confirmingThemeDeletion = true
+                        .accessibilityLabel("Save theme name")
+                        Button {
+                            cancelLauncherThemeRename()
                         } label: {
-                            Image(systemName: "trash")
-                                .foregroundStyle(Color(red: 0.55, green: 0.08, blue: 0.08))
-                                .frame(width: 32, height: 32)
+                            Image(systemName: "xmark")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(Color.white.opacity(0.78))
+                                .frame(width: 32, height: 36)
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel("Delete \\(theme.name)")
+                        .accessibilityLabel("Cancel theme rename")
+                    } else {
+                        Button {
+                            selectTheme(theme.path, name: theme.name)
+                            withAnimation(.easeInOut(duration: 0.24)) {
+                                showingThemeList = false
+                            }
+                        } label: {
+                            HStack(spacing: 8) {
+                                Text(theme.name)
+                                    .foregroundStyle(accentColor)
+                                    .lineLimit(1)
+                                Spacer(minLength: 4)
+                                if selectedTheme == theme.name {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(Color(red: 0.22, green: 0.48, blue: 0.28))
+                                }
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 4)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        if canDeleteTheme(theme) {
+                            Button {
+                                themeRenameText = theme.name
+                                themeRenamePath = theme.path
+                            } label: {
+                                Image(systemName: "pencil")
+                                    .font(.system(size: 17, weight: .bold))
+                                    .foregroundStyle(accentColor)
+                                    .frame(width: 32, height: 32)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Rename \\(theme.name)")
+                            Button(role: .destructive) {
+                                showingThemeList = false
+                                themeToDelete = theme
+                                confirmingThemeDeletion = true
+                            } label: {
+                                Image(systemName: "trash")
+                                    .foregroundStyle(Color(red: 0.55, green: 0.08, blue: 0.08))
+                                    .frame(width: 32, height: 32)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Delete \\(theme.name)")
+                        }
                     }
                 }
+                .padding(.vertical, 4)
+                .id("launcher-theme-\\(theme.path)")
                 Rectangle()
                     .fill(Color.white.opacity(0.12))
                     .frame(height: 0.5)
@@ -408,6 +433,22 @@ private struct LauncherView: View {
         }
         .padding(.top, 4)
         .background(Color.black)
+    }
+
+    private func saveLauncherThemeRename(_ theme: LauncherTheme) {
+        let newName = themeRenameText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !newName.isEmpty,
+              newName.caseInsensitiveCompare("ANIMAL WELL") != .orderedSame,
+              newName.caseInsensitiveCompare("CLASSIC") != .orderedSame else { return }
+        renameTheme(theme, to: newName)
+        themeRenameFocused = false
+        themeRenamePath = nil
+    }
+
+    private func cancelLauncherThemeRename() {
+        themeRenameFocused = false
+        themeRenamePath = nil
+        themeRenameText = ""
     }
 
     private var accentTextColor: Color {
