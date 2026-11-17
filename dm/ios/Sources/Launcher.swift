@@ -181,6 +181,8 @@ private struct LauncherView: View {
     @State private var showingThemeMenu = false
     @State private var confirmingThemeDeletion = false
     @State private var themeToDelete: LauncherTheme?
+    @State private var showingThemeImportAlert = false
+    @State private var themeImportMessage = ""
 
     var body: some View {
         GeometryReader { geometry in
@@ -327,6 +329,11 @@ private struct LauncherView: View {
                 pickingTheme = false
                 importTheme(from: url)
             } onCancel: { pickingTheme = false }
+        }
+        .alert("Touch controls theme", isPresented: $showingThemeImportAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(themeImportMessage)
         }
         .confirmationDialog("Delete imported touch control theme?", isPresented: $confirmingThemeDeletion, titleVisibility: .visible) {
             Button("Delete \(themeToDelete?.name ?? "theme")", role: .destructive) {
@@ -482,33 +489,86 @@ private struct LauncherView: View {
     private func importTheme(from source: URL) {
         let scoped = source.startAccessingSecurityScopedResource()
         defer { if scoped { source.stopAccessingSecurityScopedResource() } }
-        var candidate = source
-        if themeJSON(in: candidate) == nil {
-            var valid: [URL] = []
-            if let enumerator = FileManager.default.enumerator(at: source, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]) {
+
+        var importedName: String?
+        var importFailure: String?
+        var coordinationError: NSError?
+        let coordinator = NSFileCoordinator(filePresenter: nil)
+
+        coordinator.coordinate(readingItemAt: source, options: [], error: &coordinationError) { readableSource in
+            let fileManager = FileManager.default
+            var candidate: URL?
+
+            if readableSource.lastPathComponent == "theme.json" {
+                candidate = readableSource.deletingLastPathComponent()
+            } else if themeJSON(in: readableSource) != nil {
+                candidate = readableSource
+            } else if let enumerator = fileManager.enumerator(
+                at: readableSource,
+                includingPropertiesForKeys: [.isDirectoryKey],
+                options: [.skipsHiddenFiles]
+            ) {
+                var validFolders: [URL] = []
                 for case let entry as URL in enumerator where entry.lastPathComponent == "theme.json" {
                     let folder = entry.deletingLastPathComponent()
-                    if themeJSON(in: folder) != nil && !valid.contains(folder) { valid.append(folder) }
+                    if themeJSON(in: folder) != nil &&
+                        !validFolders.contains(where: { $0.standardizedFileURL == folder.standardizedFileURL }) {
+                        validFolders.append(folder)
+                    }
+                }
+                if validFolders.count == 1 {
+                    candidate = validFolders[0]
+                } else if validFolders.isEmpty {
+                    importFailure = "No valid theme.json was found. Select a theme folder containing a valid theme.json file."
+                } else {
+                    importFailure = "More than one valid theme was found. Select the folder for a single theme and try again."
                 }
             }
-            guard valid.count == 1, let only = valid.first else { return }
-            candidate = only
-        }
-        guard let json = themeJSON(in: candidate) else { return }
-        let rawName = (json["name"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? candidate.lastPathComponent
-        let safeName = String(rawName.map { $0.isLetter || $0.isNumber || $0 == " " || $0 == "_" || $0 == "-" ? $0 : "_" })
-            .trimmingCharacters(in: CharacterSet(charactersIn: " ._"))
-        let destination = themesDirectory().appendingPathComponent(safeName.isEmpty ? "Imported Theme" : safeName, isDirectory: true)
-        do {
-            if FileManager.default.fileExists(atPath: destination.path) {
-                try FileManager.default.removeItem(at: destination)
+
+            guard let candidate, let json = themeJSON(in: candidate) else {
+                if importFailure == nil {
+                    importFailure = "This folder does not contain a valid touch controls theme."
+                }
+                return
             }
-            try FileManager.default.copyItem(at: candidate, to: destination)
-            refreshThemes()
-            selectTheme(destination.path, name: rawName)
-        } catch {
-            NSLog("Touch theme import failed: %@", error.localizedDescription)
+
+            let rawName = (json["name"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? candidate.lastPathComponent
+            let safeName = String(rawName.map {
+                $0.isLetter || $0.isNumber || $0 == " " || $0 == "_" || $0 == "-" ? $0 : "_"
+            }).trimmingCharacters(in: CharacterSet(charactersIn: " ._"))
+            let root = themesDirectory()
+            let destination = root.appendingPathComponent(safeName.isEmpty ? "Imported Theme" : safeName, isDirectory: true)
+            let staging = root.appendingPathComponent(".import-\(UUID().uuidString)", isDirectory: true)
+
+            do {
+                try fileManager.copyItem(at: candidate, to: staging)
+                if fileManager.fileExists(atPath: destination.path) {
+                    try fileManager.removeItem(at: destination)
+                }
+                try fileManager.moveItem(at: staging, to: destination)
+                importedName = rawName
+            } catch {
+                try? fileManager.removeItem(at: staging)
+                importFailure = "The theme could not be copied into the app. \(error.localizedDescription)"
+            }
         }
+
+        if let coordinationError {
+            importFailure = "The selected folder could not be accessed. \(coordinationError.localizedDescription)"
+        }
+
+        if let importedName {
+            refreshThemes()
+            let safeName = String(importedName.map {
+                $0.isLetter || $0.isNumber || $0 == " " || $0 == "_" || $0 == "-" ? $0 : "_"
+            }).trimmingCharacters(in: CharacterSet(charactersIn: " ._"))
+            let destination = themesDirectory().appendingPathComponent(safeName.isEmpty ? "Imported Theme" : safeName, isDirectory: true)
+            selectTheme(destination.path, name: importedName)
+            themeImportMessage = "\(importedName) was imported successfully and added to the theme list."
+        } else {
+            themeImportMessage = importFailure ?? "The theme could not be imported for an unknown reason."
+        }
+        showingThemeImportAlert = true
     }
 }
 
