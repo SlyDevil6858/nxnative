@@ -376,6 +376,8 @@ static void pads_start(void);   // Physical controllers, below
     NSDictionary<NSString *, UIColor *> *_themeButtonColors;
     NSString *_themeName;
     NSString *_themePath;
+    NSString *_themeRenamePath;
+    UITextField *_themeRenameField;
     UIButton *_themeButton;
     UIButton *_colorWellButton;
     UIColor *_editorColor;
