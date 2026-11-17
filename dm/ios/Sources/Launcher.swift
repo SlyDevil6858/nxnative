@@ -602,10 +602,12 @@ private struct LauncherView: View {
 
             do {
                 try fileManager.copyItem(at: candidate, to: staging)
-                if let manifest = try? fileManager.contentsOfDirectory(
+                let stagedFiles = try fileManager.contentsOfDirectory(
                     at: staging, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]
-                ).first(where: { $0.lastPathComponent.caseInsensitiveCompare("theme.json") == .orderedSame }),
-                   manifest.lastPathComponent != "theme.json" {
+                )
+                if let manifest = stagedFiles.first(where: {
+                    $0.lastPathComponent.caseInsensitiveCompare("theme.json") == .orderedSame
+                }), manifest.lastPathComponent != "theme.json" {
                     try fileManager.moveItem(at: manifest, to: staging.appendingPathComponent("theme.json"))
                 }
                 if fileManager.fileExists(atPath: destination.path) {
