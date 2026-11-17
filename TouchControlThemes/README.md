@@ -1,13 +1,14 @@
 # Touch Control Themes
 
-These folders are imported into the app's Documents/TouchControlThemes folder. They are separate from the iOS app target, so adding or changing a theme does not require rebuilding the IPA.
+Themes can be bundled into the IPA or imported by the user. The IPA workflow lets you choose which built-in themes to include; ANIMAL WELL and CLASSIC are enabled by default, while FOREST is optional and disabled by default.
 
 ## Built-in themes
 
 - `ANIMAL WELL` — the default touch control theme.
 - `CLASSIC` — the classic neutral-gray theme.
+- `FOREST` — the restored forest-green theme with gold accents.
 
-These are the only themes bundled with the app. Other themes can still be imported by the user.
+Only the themes selected in the Run workflow menu are bundled. Other themes can still be imported by the user.
 
 ## Installing a theme
 
