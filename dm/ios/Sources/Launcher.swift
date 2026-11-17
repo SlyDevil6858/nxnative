@@ -495,17 +495,28 @@ private struct LauncherView: View {
             return LauncherTheme(name: (json["name"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? folder.lastPathComponent,
                                  path: folder.path)
         }.sorted {
+            func normalizedThemeName(_ value: String) -> String {
+                var name = value.uppercased()
+                    .replacingOccurrences(of: "_", with: " ")
+                    .replacingOccurrences(of: "-", with: " ")
+                for suffix in [" SKIN", " THEME"] where name.hasSuffix(suffix) {
+                    name = String(name.dropLast(suffix.count)).trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+                return name.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
             func priority(_ theme: LauncherTheme) -> Int {
-                let folder = URL(fileURLWithPath: theme.path).lastPathComponent
-                if folder.caseInsensitiveCompare("ANIMAL WELL") == .orderedSame ||
-                    theme.name.caseInsensitiveCompare("ANIMAL WELL") == .orderedSame { return 0 }
-                if folder.caseInsensitiveCompare("CLASSIC") == .orderedSame ||
-                    theme.name.caseInsensitiveCompare("CLASSIC") == .orderedSame { return 1 }
+                let folder = normalizedThemeName(URL(fileURLWithPath: theme.path).lastPathComponent)
+                let display = normalizedThemeName(theme.name)
+                if folder == "ANIMAL WELL" || display == "ANIMAL WELL" { return 0 }
+                if folder == "CLASSIC" || display == "CLASSIC" { return 1 }
+                // FOREST is intentionally treated like an imported/user-added theme.
                 return 2
             }
             let leftPriority = priority($0), rightPriority = priority($1)
             if leftPriority != rightPriority { return leftPriority < rightPriority }
-            return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+            let byName = $0.name.localizedCaseInsensitiveCompare($1.name)
+            if byName != .orderedSame { return byName == .orderedAscending }
+            return $0.path.localizedCaseInsensitiveCompare($1.path) == .orderedAscending
         }
         let defaults = UserDefaults.standard
         let path = defaults.string(forKey: "DmTouchControlThemePath")
