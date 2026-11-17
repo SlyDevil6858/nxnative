@@ -159,7 +159,7 @@ int dm_opmode(void);   // hle_oe.c: 0 = handheld
 }
 @end
 
-@interface DmGamepad : UIView <UIGestureRecognizerDelegate, UIDocumentPickerDelegate>
+@interface DmGamepad : UIView <UIGestureRecognizerDelegate, UIDocumentPickerDelegate, UIColorPickerViewControllerDelegate>
 - (UIColor *)editorAccentColor;
 - (void)beginLauncherEdit;
 - (void)toggleEditor;
@@ -189,7 +189,10 @@ static void pads_start(void);   // Physical controllers, below
     BOOL _builtInSkinExportChecked;
     NSDictionary<NSString *, UIColor *> *_themeButtonColors;
     NSString *_themeName;
+    NSString *_themePath;
     UIButton *_themeButton;
+    UIButton *_colorButton;
+    int _colorPickerControl;
     NSMutableDictionary *_custom;
     DmPadProfiles *_profiles;
     BOOL _editing, _editWasTap;
@@ -889,7 +892,7 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     [CATransaction begin]; [CATransaction setDisableActions:YES];
     CGRect safe=self.safe;
     if (!CGRectEqualToRect(safe,_lastSafe)) { _lastSafe=safe; if (!_editing) [self reset]; }
-    _tools.frame=CGRectMake(CGRectGetMidX(safe)-160,CGRectGetMidY(safe)-164,320,328);
+    _tools.frame=CGRectMake(CGRectGetMidX(safe)-160,CGRectGetMidY(safe)-180,320,360);
     _controls.frame = self.layer.bounds;
     for (int b = B_A; b <= B_Y; b++) { CGPoint c = [self facePos:b]; setPath(_key[b], circlePath(c, [self faceRadius:b])); placeLabel(_label[b], c, 20 * u * [self scale:b]); }
     for (int i = 0; i < (int)(sizeof k_btns / sizeof *k_btns); i++) { int b = k_btns[i];
@@ -1024,6 +1027,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     k_line=[outline colorWithAlphaComponent:0.88]; k_ringFill=[ring colorWithAlphaComponent:0.25];
     k_text=[text colorWithAlphaComponent:0.96]; k_textOn=pressedText;
     _themeButtonColors=parsed;
+    _themePath=[path copy];
     _themeName=[json[@"name"] isKindOfClass:NSString.class] && [json[@"name"] length] ? json[@"name"] : path.lastPathComponent;
     return YES;
 }
@@ -1254,6 +1258,104 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 - (void)documentPickerWasCancelled:(UIDocumentPickerViewController *)controller { (void)controller; }
 
 // ---- In-game touch-control editor and named profiles ----
+- (NSString *)themeColorKeyForControl:(int)control {
+    switch (control) {
+        case B_A:return @"A"; case B_B:return @"B"; case B_X:return @"X"; case B_Y:return @"Y";
+        case B_LS:case B_RS:return @"Stick"; case B_L:return @"L"; case B_R:return @"R";
+        case B_ZL:return @"ZL"; case B_ZR:return @"ZR"; case B_PLUS:return @"Plus";
+        case B_MINUS:return @"Minus"; case B_LEFT:case B_UP:case B_RIGHT:case B_DOWN:return @"Dpad";
+        default:return control==B_N?@"Layout":nil;
+    }
+}
+- (NSString *)hexForColor:(UIColor *)color {
+    CGFloat red=0,green=0,blue=0,alpha=1;
+    if (![color getRed:&red green:&green blue:&blue alpha:&alpha]) return @"FFFFFF";
+    return [NSString stringWithFormat:@"%02X%02X%02X",(int)round(red*255),(int)round(green*255),(int)round(blue*255)];
+}
+- (void)persistCustomTheme {
+    if (!_themePath.length) return;
+    NSURL *documents=[self themesDirectoryCreating:YES];
+    NSString *prefix=[documents.standardizedURL.path stringByAppendingString:@"/"];
+    if (![_themePath.stringByStandardizingPath hasPrefix:prefix]) return;
+    NSString *jsonPath=[_themePath stringByAppendingPathComponent:@"theme.json"];
+    NSMutableDictionary *json=[[NSJSONSerialization JSONObjectWithData:[NSData dataWithContentsOfFile:jsonPath] options:NSJSONReadingMutableContainers error:nil] mutableCopy];
+    if (!json) return;
+    NSMutableDictionary *buttons=[json[@"buttons"] isKindOfClass:NSDictionary.class]?[json[@"buttons"] mutableCopy]:[NSMutableDictionary dictionary];
+    for (NSString *key in _themeButtonColors) buttons[key]=[self hexForColor:_themeButtonColors[key]];
+    json[@"buttons"]=buttons;
+    NSData *data=[NSJSONSerialization dataWithJSONObject:json options:NSJSONWritingPrettyPrinted error:nil];
+    if (data) [data writeToFile:jsonPath atomically:YES];
+    [self updateThemeMenu];
+}
+- (void)editSelectedControlColor {
+    if (_launcherPreview || _selected<0) return;
+    NSString *key=[self themeColorKeyForControl:_selected];
+    if (!key) return;
+    _colorPickerControl=_selected;
+    UIColorPickerViewController *picker=[UIColorPickerViewController new];
+    picker.delegate=self;
+    picker.selectedColor=_themeButtonColors[key] ?: k_idle;
+    picker.supportsAlpha=NO;
+    [[self editorPresenter] presentViewController:picker animated:YES completion:nil];
+}
+- (void)colorPickerViewControllerDidSelectColor:(UIColorPickerViewController *)viewController {
+    NSString *key=[self themeColorKeyForControl:_colorPickerControl];
+    if (!key) return;
+    NSMutableDictionary *colors=[_themeButtonColors mutableCopy] ?: [NSMutableDictionary dictionary];
+    colors[key]=viewController.selectedColor;
+    _themeButtonColors=colors;
+    [self refresh];
+    [self persistCustomTheme];
+}
+- (void)createCustomTheme {
+    NSURL *root=[self themesDirectoryCreating:YES];
+    UIAlertController *prompt=[UIAlertController alertControllerWithTitle:@"Create Custom Theme"
+        message:@"This creates an editable copy of the current theme in TouchControlThemes."
+        preferredStyle:UIAlertControllerStyleAlert];
+    [prompt addTextFieldWithConfigurationHandler:^(UITextField *field) {
+        field.placeholder=@"Theme name";
+        field.text=@"My Custom Theme";
+        field.autocapitalizationType=UITextAutocapitalizationTypeWords;
+    }];
+    [prompt addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    [prompt addAction:[UIAlertAction actionWithTitle:@"Create" style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) {
+        NSString *name=[prompt.textFields.firstObject.text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+        NSCharacterSet *allowed=[NSCharacterSet characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 _-"];
+        NSMutableString *safe=[NSMutableString string];
+        for (NSUInteger i=0;i<name.length;i++) { unichar ch=[name characterAtIndex:i]; [safe appendFormat:@"%C",[allowed characterIsMember:ch]?ch:'_']; }
+        NSString *folderName=[safe stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@" ._"]];
+        if (!folderName.length) folderName=@"My Custom Theme";
+        NSURL *destination=[root URLByAppendingPathComponent:folderName isDirectory:YES];
+        NSUInteger suffix=2;
+        while ([NSFileManager.defaultManager fileExistsAtPath:destination.path]) {
+            destination=[root URLByAppendingPathComponent:[NSString stringWithFormat:@"%@ %lu",folderName,(unsigned long)suffix++] isDirectory:YES];
+        }
+        NSDictionary *source=[self validThemeJSONAtFolder:[NSURL fileURLWithPath:_themePath ?: @""]];
+        NSMutableDictionary *json=source?[source mutableCopy]:[NSMutableDictionary dictionary];
+        if (!json.count) {
+            json[@"palette"]=@{@"idle":@"FFFFFF",@"pressed":@"FFFFFF",@"outline":@"FFFFFF",@"ringFill":@"FFFFFF",@"text":@"FFFFFF",@"pressedText":@"000000"};
+        }
+        json[@"name"]=folderName;
+        NSError *error=nil;
+        if (![NSFileManager.defaultManager createDirectoryAtURL:destination withIntermediateDirectories:YES attributes:nil error:&error]) {
+            [self showThemeCreationError:error.localizedDescription]; return;
+        }
+        NSData *data=[NSJSONSerialization dataWithJSONObject:json options:NSJSONWritingPrettyPrinted error:&error];
+        if (!data || ![data writeToURL:[destination URLByAppendingPathComponent:@"theme.json"] options:NSDataWritingAtomic error:&error]) {
+            [NSFileManager.defaultManager removeItemAtURL:destination error:nil];
+            [self showThemeCreationError:error.localizedDescription]; return;
+        }
+        [self applyThemePath:destination.path name:folderName];
+        [self updateEditor];
+    }]];
+    [[self editorPresenter] presentViewController:prompt animated:YES completion:nil];
+}
+- (void)showThemeCreationError:(NSString *)message {
+    UIAlertController *alert=[UIAlertController alertControllerWithTitle:@"Could Not Create Theme" message:message ?: @"The theme could not be saved." preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+    [[self editorPresenter] presentViewController:alert animated:YES completion:nil];
+}
+
 - (UIButton *)editorButton:(NSString *)title action:(SEL)action frame:(CGRect)frame parent:(UIView *)parent {
     UIButton *button=[UIButton buttonWithType:UIButtonTypeSystem]; button.frame=frame;
     [button setTitle:title forState:UIControlStateNormal];
@@ -1292,29 +1394,31 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _editInfo=[[UILabel alloc] initWithFrame:CGRectMake(8,184,304,32)];
     _editInfo.numberOfLines=2; _editInfo.font=[UIFont systemFontOfSize:11];
     _editInfo.textColor=UIColor.whiteColor; [_tools addSubview:_editInfo];
-    _themeButton=[self editorButton:@"Theme: ANIMAL WELL ▾" action:NULL frame:CGRectMake(8,220,190,32) parent:_tools];
-    UIButton *importThemeButton=[self editorButton:@"Import Theme…" action:@selector(importThemeFolder) frame:CGRectMake(204,220,108,32) parent:_tools];
-    importThemeButton.titleLabel.font=[UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
+    _themeButton=[self editorButton:@"Theme: ANIMAL WELL ▾" action:NULL frame:CGRectMake(8,220,150,32) parent:_tools];
+    UIButton *importThemeButton=[self editorButton:@"Import…" action:@selector(importThemeFolder) frame:CGRectMake(164,220,68,32) parent:_tools];
+    importThemeButton.titleLabel.font=[UIFont systemFontOfSize:11 weight:UIFontWeightMedium];
+    _colorButton=[self editorButton:@"Color…" action:@selector(editSelectedControlColor) frame:CGRectMake(238,86,74,30) parent:_tools];
+    [self editorButton:@"Create theme" action:@selector(createCustomTheme) frame:CGRectMake(8,258,150,32) parent:_tools];
     importThemeButton.titleLabel.adjustsFontSizeToFitWidth=YES;
     importThemeButton.titleLabel.minimumScaleFactor=0.8;
     importThemeButton.titleLabel.lineBreakMode=NSLineBreakByClipping;
 
     // Runtime HUD settings belong to the live in-game editor, not the pre-launch layout preview.
     if (!_launcherPreview) {
-        UILabel *fpsTitle=[[UILabel alloc] initWithFrame:CGRectMake(10,260,210,28)];
+        UILabel *fpsTitle=[[UILabel alloc] initWithFrame:CGRectMake(10,298,210,28)];
         fpsTitle.text=@"FPS counter"; fpsTitle.textColor=UIColor.whiteColor;
         fpsTitle.font=[UIFont systemFontOfSize:13]; [_tools addSubview:fpsTitle];
-        _fpsSwitch=[[UISwitch alloc] initWithFrame:CGRectMake(254,258,52,31)];
+        _fpsSwitch=[[UISwitch alloc] initWithFrame:CGRectMake(254,296,52,31)];
         _fpsSwitch.onTintColor=accent;
         _fpsSwitch.tintColor=[UIColor colorWithWhite:0.14 alpha:1.0];
         _fpsSwitch.on=front_ios_runtime_fps_enabled();
         [_fpsSwitch addTarget:self action:@selector(editorHUDChanged) forControlEvents:UIControlEventValueChanged];
         [_tools addSubview:_fpsSwitch];
 
-        UILabel *hudTitle=[[UILabel alloc] initWithFrame:CGRectMake(10,294,210,28)];
+        UILabel *hudTitle=[[UILabel alloc] initWithFrame:CGRectMake(10,332,210,28)];
         hudTitle.text=@"Performance HUD"; hudTitle.textColor=UIColor.whiteColor;
         hudTitle.font=[UIFont systemFontOfSize:13]; [_tools addSubview:hudTitle];
-        _hudSwitch=[[UISwitch alloc] initWithFrame:CGRectMake(254,292,52,31)];
+        _hudSwitch=[[UISwitch alloc] initWithFrame:CGRectMake(254,330,52,31)];
         _hudSwitch.onTintColor=accent;
         _hudSwitch.tintColor=[UIColor colorWithWhite:0.14 alpha:1.0];
         _hudSwitch.on=front_ios_runtime_metal_hud_enabled();
@@ -1357,7 +1461,10 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             handler:^(__kindof UIAction *action) { (void)action; self->_selected=selected; [self updateEditor]; }]];
     }
     _chooseButton.menu=[UIMenu menuWithTitle:@"Select control" children:actions];
-    _chooseButton.showsMenuAsPrimaryAction=YES; [self setNeedsLayout];
+    _chooseButton.showsMenuAsPrimaryAction=YES;
+    [_colorButton setTitle:(_selected<0?@"Color…":[NSString stringWithFormat:@"Color %@",[self controlID:_selected]]) forState:UIControlStateNormal];
+    _colorButton.enabled=(_selected>=0 && !_launcherPreview);
+    [self setNeedsLayout];
 }
 - (UIViewController *)editorPresenter {
     UIResponder *responder=self;
