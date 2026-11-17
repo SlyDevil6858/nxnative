@@ -225,6 +225,13 @@ BOOL front_ios_runtime_fps_enabled(void) {
     const char *e=getenv("DM_SHOW_FPS");
     if (e) return atoi(e)!=0;
     NSUserDefaults *defaults=NSUserDefaults.standardUserDefaults;
+    // One-time default-off migration: older builds may have left the FPS counter
+    // enabled in preferences. Preserve later in-game choices after this reset.
+    NSString *migrationKey=@"DmRuntimeFPSDefaultOffApplied";
+    if (![defaults boolForKey:migrationKey]) {
+        [defaults setBool:NO forKey:@"DmRuntimeFPSEnabled"];
+        [defaults setBool:YES forKey:migrationKey];
+    }
     if ([defaults objectForKey:@"DmRuntimeFPSEnabled"]!=nil) return [defaults boolForKey:@"DmRuntimeFPSEnabled"];
     return NO;
 }
