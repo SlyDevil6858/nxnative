@@ -178,7 +178,8 @@ int dm_opmode(void);   // hle_oe.c: 0 = handheld
 - (CGRect)frameOfPresentedViewInContainerView {
     CGRect bounds=self.containerView.bounds;
     CGFloat width=MIN(340,MAX(280,bounds.size.width-32));
-    CGFloat height=MIN(520,MAX(380,bounds.size.height-80));
+    // With the system modal header removed, the picker needs less vertical space.
+    CGFloat height=MIN(460,MAX(340,bounds.size.height-100));
     return CGRectMake(CGRectGetMidX(bounds)-width/2,CGRectGetMidY(bounds)-height/2,width,height);
 }
 - (void)containerViewWillLayoutSubviews {
@@ -237,6 +238,36 @@ int dm_opmode(void);   // hle_oe.c: 0 = handheld
 }
 @end
 
+// Embed UIColorPickerViewController as a child instead of presenting it directly.
+// This keeps UIKit's modal title/Done header out of the floating color-well panel.
+@interface DmColorPickerHostController : UIViewController
+@property(nonatomic,strong) UIColorPickerViewController *picker;
+- (instancetype)initWithPicker:(UIColorPickerViewController *)picker;
+@end
+@implementation DmColorPickerHostController
+- (instancetype)initWithPicker:(UIColorPickerViewController *)picker {
+    self=[super initWithNibName:nil bundle:nil];
+    if (self) _picker=picker;
+    return self;
+}
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.view.backgroundColor=[UIColor colorWithWhite:0.075 alpha:1.0];
+    [self addChildViewController:self.picker];
+    self.picker.view.translatesAutoresizingMaskIntoConstraints=NO;
+    [self.view addSubview:self.picker.view];
+    [NSLayoutConstraint activateConstraints:@[
+        [self.picker.view.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
+        [self.picker.view.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
+        [self.picker.view.topAnchor constraintEqualToAnchor:self.view.topAnchor],
+        [self.picker.view.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor]
+    ]];
+    [self.picker didMoveToParentViewController:self];
+}
+- (BOOL)shouldAutorotate { return self.picker.shouldAutorotate; }
+- (UIInterfaceOrientationMask)supportedInterfaceOrientations { return self.picker.supportedInterfaceOrientations; }
+@end
+
 @interface DmColorPickerTransitionDelegate : NSObject <UIViewControllerTransitioningDelegate>
 @end
 @implementation DmColorPickerTransitionDelegate
@@ -283,6 +314,7 @@ static void pads_start(void);   // Physical controllers, below
     UIButton *_colorWellButton;
     UIColor *_editorColor;
     UIColorPickerViewController *_editorColorPicker;
+    DmColorPickerHostController *_editorColorPickerHost;
     DmColorPickerTransitionDelegate *_colorPickerTransitionDelegate;
     UIView *_colorWellAppearance;
     UIView *_colorWellSwatch;
@@ -1790,16 +1822,19 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     picker.supportsAlpha=NO;
     picker.selectedColor=_editorColor ?: k_idle;
     picker.overrideUserInterfaceStyle=UIUserInterfaceStyleDark;
-    // Use a genuinely compact floating presentation: page sheets can still
-    // expand to the full iPhone width even when preferredContentSize is set.
-    picker.preferredContentSize=CGSizeMake(340, 520);
-    picker.modalPresentationStyle=UIModalPresentationCustom;
-    picker.modalTransitionStyle=UIModalTransitionStyleCrossDissolve;
+    // Put the picker inside a plain host controller. Presenting UIColorPickerViewController
+    // directly adds a system title/Done header; embedding it removes that chrome entirely.
+    DmColorPickerHostController *host=[[DmColorPickerHostController alloc] initWithPicker:picker];
+    host.preferredContentSize=CGSizeMake(340, 460);
+    host.overrideUserInterfaceStyle=UIUserInterfaceStyleDark;
+    host.modalPresentationStyle=UIModalPresentationCustom;
+    host.modalTransitionStyle=UIModalTransitionStyleCrossDissolve;
     _colorPickerTransitionDelegate=[DmColorPickerTransitionDelegate new];
-    picker.transitioningDelegate=_colorPickerTransitionDelegate;
+    host.transitioningDelegate=_colorPickerTransitionDelegate;
 
     _editorColorPicker=picker;
-    [[self editorPresenter] presentViewController:picker animated:YES completion:nil];
+    _editorColorPickerHost=host;
+    [[self editorPresenter] presentViewController:host animated:YES completion:nil];
 }
 - (void)colorPickerViewControllerDidSelectColor:(UIColorPickerViewController *)viewController {
     [self applyEditorColor:viewController.selectedColor];
