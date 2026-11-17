@@ -1571,42 +1571,16 @@ static BOOL pads_slotted(GCController *gone) {
 @interface DmPadLauncherEditorController : UIViewController
 @property(nonatomic,strong) DmGamepad *pad;
 @property(nonatomic,strong) UIButton *closeButton;
-@property(nonatomic,strong) UIImageView *backgroundImageView;
 @property(nonatomic,strong) UIView *backgroundDimmer;
 @end
 @implementation DmPadLauncherEditorController
 - (void)viewDidLoad {
     [super viewDidLoad];
-    self.view.backgroundColor=UIColor.blackColor;
+    // The editor itself is transparent. The real launcher remains underneath;
+    // its own background artwork is dimmed by an overlay added to the launcher view.
+    self.view.backgroundColor=UIColor.clearColor;
+    self.view.opaque=NO;
     self.view.alpha=0;
-
-    // Reuse the launcher's artwork, but leave only a faint trace of it under the editor.
-    NSURL *backgroundURL=[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"dm/launcher-custom-background.png"];
-    UIImage *background=backgroundURL ? [UIImage imageWithContentsOfFile:backgroundURL.path] : nil;
-    if (background) {
-        // Match LauncherView's resizable, scaled-to-fill image: pin both layers to
-        // the full-screen view bounds so safe-area insets cannot shift the crop.
-        _backgroundImageView=[UIImageView new];
-        _backgroundImageView.image=background;
-        _backgroundImageView.contentMode=UIViewContentModeScaleAspectFill;
-        _backgroundImageView.clipsToBounds=YES;
-        _backgroundImageView.translatesAutoresizingMaskIntoConstraints=NO;
-        [self.view addSubview:_backgroundImageView];
-        _backgroundDimmer=[UIView new];
-        _backgroundDimmer.backgroundColor=[UIColor colorWithWhite:0 alpha:0.86];
-        _backgroundDimmer.translatesAutoresizingMaskIntoConstraints=NO;
-        [self.view addSubview:_backgroundDimmer];
-        [NSLayoutConstraint activateConstraints:@[
-            [_backgroundImageView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
-            [_backgroundImageView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
-            [_backgroundImageView.topAnchor constraintEqualToAnchor:self.view.topAnchor],
-            [_backgroundImageView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
-            [_backgroundDimmer.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
-            [_backgroundDimmer.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
-            [_backgroundDimmer.topAnchor constraintEqualToAnchor:self.view.topAnchor],
-            [_backgroundDimmer.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor]
-        ]];
-    }
 
     g_launcher_preview=YES;
     _pad=[[DmGamepad alloc] initWithFrame:self.view.bounds];
@@ -1633,33 +1607,37 @@ static BOOL pads_slotted(GCController *gone) {
     [super viewDidLayoutSubviews];
     _pad.frame=self.view.bounds;
     _closeButton.frame=CGRectMake(CGRectGetWidth(self.view.bounds)-88, self.view.safeAreaInsets.top+8, 76, 36);
-
-    // LauncherView's background is attached to its safe-area-sized GeometryReader and
-    // then ignores the safe area. Keep the image's center aligned to that same region
-    // instead of centering it on the editor's full-screen bounds.
-    UIEdgeInsets insets=self.view.safeAreaInsets;
-    _backgroundImageView.transform=CGAffineTransformMakeTranslation(
-        (insets.left-insets.right)*0.5,
-        (insets.top-insets.bottom)*0.5 + 12.0
-    );
 }
 - (void)viewDidAppear:(BOOL)animated {
     [super viewDidAppear:animated];
     UIView *launcher=self.presentingViewController.view;
+    if (!_backgroundDimmer) {
+        _backgroundDimmer=[UIView new];
+        _backgroundDimmer.backgroundColor=[UIColor colorWithWhite:0 alpha:0.90];
+        _backgroundDimmer.alpha=0;
+        _backgroundDimmer.translatesAutoresizingMaskIntoConstraints=NO;
+        [launcher addSubview:_backgroundDimmer];
+        [NSLayoutConstraint activateConstraints:@[
+            [_backgroundDimmer.leadingAnchor constraintEqualToAnchor:launcher.leadingAnchor],
+            [_backgroundDimmer.trailingAnchor constraintEqualToAnchor:launcher.trailingAnchor],
+            [_backgroundDimmer.topAnchor constraintEqualToAnchor:launcher.topAnchor],
+            [_backgroundDimmer.bottomAnchor constraintEqualToAnchor:launcher.bottomAnchor]
+        ]];
+    }
     [UIView animateWithDuration:0.30 delay:0 options:UIViewAnimationOptionBeginFromCurrentState|UIViewAnimationOptionCurveEaseInOut animations:^{
         self.view.alpha=1;
-        launcher.alpha=0;
+        self.backgroundDimmer.alpha=1;
     } completion:^(__unused BOOL finished) {
         [self.pad beginLauncherEdit];
     }];
 }
 - (void)closeEditor {
     [_pad saveEdit];
-    UIView *launcher=self.presentingViewController.view;
     [UIView animateWithDuration:0.26 delay:0 options:UIViewAnimationOptionBeginFromCurrentState|UIViewAnimationOptionCurveEaseInOut animations:^{
         self.view.alpha=0;
-        launcher.alpha=1;
+        self.backgroundDimmer.alpha=0;
     } completion:^(__unused BOOL finished) {
+        [self.backgroundDimmer removeFromSuperview];
         [self dismissViewControllerAnimated:NO completion:nil];
     }];
 }
