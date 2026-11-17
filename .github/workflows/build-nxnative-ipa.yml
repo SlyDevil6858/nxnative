@@ -18,6 +18,16 @@ on:
         required: true
         type: number
         default: 0
+      include_animal_well_theme:
+        description: "Bundle the ANIMAL WELL touch controls theme"
+        required: true
+        type: boolean
+        default: true
+      include_classic_theme:
+        description: "Bundle the CLASSIC touch controls theme"
+        required: true
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -45,6 +55,42 @@ jobs:
           ref: iphone-4gb
           path: nxnative
           persist-credentials: false
+
+      - name: Configure bundled touch control themes
+        working-directory: nxnative
+        env:
+          INCLUDE_ANIMAL_WELL: ${{ inputs.include_animal_well_theme }}
+          INCLUDE_CLASSIC: ${{ inputs.include_classic_theme }}
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          config = Path("dm/ios/project.yml")
+          source = config.read_text(encoding="utf-8")
+
+          selections = {
+              "ANIMAL WELL": os.environ["INCLUDE_ANIMAL_WELL"].lower() == "true",
+              "CLASSIC": os.environ["INCLUDE_CLASSIC"].lower() == "true",
+          }
+          if not any(selections.values()):
+              raise SystemExit("Select at least one built-in touch control theme to bundle.")
+
+          for name, enabled in selections.items():
+              block = (
+                  f"  - path: ../../TouchControlThemes/{name}\n"
+                  "    type: folder\n"
+                  "    buildPhase: resources\n"
+              )
+              if block not in source:
+                  raise SystemExit(f"Could not find the expected {name} theme resource entry in {config}.")
+              if not enabled:
+                  source = source.replace(block, "", 1)
+
+          config.write_text(source, encoding="utf-8")
+          bundled = [name for name, enabled in selections.items() if enabled]
+          print("Bundled touch control themes: " + ", ".join(bundled))
+          PY
 
       - name: Load optional launcher appearance overrides
         working-directory: nxnative
