@@ -292,6 +292,7 @@ private struct LauncherView: View {
                     }
                 }
             }
+            }
             .opacity(isControlLayoutEditing ? 0 : 1)
             .animation(.easeInOut(duration: 0.25), value: isControlLayoutEditing)
             .allowsHitTesting(!isControlLayoutEditing)
