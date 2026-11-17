@@ -92,7 +92,9 @@ struct SettingRow: View {
         .frame(width: 210)
         .frame(maxHeight: 180)
         .padding(6)
-        .presentationBackground(Color(red: 0.035, green: 0.035, blue: 0.035).opacity(0.98))
+        .background(Color(red: 0.035, green: 0.035, blue: 0.035))
+        // Match the native popover arrow to the opaque dark choice list.
+        .presentationBackground(Color(red: 0.035, green: 0.035, blue: 0.035))
         .presentationCompactAdaptation(.popover)
         .environment(\.colorScheme, .dark)
     }
