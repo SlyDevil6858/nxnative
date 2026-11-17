@@ -64,7 +64,7 @@ struct LauncherDisclosureGroupStyle: DisclosureGroupStyle {
                     configuration.label
                     Spacer(minLength: 8)
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 24, weight: .bold))
+                        .font(.system(size: 20, weight: .semibold))
                         .foregroundStyle(accentColor)
                         .rotationEffect(.degrees(configuration.isExpanded ? 0 : -90))
                         .frame(width: 30, height: 30)
