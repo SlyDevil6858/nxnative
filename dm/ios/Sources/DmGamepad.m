@@ -225,6 +225,14 @@ static UIColor *themeHex(NSString *value) {
     if (![scanner scanHexInt:&rgb] || !scanner.isAtEnd) return nil;
     return [UIColor colorWithRed:((rgb >> 16) & 255)/255.0 green:((rgb >> 8) & 255)/255.0 blue:(rgb & 255)/255.0 alpha:1];
 }
+static id themePaletteValue(NSDictionary *palette, NSString *key) {
+    id value=palette[key];
+    if (value) return value;
+    for (id candidate in palette)
+        if ([candidate isKindOfClass:NSString.class] && [candidate caseInsensitiveCompare:key]==NSOrderedSame)
+            return palette[candidate];
+    return nil;
+}
 static void theme_init(void) {
     k_idle = [UIColor colorWithWhite:1 alpha:0.14]; k_on = [UIColor colorWithWhite:1 alpha:0.45];
     k_line = [UIColor colorWithWhite:1 alpha:0.38]; k_ringFill = [UIColor colorWithWhite:1 alpha:0.06];
@@ -1010,12 +1018,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     NSDictionary *json=data?[NSJSONSerialization JSONObjectWithData:data options:0 error:nil]:nil;
     NSDictionary *palette=[json isKindOfClass:NSDictionary.class]?json[@"palette"]:nil;
     if (![palette isKindOfClass:NSDictionary.class]) return nil;
-    for (NSString *key in @[@"idle",@"pressed",@"outline",@"ringFill",@"text",@"pressedText"]) {
-        id value=palette[key];
-        if (!value) for (id paletteKey in palette)
-            if ([paletteKey isKindOfClass:NSString.class] && [paletteKey caseInsensitiveCompare:key]==NSOrderedSame) { value=palette[paletteKey]; break; }
-        if (!themeHex(value)) return nil;
-    }
+    for (NSString *key in @[@"idle",@"pressed",@"outline",@"ringFill",@"text",@"pressedText"])
+        if (!themeHex(themePaletteValue(palette,key))) return nil;
     return json;
 }
 - (BOOL)loadThemeAtPath:(NSString *)path {
@@ -1026,9 +1030,9 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     if (![json isKindOfClass:NSDictionary.class]) return NO;
     NSDictionary *palette=json[@"palette"], *buttons=json[@"buttons"];
     if (![palette isKindOfClass:NSDictionary.class]) return NO;
-    UIColor *idle=themeHex(palette[@"idle"]), *pressed=themeHex(palette[@"pressed"]);
-    UIColor *outline=themeHex(palette[@"outline"]), *ring=themeHex(palette[@"ringFill"]);
-    UIColor *text=themeHex(palette[@"text"]), *pressedText=themeHex(palette[@"pressedText"]);
+    UIColor *idle=themeHex(themePaletteValue(palette,@"idle")), *pressed=themeHex(themePaletteValue(palette,@"pressed"));
+    UIColor *outline=themeHex(themePaletteValue(palette,@"outline")), *ring=themeHex(themePaletteValue(palette,@"ringFill"));
+    UIColor *text=themeHex(themePaletteValue(palette,@"text")), *pressedText=themeHex(themePaletteValue(palette,@"pressedText"));
     if (!idle || !pressed || !outline || !ring || !text || !pressedText) return NO;
     NSMutableDictionary *parsed=[NSMutableDictionary dictionary];
     if ([buttons isKindOfClass:NSDictionary.class]) for (NSString *key in buttons) {
@@ -1270,7 +1274,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         if (!safeName.length) safeName=@"Imported Theme";
         NSURL *root=[self themesDirectoryCreating:YES];
         NSURL *destination=[root URLByAppendingPathComponent:safeName isDirectory:YES];
-        NSURL *staging=[root URLByAppendingPathComponent:[NSString stringWithFormat:@".import-%@",NSUUID.UUID.UUIDString] isDirectory:YES];
+        NSURL *staging=[root URLByAppendingPathComponent:[NSString stringWithFormat:@".import-%@",[NSUUID UUID].UUIDString] isDirectory:YES];
         NSError *copyError=nil;
         if (![fm copyItemAtURL:themeFolder toURL:staging error:&copyError]) {
             failure=[NSString stringWithFormat:@"The theme files could not be read or copied. %@",copyError.localizedDescription ?: @""];
@@ -1285,16 +1289,20 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             failure=[NSString stringWithFormat:@"The theme manifest could not be normalized. %@",copyError.localizedDescription ?: @""];
             return;
         }
-        if ([fm fileExistsAtPath:destination.path] && ![fm removeItemAtURL:destination error:&copyError]) {
+        NSURL *backup=[root URLByAppendingPathComponent:[NSString stringWithFormat:@".backup-%@",[NSUUID UUID].UUIDString] isDirectory:YES];
+        BOOL hadExisting=[fm fileExistsAtPath:destination.path];
+        if (hadExisting && ![fm moveItemAtURL:destination toURL:backup error:&copyError]) {
             [fm removeItemAtURL:staging error:nil];
-            failure=[NSString stringWithFormat:@"The existing theme could not be replaced. %@",copyError.localizedDescription ?: @""];
+            failure=[NSString stringWithFormat:@"The existing theme could not be safely replaced. %@",copyError.localizedDescription ?: @""];
             return;
         }
         if (![fm moveItemAtURL:staging toURL:destination error:&copyError]) {
+            if (hadExisting) [fm moveItemAtURL:backup toURL:destination error:nil];
             [fm removeItemAtURL:staging error:nil];
             failure=[NSString stringWithFormat:@"The imported theme could not be installed. %@",copyError.localizedDescription ?: @""];
             return;
         }
+        if (hadExisting) [fm removeItemAtURL:backup error:nil];
         installedPath=destination.path;
         installedName=safeName;
     }];
