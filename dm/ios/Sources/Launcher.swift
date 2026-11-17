@@ -494,7 +494,19 @@ private struct LauncherView: View {
                   let json = themeJSON(in: folder) else { return nil }
             return LauncherTheme(name: (json["name"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? folder.lastPathComponent,
                                  path: folder.path)
-        }.sorted { let lhs = URL(fileURLWithPath: $0.path).lastPathComponent.caseInsensitiveCompare("ANIMAL WELL") == .orderedSame; let rhs = URL(fileURLWithPath: $1.path).lastPathComponent.caseInsensitiveCompare("ANIMAL WELL") == .orderedSame; if lhs != rhs { return lhs }; return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        }.sorted {
+            func priority(_ theme: LauncherTheme) -> Int {
+                let folder = URL(fileURLWithPath: theme.path).lastPathComponent
+                if folder.caseInsensitiveCompare("ANIMAL WELL") == .orderedSame ||
+                    theme.name.caseInsensitiveCompare("ANIMAL WELL") == .orderedSame { return 0 }
+                if folder.caseInsensitiveCompare("CLASSIC") == .orderedSame ||
+                    theme.name.caseInsensitiveCompare("CLASSIC") == .orderedSame { return 1 }
+                return 2
+            }
+            let leftPriority = priority($0), rightPriority = priority($1)
+            if leftPriority != rightPriority { return leftPriority < rightPriority }
+            return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+        }
         let defaults = UserDefaults.standard
         let path = defaults.string(forKey: "DmTouchControlThemePath")
         if let selected = themes.first(where: { $0.path == path }) {
