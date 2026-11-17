@@ -1102,7 +1102,17 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 - (BOOL)loadSelectedTheme {
     NSUserDefaults *defaults=NSUserDefaults.standardUserDefaults;
     NSString *path=[defaults stringForKey:k_theme_path_key];
-    if (path.length && [self loadThemeAtPath:path]) return YES;
+    // FOREST ships in the bundle as a seed, but its active copy lives in
+    // Documents so users can edit, rename, and delete it like an imported theme.
+    if (path.length && [[NSURL fileURLWithPath:path].lastPathComponent caseInsensitiveCompare:@"FOREST"]==NSOrderedSame) {
+        NSURL *writableForest=[[self themesDirectoryCreating:YES] URLByAppendingPathComponent:@"FOREST" isDirectory:YES];
+        if ([NSFileManager.defaultManager fileExistsAtPath:writableForest.path])
+            path=writableForest.path;
+    }
+    if (path.length && [self loadThemeAtPath:path]) {
+        [defaults setObject:path forKey:k_theme_path_key];
+        return YES;
+    }
 
     [defaults removeObjectForKey:k_theme_path_key];
     NSURL *bundledRoot=[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES];
@@ -1490,6 +1500,10 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     if (data) [data writeToFile:jsonPath atomically:YES];
     [self updateThemeMenu];
 }
+- (void)presentColorWellPicker {
+    if (!_colorWell.enabled || !_colorWell.userInteractionEnabled) return;
+    [_colorWell presentColorPicker];
+}
 - (void)refreshColorWellAppearance {
     if (!_colorWellAppearance || !_colorWellRainbowBorder || !_colorWellSwatch) return;
     _colorWellAppearance.frame=_colorWell.frame;
@@ -1623,7 +1637,12 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _colorWellAppearance.backgroundColor=[UIColor colorWithWhite:0.12 alpha:1];
     _colorWellAppearance.layer.cornerRadius=6;
     _colorWellAppearance.clipsToBounds=YES;
-    _colorWellAppearance.userInteractionEnabled=NO;
+    _colorWellAppearance.userInteractionEnabled=YES;
+    _colorWellAppearance.isAccessibilityElement=YES;
+    _colorWellAppearance.accessibilityTraits=UIAccessibilityTraitButton;
+    UITapGestureRecognizer *colorWellTap=[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(presentColorWellPicker)];
+    colorWellTap.cancelsTouchesInView=YES;
+    [_colorWellAppearance addGestureRecognizer:colorWellTap];
     [_tools addSubview:_colorWellAppearance];
 
     _colorWellRainbowBorder=[CAGradientLayer layer];
@@ -1650,9 +1669,9 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _colorWellLockIcon.frame=CGRectMake(174,91,24,20);
     _colorWellLockIcon.contentMode=UIViewContentModeScaleAspectFit;
     _colorWellLockIcon.tintColor=UIColor.whiteColor;
-    _colorWellLockIcon.backgroundColor=[UIColor colorWithWhite:0 alpha:0.42];
-    _colorWellLockIcon.layer.cornerRadius=5;
-    _colorWellLockIcon.clipsToBounds=YES;
+    _colorWellLockIcon.backgroundColor=UIColor.clearColor;
+    _colorWellLockIcon.layer.cornerRadius=0;
+    _colorWellLockIcon.clipsToBounds=NO;
     _colorWellLockIcon.userInteractionEnabled=NO;
     _colorWellLockIcon.hidden=YES;
     [_tools addSubview:_colorWellLockIcon];
@@ -1789,6 +1808,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     BOOL hasColorTarget=(_selected<0 || colorKey!=nil);
     _colorWell.enabled=(hasColorTarget && !builtInTheme);
     _colorWell.userInteractionEnabled=(hasColorTarget && !builtInTheme);
+    _colorWellAppearance.userInteractionEnabled=(hasColorTarget && !builtInTheme);
+    _colorWellAppearance.accessibilityLabel=_colorWell.accessibilityLabel;
     _colorWell.accessibilityLabel=builtInTheme ? @"Control color locked for built-in themes" :
         (_selected<0 ? @"Choose all controls color" :
          (colorKey ? [NSString stringWithFormat:@"Choose %@ color", [self controlID:_selected]] : @"Choose control color"));
