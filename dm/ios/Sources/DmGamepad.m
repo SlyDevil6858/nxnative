@@ -1375,8 +1375,9 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [self editorButton:@"Save" action:@selector(saveEdit) frame:CGRectMake(8,48,90,32) parent:_tools];
     [self editorButton:@"Cancel" action:@selector(cancelEdit) frame:CGRectMake(110,48,90,32) parent:_tools];
     [self editorButton:@"Reset all" action:@selector(resetAllControls) frame:CGRectMake(212,48,100,32) parent:_tools];
-    _chooseButton=[self editorButton:@"A ▾" action:NULL frame:CGRectMake(8,86,145,30) parent:_tools];
-    [self editorButton:@"Reset control" action:@selector(resetControl) frame:CGRectMake(163,86,149,30) parent:_tools];
+    _chooseButton=[self editorButton:@"A ▾" action:NULL frame:CGRectMake(8,86,104,30) parent:_tools];
+    _colorButton=[self editorButton:@"Color…" action:@selector(editSelectedControlColor) frame:CGRectMake(118,86,88,30) parent:_tools];
+    [self editorButton:@"Reset control" action:@selector(resetControl) frame:CGRectMake(212,86,100,30) parent:_tools];
     _sizeSlider=[[UISlider alloc] initWithFrame:CGRectMake(78,120,230,30)];
     _sizeSlider.minimumValue=0.5; _sizeSlider.maximumValue=2;
     _alphaSlider=[[UISlider alloc] initWithFrame:CGRectMake(78,152,230,30)];
@@ -1399,7 +1400,6 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _themeButton=[self editorButton:@"Theme: ANIMAL WELL ▾" action:NULL frame:CGRectMake(8,220,150,32) parent:_tools];
     UIButton *importThemeButton=[self editorButton:@"Import…" action:@selector(importThemeFolder) frame:CGRectMake(164,220,68,32) parent:_tools];
     importThemeButton.titleLabel.font=[UIFont systemFontOfSize:11 weight:UIFontWeightMedium];
-    _colorButton=[self editorButton:@"Color…" action:@selector(editSelectedControlColor) frame:CGRectMake(238,86,74,30) parent:_tools];
     [self editorButton:@"Create theme" action:@selector(createCustomTheme) frame:CGRectMake(8,258,150,32) parent:_tools];
     importThemeButton.titleLabel.adjustsFontSizeToFitWidth=YES;
     importThemeButton.titleLabel.minimumScaleFactor=0.8;
@@ -1464,7 +1464,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     }
     _chooseButton.menu=[UIMenu menuWithTitle:@"Select control" children:actions];
     _chooseButton.showsMenuAsPrimaryAction=YES;
-    [_colorButton setTitle:(_selected<0?@"Color…":[NSString stringWithFormat:@"Color %@",[self controlID:_selected]]) forState:UIControlStateNormal];
+    [_colorButton setTitle:(_selected<0?@"Color…":[NSString stringWithFormat:@"Color: %@",[self controlID:_selected]]) forState:UIControlStateNormal];
     _colorButton.enabled=(_selected>=0 && !_launcherPreview);
     [self setNeedsLayout];
 }
