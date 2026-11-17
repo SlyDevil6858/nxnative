@@ -69,12 +69,12 @@ struct SettingRow: View {
                     } label: {
                         HStack(spacing: 8) {
                             Text(option[1])
-                                .foregroundStyle(accentColor)
+                                .foregroundStyle(locked ? Color(white: 0.58) : accentColor)
                                 .lineLimit(1)
                             Spacer(minLength: 4)
                             if (m.values[s.env] ?? s.def) == option[0] {
                                 Image(systemName: "checkmark")
-                                    .foregroundStyle(Color(red: 0.16, green: 0.34, blue: 0.20))
+                                    .foregroundStyle(Color(red: 0.22, green: 0.48, blue: 0.28))
                             }
                         }
                         .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
