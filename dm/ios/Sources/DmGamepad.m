@@ -159,7 +159,7 @@ int dm_opmode(void);   // hle_oe.c: 0 = handheld
 }
 @end
 
-@interface DmGamepad : UIView <UIGestureRecognizerDelegate, UIDocumentPickerDelegate>
+@interface DmGamepad : UIView <UIGestureRecognizerDelegate, UIDocumentPickerDelegate, UIColorPickerViewControllerDelegate>
 - (UIColor *)editorAccentColor;
 - (void)beginLauncherEdit;
 - (void)toggleEditor;
@@ -191,7 +191,9 @@ static void pads_start(void);   // Physical controllers, below
     NSString *_themeName;
     NSString *_themePath;
     UIButton *_themeButton;
-    UIColorWell *_colorWell;
+    UIButton *_colorWellButton;
+    UIColor *_editorColor;
+    UIColorPickerViewController *_editorColorPicker;
     UIView *_colorWellAppearance;
     UIView *_colorWellSwatch;
     CAGradientLayer *_colorWellRainbowBorder;
@@ -1201,7 +1203,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         case B_MINUS:key=@"Minus";break; default:if (b>=B_LEFT) key=@"Dpad";break;
     }
     UIColor *base=key ? _themeButtonColors[key] : nil;
-    if (!base && b==B_N) base=_themeButtonColors[@"Layout"];
+    if (b==B_N) base=_themeButtonColors[@"Layout"];
     if (!base) return pressed ? k_on : k_idle;
     return [base colorWithAlphaComponent:pressed ? 0.92 : 0.36];
 }
@@ -1619,7 +1621,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 }
 - (void)refreshColorWellAppearance {
     if (!_colorWellAppearance || !_colorWellRainbowBorder || !_colorWellSwatch) return;
-    _colorWellAppearance.frame=_colorWell.frame;
+    _colorWellAppearance.frame=_colorWellButton.frame;
     _colorWellRainbowBorder.frame=_colorWellAppearance.bounds;
     CGRect bounds=_colorWellAppearance.bounds;
     CGFloat border=2.0;
@@ -1632,10 +1634,22 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     mask.lineWidth=border;
     _colorWellRainbowBorder.mask=mask;
     _colorWellSwatch.frame=CGRectInset(bounds,5,5);
-    _colorWellSwatch.backgroundColor=_colorWell.selectedColor ?: k_idle;
+    _colorWellSwatch.backgroundColor=_editorColor ?: k_idle;
 }
-- (void)colorWellValueChanged:(UIColorWell *)sender {
-    UIColor *color=sender.selectedColor;
+- (void)openEditorColorPicker {
+    if (!_colorWellButton.enabled) return;
+    UIColorPickerViewController *picker=[UIColorPickerViewController new];
+    picker.delegate=self;
+    picker.supportsAlpha=NO;
+    picker.selectedColor=_editorColor ?: k_idle;
+    picker.overrideUserInterfaceStyle=UIUserInterfaceStyleDark;
+    _editorColorPicker=picker;
+    [[self editorPresenter] presentViewController:picker animated:YES completion:nil];
+}
+- (void)colorPickerViewControllerDidSelectColor:(UIColorPickerViewController *)viewController {
+    [self applyEditorColor:viewController.selectedColor];
+}
+- (void)applyEditorColor:(UIColor *)color {
     if (!color) return;
     NSMutableDictionary *colors=[_themeButtonColors mutableCopy] ?: [NSMutableDictionary dictionary];
     if (_colorTarget==2) {
@@ -1670,7 +1684,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         }
     }
     _themeButtonColors=colors;
-    _colorWell.selectedColor=color;
+    _editorColor=color;
     [self refreshColorWellAppearance];
     [self refresh];
     [self persistCustomTheme];
@@ -1756,34 +1770,27 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [self editorButton:@"Cancel" action:@selector(cancelEdit) frame:CGRectMake(110,48,132,32) parent:_tools];
     [self editorButton:@"Reset all" action:@selector(resetAllControls) frame:CGRectMake(252,48,100,32) parent:_tools];
     _chooseButton=[self editorButton:@"A ▾" action:@selector(showControlPopup) frame:CGRectMake(8,86,120,30) parent:_tools];
-    _colorWell=[[UIColorWell alloc] initWithFrame:CGRectMake(136,86,100,30)];
-    _colorWell.title=@"Fill Color";
-    _colorWell.overrideUserInterfaceStyle=UIUserInterfaceStyleDark;
-    _colorWell.backgroundColor=[UIColor colorWithWhite:0.12 alpha:0.96];
-    _colorWell.tintColor=UIColor.whiteColor;
-    _colorWell.overrideUserInterfaceStyle=UIUserInterfaceStyleDark;
-    _colorWell.layer.cornerRadius=6;
-    _colorWell.clipsToBounds=YES;
-    _colorWell.supportsAlpha=NO;
-    _colorWell.supportsEyedropper=YES;
-    _colorWell.accessibilityLabel=@"Choose control color";
-    [_colorWell addTarget:self action:@selector(colorWellValueChanged:) forControlEvents:UIControlEventValueChanged];
-    [_tools addSubview:_colorWell];
+    _colorWellButton=[UIButton buttonWithType:UIButtonTypeCustom];
+    _colorWellButton.frame=CGRectMake(136,86,100,30);
+    _colorWellButton.backgroundColor=[UIColor colorWithWhite:0.12 alpha:0.96];
+    _colorWellButton.layer.cornerRadius=6;
+    _colorWellButton.clipsToBounds=YES;
+    _colorWellButton.accessibilityLabel=@"Choose control color";
+    [_colorWellButton addTarget:self action:@selector(openEditorColorPicker) forControlEvents:UIControlEventTouchUpInside];
+    [_tools addSubview:_colorWellButton];
     _colorTargetButton=[self editorButton:@"Fill Color ▾" action:@selector(showColorTargetPopup)
         frame:CGRectMake(244,86,108,30) parent:_tools];
     _colorTargetButton.titleLabel.adjustsFontSizeToFitWidth=YES;
     _colorTargetButton.titleLabel.minimumScaleFactor=0.68;
 
-    // UIColorWell draws its own circular swatch and rainbow ring. Cover that
-    // artwork with a rectangular custom face while leaving the native control
-    // underneath to handle taps and present Apple's color palette.
+    // The custom rectangular button owns the full hit area; this view supplies
+    // the rectangular rainbow border and color swatch artwork.
     _colorWellAppearance=[UIView new];
     _colorWellAppearance.frame=_colorWell.frame;
     _colorWellAppearance.backgroundColor=[UIColor colorWithWhite:0.12 alpha:1];
     _colorWellAppearance.layer.cornerRadius=6;
     _colorWellAppearance.clipsToBounds=YES;
-    // Keep this visual layer non-interactive so touches reach UIColorWell itself.
-    // UIColorWell presents its native picker from its own touch handling.
+    // Keep the decorative face non-interactive so the full rectangular button receives taps.
     _colorWellAppearance.userInteractionEnabled=NO;
     _colorWellAppearance.isAccessibilityElement=NO;
     [_tools addSubview:_colorWellAppearance];
@@ -2045,24 +2052,22 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     NSString *colorKey=_selected<0 ? nil : [self themeColorKeyForControl:_selected];
     _colorPickerControl=_selected;
     UIColor *wellColor=[self currentColorForEditorSelection];
-    _colorWell.title=[self colorTargetName];
     [_colorTargetButton setTitle:[NSString stringWithFormat:@"%@ ▾",[self colorTargetName]] forState:UIControlStateNormal];
-    _colorWell.selectedColor=wellColor;
+    _editorColor=wellColor;
     [self refreshColorWellAppearance];
     BOOL builtInTheme=[self isBuiltInThemeSelected];
     BOOL hasColorTarget=(_colorTarget==2 ? _selected!=18 : (_selected<0 || colorKey!=nil));
-    _colorWell.enabled=(hasColorTarget && !builtInTheme);
-    _colorWell.userInteractionEnabled=(hasColorTarget && !builtInTheme);
+    _colorWellButton.enabled=(hasColorTarget && !builtInTheme);
     _colorTargetButton.enabled=!builtInTheme;
     _colorTargetButton.alpha=builtInTheme?0.55:1.0;
     // The visual rectangle must stay transparent to hit-testing so the native
     // UIColorWell underneath receives taps in both editor presentations.
     _colorWellAppearance.userInteractionEnabled=NO;
-    _colorWellAppearance.accessibilityLabel=_colorWell.accessibilityLabel;
-    _colorWell.accessibilityLabel=builtInTheme ? @"Control color locked for built-in themes" :
+    _colorWellButton.accessibilityLabel=builtInTheme ? @"Control color locked for built-in themes" :
         (_selected<0 ? @"Choose all controls color" :
          (colorKey ? [NSString stringWithFormat:@"Choose %@ color", [self controlID:_selected]] : @"Choose control color"));
     _colorWellLockIcon.hidden=!builtInTheme;
+    [_tools bringSubviewToFront:_colorWellButton];
     [_tools bringSubviewToFront:_colorWellAppearance];
     [_tools bringSubviewToFront:_colorWellLockIcon];
     [self setNeedsLayout];
