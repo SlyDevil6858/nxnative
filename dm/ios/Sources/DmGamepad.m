@@ -494,7 +494,7 @@ static CGPoint side(CGRect s, int right, CGFloat dx, CGFloat y) { return CGPoint
 - (float)opacity:(int)b {
     NSNumber *n = _custom[[self controlID:b]][@"alpha"];
     float value = n ? n.floatValue : 1.0f;
-    return _editing ? fmaxf(value, 0.35f) : value;
+    return value;
 }
 - (CGPoint)position:(int)b base:(CGPoint)base {
     NSDictionary *value = _custom[[self controlID:b]];
