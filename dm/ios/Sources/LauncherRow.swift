@@ -54,29 +54,31 @@ struct LauncherDisclosureGroupStyle: DisclosureGroupStyle {
     let accentColor: Color
 
     func makeBody(configuration: Configuration) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    configuration.isExpanded.toggle()
-                }
-            } label: {
-                HStack(spacing: 8) {
-                    configuration.label
-                    Spacer(minLength: 8)
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(accentColor)
-                        .rotationEffect(.degrees(configuration.isExpanded ? 0 : -90))
-                        .frame(width: 30, height: 30)
-                        .contentShape(Rectangle())
-                }
-                .contentShape(Rectangle())
+        Button {
+            withAnimation(.easeInOut(duration: 0.22)) {
+                configuration.isExpanded.toggle()
             }
-            .buttonStyle(.plain)
+        } label: {
+            HStack(spacing: 8) {
+                configuration.label
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(accentColor)
+                    .rotationEffect(.degrees(configuration.isExpanded ? 0 : -90))
+                    .animation(.easeInOut(duration: 0.22), value: configuration.isExpanded)
+                    .frame(width: 30, height: 30)
+                    .contentShape(Rectangle())
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
 
-            if configuration.isExpanded {
-                configuration.content
-            }
+        // Keep the expanded content as a separate List row. Wrapping both
+        // header and content in a VStack makes the List resize one large row,
+        // which can cause the abrupt jump during expansion and collapse.
+        if configuration.isExpanded {
+            configuration.content
         }
     }
 }
