@@ -72,9 +72,7 @@ jobs:
           import os
           from pathlib import Path
 
-          config = Path("dm/ios/project.yml")
-          source = config.read_text(encoding="utf-8")
-
+          theme_root = Path("TouchControlThemes")
           selections = {
               "ANIMAL WELL": os.environ["INCLUDE_ANIMAL_WELL"].lower() == "true",
               "CLASSIC": os.environ["INCLUDE_CLASSIC"].lower() == "true",
@@ -84,19 +82,15 @@ jobs:
               raise SystemExit("Select at least one built-in touch control theme to bundle.")
 
           for name, enabled in selections.items():
-              block = (
-                  f"      - path: ../../TouchControlThemes/{name}\n"
-                  "        type: folder\n"
-                  "        buildPhase: resources\n"
-              )
-              if block not in source:
-                  raise SystemExit(f"Could not find the expected {name} theme resource entry in {config}.")
+              folder = theme_root / name
+              if not folder.is_dir() or not (folder / "theme.json").is_file():
+                  raise SystemExit(f"Required built-in theme folder is missing or incomplete: {folder}")
               if not enabled:
-                  source = source.replace(block, "", 1)
+                  import shutil
+                  shutil.rmtree(folder)
 
-          config.write_text(source, encoding="utf-8")
           bundled = [name for name, enabled in selections.items() if enabled]
-          print("Bundled touch control themes: " + ", ".join(bundled))
+          print("Bundled touch control themes in TouchControlThemes/: " + ", ".join(bundled))
           PY
 
       - name: Load optional launcher appearance overrides
