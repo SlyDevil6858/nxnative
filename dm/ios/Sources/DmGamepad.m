@@ -1139,8 +1139,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             [title caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
             [title caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame;
         // Compare canonical filesystem paths so the Documents copy is reliably recognized.
-        NSString *standardFolderPath=folder.URLByStandardizingPath.path;
-        NSString *standardDocumentsPath=documentsRoot.URLByStandardizingPath.path;
+        NSString *standardFolderPath=folder.standardizedURL.path;
+        NSString *standardDocumentsPath=documentsRoot.standardizedURL.path;
         NSString *standardDocumentsPrefix=[standardDocumentsPath stringByAppendingString:@"/"];
         BOOL writable=[standardFolderPath hasPrefix:standardDocumentsPrefix] ||
             [folder.path hasPrefix:documentsPrefix];
