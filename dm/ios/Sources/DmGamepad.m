@@ -351,16 +351,7 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
                 self->_menuTipBubble.opacity=1;
                 [self->_menuTipBubble addAnimation:showBubble forKey:@"bubbleFade"];
                 dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(6 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                    [UIView animateWithDuration:0.35 animations:^{ self->_menuTip.alpha=0; }];
-                    CABasicAnimation *hideBubble=[CABasicAnimation animationWithKeyPath:@"opacity"];
-                    hideBubble.fromValue=@1; hideBubble.toValue=@0; hideBubble.duration=0.35;
-                    hideBubble.timingFunction=[CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseIn];
-                    self->_menuTipBubble.opacity=0;
-                    [self->_menuTipBubble addAnimation:hideBubble forKey:@"bubbleFade"];
-                    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.36 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                        [self->_menuTip removeFromSuperview]; [self->_menuTipBubble removeFromSuperlayer];
-                        self->_menuTip=nil; self->_menuTipBubble=nil;
-                    });
+                    [self dismissMenuTip];
                 });
             });
         }
@@ -655,12 +646,36 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
     for (int i = 0; i < 16; i++) if (!_game[i]) { _game[i] = t; [_owner setObject:@(C_GAME | (uint64_t)i << 8) forKey:t]; return YES; }
     return NO;
 }
+- (void)dismissMenuTip {
+    if (!_menuTip && !_menuTipBubble) return;
+    DmPaddedTipLabel *tip=_menuTip;
+    CAShapeLayer *bubble=_menuTipBubble;
+    _menuTip=nil;
+    _menuTipBubble=nil;
+    [UIView animateWithDuration:0.16 delay:0 options:UIViewAnimationOptionBeginFromCurrentState|UIViewAnimationOptionCurveEaseOut animations:^{
+        tip.alpha=0;
+    } completion:^(__unused BOOL finished) {
+        [tip removeFromSuperview];
+    }];
+    CABasicAnimation *fade=[CABasicAnimation animationWithKeyPath:@"opacity"];
+    fade.fromValue=@(bubble.presentationLayer ? ((CAShapeLayer *)bubble.presentationLayer).opacity : bubble.opacity);
+    fade.toValue=@0;
+    fade.duration=0.16;
+    fade.timingFunction=[CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseOut];
+    bubble.opacity=0;
+    [bubble addAnimation:fade forKey:@"bubbleFade"];
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(0.17*NSEC_PER_SEC)),dispatch_get_main_queue(),^{
+        [bubble removeFromSuperlayer];
+    });
+}
 - (void)touchesBegan:(NSSet<UITouch *> *)ts withEvent:(UIEvent *)e {
     if (_editing) { [self editTouches:ts began:YES]; return; }
     BOOL game = NO;
     for (UITouch *t in ts) {
         if (_padOff) { game |= [self gameBegin:t]; continue; }
-        CGPoint p = [t locationInView:self]; int hit = _tap ? -1 : [self btnAt:p];
+        CGPoint p = [t locationInView:self];
+        if ([self inSwap:p]) [self dismissMenuTip];
+        int hit = _tap ? -1 : [self btnAt:p];
         if (hit >= 0) { [_owner setObject:@(C_BTN | (uint64_t)hit << 8) forKey:t]; continue; }
         if ([self inSwap:p]) { [_owner setObject:@(C_SWAP) forKey:t]; continue; }
         if (_tap) { game |= [self gameBegin:t]; continue; }
@@ -1954,7 +1969,10 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     return [self inSwap:[touch locationInView:self]];
 }
 - (void)handleEditHold:(UILongPressGestureRecognizer *)gesture {
-    if (gesture.state==UIGestureRecognizerStateBegan && !_padOff && !_editing) [self toggleEditor];
+    if (gesture.state==UIGestureRecognizerStateBegan && !_padOff && !_editing) {
+        [self dismissMenuTip];
+        [self toggleEditor];
+    }
 }
 - (UIColor *)editorAccentColor {
     UIImage *icon=[UIImage imageNamed:@"AppIcon"];
