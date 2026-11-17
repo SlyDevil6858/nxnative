@@ -1,6 +1,9 @@
 // One launcher setting as a row (a menu, a slider with its percentage, a toggle), shared by the iOS launcher (Launcher.swift) and the Mac app's settings window (dm/mac/Launcher.swift).
 // A row whose setting is fixed by an env file or by the launch environment is shown but disabled.
 import SwiftUI
+#if os(iOS)
+import UIKit
+#endif
 
 extension LauncherModel {
     func binding(_ s: Setting) -> Binding<String> { Binding(get: { self.values[s.env] ?? s.def }, set: { self.values[s.env] = $0 }) }
@@ -28,6 +31,11 @@ private struct LauncherToggleStyle: ToggleStyle {
             .contentShape(Capsule())
             .onTapGesture {
                 guard !isLocked else { return }
+                #if os(iOS)
+                let feedback = UIImpactFeedbackGenerator(style: .light)
+                feedback.prepare()
+                feedback.impactOccurred()
+                #endif
                 configuration.isOn.toggle()
             }
             .accessibilityElement()
