@@ -1080,7 +1080,27 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         if ((hasDocumentsForest || forestWasDeleted) && [folder.lastPathComponent caseInsensitiveCompare:@"FOREST"]==NSOrderedSame) continue;
         [visibleBundled addObject:folder];
     }
-    NSArray<NSURL *> *folders=[visibleBundled arrayByAddingObjectsFromArray:importedFolders];
+    NSArray<NSURL *> *unsortedFolders=[visibleBundled arrayByAddingObjectsFromArray:importedFolders];
+    NSArray<NSURL *> *folders=[unsortedFolders sortedArrayUsingComparator:^NSComparisonResult(NSURL *left, NSURL *right) {
+        NSInteger (^priority)(NSURL *) = ^NSInteger(NSURL *folder) {
+            NSString *folderName=folder.lastPathComponent;
+            NSDictionary *json=[self validThemeJSONAtFolder:folder];
+            NSString *themeName=[json[@"name"] isKindOfClass:NSString.class] ? json[@"name"] : folderName;
+            if ([folderName caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
+                [themeName caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame) return 0;
+            if ([folderName caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame ||
+                [themeName caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame) return 1;
+            return 2;
+        };
+        NSInteger leftPriority=priority(left), rightPriority=priority(right);
+        if (leftPriority<rightPriority) return NSOrderedAscending;
+        if (leftPriority>rightPriority) return NSOrderedDescending;
+        NSDictionary *leftJSON=[self validThemeJSONAtFolder:left];
+        NSDictionary *rightJSON=[self validThemeJSONAtFolder:right];
+        NSString *leftName=[leftJSON[@"name"] isKindOfClass:NSString.class] ? leftJSON[@"name"] : left.lastPathComponent;
+        NSString *rightName=[rightJSON[@"name"] isKindOfClass:NSString.class] ? rightJSON[@"name"] : right.lastPathComponent;
+        return [leftName localizedCaseInsensitiveCompare:rightName];
+    }];
     NSString *documentsPrefix=[documentsRoot.path stringByAppendingString:@"/"];
     for (NSURL *folder in folders) {
         BOOL isDir=NO; if (![NSFileManager.defaultManager fileExistsAtPath:folder.path isDirectory:&isDir] || !isDir) continue;
