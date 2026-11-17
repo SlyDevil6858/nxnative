@@ -918,8 +918,14 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     CGFloat toolsContentBottom=0;
     for (UIView *item in _tools.subviews)
         toolsContentBottom=MAX(toolsContentBottom,CGRectGetMaxY(item.frame));
-    CGFloat toolsHeight=ceil(toolsContentBottom+8);
-    _tools.frame=CGRectMake(CGRectGetMidX(safe)-180,CGRectGetMidY(safe)-toolsHeight/2,360,toolsHeight);
+    // Keep a little breathing room around the panel and pin the live in-game menu
+    // to the safe-area bottom with a modest gap. The launcher preview stays centered.
+    CGFloat toolsHeight=ceil(toolsContentBottom+16);
+    CGFloat toolsWidth=368;
+    CGFloat toolsX=CGRectGetMidX(safe)-toolsWidth/2;
+    CGFloat toolsY=_launcherPreview ? CGRectGetMidY(safe)-toolsHeight/2 :
+        CGRectGetMaxY(safe)-toolsHeight-12;
+    _tools.frame=CGRectMake(toolsX,toolsY,toolsWidth,toolsHeight);
     _themeMenuOverlay.frame=self.bounds;
     if (!_themeMenuOverlay.hidden) {
         CGRect anchor=[_themeButton convertRect:_themeButton.bounds toView:self];
@@ -1552,31 +1558,28 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [_themeMenuPanel addSubview:_themeMenuScroll];
     UIButton *importThemeButton=[self editorButton:@"Import…" action:@selector(importThemeFolder) frame:CGRectMake(260,220,92,32) parent:_tools];
     importThemeButton.titleLabel.font=[UIFont systemFontOfSize:11 weight:UIFontWeightMedium];
-    [self editorButton:@"Create theme" action:@selector(createCustomTheme) frame:CGRectMake(105,258,150,32) parent:_tools];
+    UIButton *createThemeButton=[self editorButton:@"Create theme" action:@selector(createCustomTheme) frame:CGRectMake(8,258,150,32) parent:_tools];
+    createThemeButton.titleLabel.adjustsFontSizeToFitWidth=YES;
     importThemeButton.titleLabel.adjustsFontSizeToFitWidth=YES;
     importThemeButton.titleLabel.minimumScaleFactor=0.8;
     importThemeButton.titleLabel.lineBreakMode=NSLineBreakByClipping;
 
-    // Runtime HUD settings belong to the live in-game editor, not the pre-launch layout preview.
+    // Runtime HUD settings share the Create theme row in the live in-game editor.
     if (!_launcherPreview) {
-        UILabel *fpsTitle=[[UILabel alloc] initWithFrame:CGRectMake(10,298,210,28)];
-        fpsTitle.text=@"FPS counter"; fpsTitle.textColor=UIColor.whiteColor;
-        fpsTitle.font=[UIFont systemFontOfSize:13]; [_tools addSubview:fpsTitle];
         _fpsButton=[UIButton buttonWithType:UIButtonTypeSystem];
-        _fpsButton.frame=CGRectMake(298,296,44,32);
+        _fpsButton.frame=CGRectMake(170,258,36,32);
         _fpsButton.accessibilityLabel=@"FPS counter";
+        _fpsButton.accessibilityHint=@"Toggle the FPS counter";
         [_fpsButton setImage:[UIImage systemImageNamed:@"speedometer"] forState:UIControlStateNormal];
         _fpsButton.imageView.contentMode=UIViewContentModeScaleAspectFit;
         _fpsButton.tintColor=UIColor.whiteColor;
         [_fpsButton addTarget:self action:@selector(toggleFPSCounter) forControlEvents:UIControlEventTouchUpInside];
         [_tools addSubview:_fpsButton];
 
-        UILabel *hudTitle=[[UILabel alloc] initWithFrame:CGRectMake(10,332,210,28)];
-        hudTitle.text=@"Performance HUD"; hudTitle.textColor=UIColor.whiteColor;
-        hudTitle.font=[UIFont systemFontOfSize:13]; [_tools addSubview:hudTitle];
         _hudButton=[UIButton buttonWithType:UIButtonTypeSystem];
-        _hudButton.frame=CGRectMake(298,330,44,32);
+        _hudButton.frame=CGRectMake(214,258,36,32);
         _hudButton.accessibilityLabel=@"Performance HUD";
+        _hudButton.accessibilityHint=@"Toggle the performance HUD";
         [_hudButton setImage:[UIImage systemImageNamed:@"chart.bar.xaxis"] forState:UIControlStateNormal];
         _hudButton.imageView.contentMode=UIViewContentModeScaleAspectFit;
         _hudButton.tintColor=UIColor.whiteColor;
