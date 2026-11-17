@@ -206,7 +206,6 @@ static void pads_start(void);   // Physical controllers, below
     UISwitch *_fpsSwitch, *_hudSwitch;
     UILabel *_editInfo;
     CAShapeLayer *_editHighlight;
-    CAShapeLayer *_menuTipBubble;
     NSDictionary<NSString *, NSValue *> *_dragAllHomes;
     UITouch *_game[16];                            // touches on the game's touch screen by finger slot
 }
