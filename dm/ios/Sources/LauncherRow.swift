@@ -12,15 +12,6 @@ private struct LauncherToggleStyle: ToggleStyle {
     let isLocked: Bool
     let label: String
 
-    /// Match the one-time helper bubble border: blend each dominant-accent RGB channel 22% toward white.
-    private var thumbFillColor: Color {
-        let uiColor = UIColor(accentColor)
-        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 1
-        guard uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha) else {
-            return Color(white: 0.72)
-        }
-        return Color(uiColor: UIColor(red: red + (1.0 - red) * 0.22, green: green + (1.0 - green) * 0.22, blue: blue + (1.0 - blue) * 0.22, alpha: alpha))
-    }
 
     func makeBody(configuration: Configuration) -> some View {
         HStack {
@@ -31,7 +22,7 @@ private struct LauncherToggleStyle: ToggleStyle {
                     .fill(isLocked ? Color(white: 0.16) : (configuration.isOn ? accentColor : Color(white: 0.30)))
                     .frame(width: 67, height: 31)
                 Capsule()
-                    .fill(isLocked ? Color(white: 0.48) : thumbFillColor)
+                    .fill(isLocked ? Color(white: 0.48) : Color.white)
                     .frame(width: 42, height: 27)
             }
             .contentShape(Capsule())
