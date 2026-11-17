@@ -85,9 +85,9 @@ jobs:
 
           for name, enabled in selections.items():
               block = (
-                  f"  - path: ../../TouchControlThemes/{name}\n"
-                  "    type: folder\n"
-                  "    buildPhase: resources\n"
+                  f"      - path: ../../TouchControlThemes/{name}\n"
+                  "        type: folder\n"
+                  "        buildPhase: resources\n"
               )
               if block not in source:
                   raise SystemExit(f"Could not find the expected {name} theme resource entry in {config}.")
