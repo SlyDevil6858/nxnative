@@ -2043,7 +2043,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         // In the pre-launch editor, show this hint the first time its settings
         // panel is dismissed. The layout-mode switcher is the way to reopen it.
         if (_launcherPreview && wasVisible && _tools.hidden &&
-            ![NSUserDefaults.standardUserDefaults boolForKey:@"DmPadLauncherReopenTipShown"]) {
+            ![NSUserDefaults.standardUserDefaults boolForKey:@"DmPadLauncherConfigMenuReopenTipShown"]) {
             [NSUserDefaults.standardUserDefaults setBool:YES forKey:@"DmPadLauncherReopenTipShown"];
             [self showLauncherReopenTip];
         }
