@@ -1247,7 +1247,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         }
         if ([folderName caseInsensitiveCompare:@"FOREST"]==NSOrderedSame) {
             NSURL *marker=[documentsRoot URLByAppendingPathComponent:@".FOREST.deleted"];
-            if (![NSData.data writeToURL:marker atomically:YES]) {
+            if (![[NSData data] writeToURL:marker atomically:YES]) {
                 LOG("touch theme: FOREST removed, but its deletion marker could not be written");
             }
         }
