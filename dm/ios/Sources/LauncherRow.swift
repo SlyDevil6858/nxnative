@@ -74,7 +74,7 @@ struct SettingRow: View {
                             Spacer(minLength: 4)
                             if (m.values[s.env] ?? s.def) == option[0] {
                                 Image(systemName: "checkmark")
-                                    .foregroundStyle(Color(red: 0.12, green: 0.42, blue: 0.22))
+                                    .foregroundStyle(Color(red: 0.16, green: 0.34, blue: 0.20))
                             }
                         }
                         .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
