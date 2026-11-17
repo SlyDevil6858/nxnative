@@ -2040,7 +2040,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _alphaSlider.enabled=!styleOnly;
     _resetControlButton.enabled=!styleOnly;
     _editInfo.text=styleOnly ? @"Style only · Edit the fill and border colors." :
-        [NSString stringWithFormat:@"Size %.0f%% · Opacity %.0f%%\\nDrag a control to move it.",_sizeSlider.value*100,_alphaSlider.value*100];
+        [NSString stringWithFormat:@"Size %.0f%% · Opacity %.0f%%\nDrag a control to move it.",_sizeSlider.value*100,_alphaSlider.value*100];
     // The control picker is shown by the custom rounded popup above.
     NSString *colorKey=_selected<0 ? nil : [self themeColorKeyForControl:_selected];
     _colorPickerControl=_selected;
