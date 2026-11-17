@@ -1500,10 +1500,6 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     if (data) [data writeToFile:jsonPath atomically:YES];
     [self updateThemeMenu];
 }
-- (void)presentColorWellPicker {
-    if (!_colorWell.enabled || !_colorWell.userInteractionEnabled) return;
-    [_colorWell presentColorPicker];
-}
 - (void)refreshColorWellAppearance {
     if (!_colorWellAppearance || !_colorWellRainbowBorder || !_colorWellSwatch) return;
     _colorWellAppearance.frame=_colorWell.frame;
@@ -1637,12 +1633,10 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _colorWellAppearance.backgroundColor=[UIColor colorWithWhite:0.12 alpha:1];
     _colorWellAppearance.layer.cornerRadius=6;
     _colorWellAppearance.clipsToBounds=YES;
-    _colorWellAppearance.userInteractionEnabled=YES;
-    _colorWellAppearance.isAccessibilityElement=YES;
-    _colorWellAppearance.accessibilityTraits=UIAccessibilityTraitButton;
-    UITapGestureRecognizer *colorWellTap=[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(presentColorWellPicker)];
-    colorWellTap.cancelsTouchesInView=YES;
-    [_colorWellAppearance addGestureRecognizer:colorWellTap];
+    // Keep this visual layer non-interactive so touches reach UIColorWell itself.
+    // UIColorWell presents its native picker from its own touch handling.
+    _colorWellAppearance.userInteractionEnabled=NO;
+    _colorWellAppearance.isAccessibilityElement=NO;
     [_tools addSubview:_colorWellAppearance];
 
     _colorWellRainbowBorder=[CAGradientLayer layer];
