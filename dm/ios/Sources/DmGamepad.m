@@ -900,7 +900,11 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     [CATransaction begin]; [CATransaction setDisableActions:YES];
     CGRect safe=self.safe;
     if (!CGRectEqualToRect(safe,_lastSafe)) { _lastSafe=safe; if (!_editing) [self reset]; }
-    _tools.frame=CGRectMake(CGRectGetMidX(safe)-180,CGRectGetMidY(safe)-165,360,370);
+    CGFloat toolsContentBottom=0;
+    for (UIView *item in _tools.subviews)
+        toolsContentBottom=MAX(toolsContentBottom,CGRectGetMaxY(item.frame));
+    CGFloat toolsHeight=ceil(toolsContentBottom+8);
+    _tools.frame=CGRectMake(CGRectGetMidX(safe)-180,CGRectGetMidY(safe)-toolsHeight/2,360,toolsHeight);
     _controls.frame = self.layer.bounds;
     for (int b = B_A; b <= B_Y; b++) { CGPoint c = [self facePos:b]; setPath(_key[b], circlePath(c, [self faceRadius:b])); placeLabel(_label[b], c, 20 * u * [self scale:b]); }
     for (int i = 0; i < (int)(sizeof k_btns / sizeof *k_btns); i++) { int b = k_btns[i];
