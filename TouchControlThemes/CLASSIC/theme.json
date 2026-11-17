@@ -1,11 +1,11 @@
 {
   "name": "CLASSIC",
   "palette": {
-    "idle": "636363",
-    "pressed": "7D7D7D",
-    "outline": "6E6E6E",
-    "ringFill": "3D3D3D",
-    "text": "A0A0A0",
+    "idle": "858585",
+    "pressed": "A0A0A0",
+    "outline": "969696",
+    "ringFill": "555555",
+    "text": "C0C0C0",
     "pressedText": "000000"
   }
 }
