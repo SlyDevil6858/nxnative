@@ -411,9 +411,11 @@ static void pads_start(void);   // Physical controllers, below
     UIView *_tools;
     UISlider *_sizeSlider, *_alphaSlider;
     UIButton *_fpsButton, *_hudButton;
-    UIButton *_themeMenuOverlay;
+    UIView *_themeMenuOverlay;
     UIView *_themeMenuPanel;
     UIScrollView *_themeMenuScroll;
+    CGRect _themeMenuPinnedFrame;
+    BOOL _themeMenuFramePinned;
     UIButton *_editorPopupOverlay;
     UIView *_editorPopupPanel;
     UIScrollView *_editorPopupScroll;
@@ -1214,7 +1216,8 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
         CGFloat panelX=MIN(MAX(8,CGRectGetMidX(anchor)-_themeMenuPanel.bounds.size.width/2),MAX(8,self.bounds.size.width-_themeMenuPanel.bounds.size.width-8));
         CGFloat below=CGRectGetMaxY(anchor)+6;
         CGFloat panelY=(below+panelHeight<=self.bounds.size.height-8)?below:MAX(8,CGRectGetMinY(anchor)-panelHeight-6);
-        _themeMenuPanel.frame=CGRectMake(panelX,panelY,_themeMenuPanel.bounds.size.width,panelHeight);
+        CGRect targetFrame=CGRectMake(panelX,panelY,_themeMenuPanel.bounds.size.width,panelHeight);
+        _themeMenuPanel.frame=_themeMenuFramePinned ? CGRectMake(_themeMenuPinnedFrame.origin.x,_themeMenuPinnedFrame.origin.y,targetFrame.size.width,targetFrame.size.height) : targetFrame;
         [_themeMenuOverlay bringSubviewToFront:_themeMenuPanel];
     }
     _controls.frame = self.layer.bounds;
@@ -1476,6 +1479,12 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 }
 - (void)closeThemeMenu {
     _themeMenuOverlay.hidden=YES;
+    if (_themeRenameField.isFirstResponder) [_themeRenameField resignFirstResponder];
+    _themeMenuFramePinned=NO;
+}
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch {
+    if (gestureRecognizer.view!=_themeMenuOverlay) return YES;
+    return ![touch.view isDescendantOfView:_themeMenuPanel];
 }
 - (void)updateThemeMenu {
     NSString *current=[NSUserDefaults.standardUserDefaults stringForKey:k_theme_name_key] ?: @"ANIMAL WELL";
@@ -1539,6 +1548,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             field.backgroundColor=[UIColor colorWithWhite:1 alpha:0.10]; field.textColor=UIColor.whiteColor; field.tintColor=UIColor.whiteColor;
             field.font=[UIFont systemFontOfSize:13]; field.autocapitalizationType=UITextAutocapitalizationTypeWords; field.clearButtonMode=UITextFieldViewModeWhileEditing;
             field.returnKeyType=UIReturnKeyDone; field.accessibilityLabel=@"New theme name"; _themeRenameField=field; [_themeMenuScroll addSubview:field];
+            [field addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; [weakSelf saveInlineThemeRenameAtPath:path]; }] forControlEvents:UIControlEventEditingDidEndOnExit];
             UIButton *save=[UIButton buttonWithType:UIButtonTypeCustom]; save.frame=CGRectMake(216,row*rowHeight+8,32,32);
             [save setImage:[UIImage systemImageNamed:@"checkmark" withConfiguration:[UIImageSymbolConfiguration configurationWithPointSize:17 weight:UIImageSymbolWeightSemibold]] forState:UIControlStateNormal];
             save.tintColor=[UIColor colorWithRed:0.25 green:0.78 blue:0.38 alpha:1]; save.accessibilityLabel=@"Save theme name";
@@ -1547,7 +1557,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             UIButton *cancel=[UIButton buttonWithType:UIButtonTypeCustom]; cancel.frame=CGRectMake(252,row*rowHeight+8,32,32);
             [cancel setImage:[UIImage systemImageNamed:@"xmark" withConfiguration:[UIImageSymbolConfiguration configurationWithPointSize:15 weight:UIImageSymbolWeightSemibold]] forState:UIControlStateNormal];
             cancel.tintColor=[UIColor colorWithWhite:1 alpha:0.78]; cancel.accessibilityLabel=@"Cancel theme rename";
-            [cancel addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; DmGamepad *strongSelf=weakSelf; if (!strongSelf) return; [strongSelf->_themeRenameField resignFirstResponder]; strongSelf->_themeRenamePath=nil; strongSelf->_themeRenameField=nil; [strongSelf updateThemeMenu]; }] forControlEvents:UIControlEventTouchUpInside]; [_themeMenuScroll addSubview:cancel];
+            [cancel addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; DmGamepad *strongSelf=weakSelf; if (!strongSelf) return; [strongSelf->_themeRenameField resignFirstResponder]; strongSelf->_themeRenamePath=nil; strongSelf->_themeRenameField=nil; strongSelf->_themeMenuFramePinned=NO; [strongSelf updateThemeMenu]; }] forControlEvents:UIControlEventTouchUpInside]; [_themeMenuScroll addSubview:cancel];
             dispatch_async(dispatch_get_main_queue(), ^{ DmGamepad *strongSelf=weakSelf; if (strongSelf && strongSelf->_themeRenameField==field) [field becomeFirstResponder]; });
         } else {
             UIButton *pick=[UIButton buttonWithType:UIButtonTypeSystem]; pick.frame=CGRectMake(0,row*rowHeight,212,rowHeight);
@@ -1581,7 +1591,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
                 [rename setImage:[[UIImage systemImageNamed:@"pencil" withConfiguration:actionSymbol] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate] forState:UIControlStateNormal];
                 rename.tintColor=[UIColor colorWithWhite:1 alpha:0.82]; rename.accessibilityLabel=[NSString stringWithFormat:@"Rename %@",title];
                 NSString *renamePath=[path copy];
-                [rename addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; DmGamepad *strongSelf=weakSelf; if (!strongSelf) return; strongSelf->_themeRenamePath=renamePath; strongSelf->_themeRenameField=nil; [strongSelf updateThemeMenu]; }] forControlEvents:UIControlEventTouchUpInside];
+                [rename addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; DmGamepad *strongSelf=weakSelf; if (!strongSelf) return; strongSelf->_themeMenuPinnedFrame=strongSelf->_themeMenuPanel.frame; strongSelf->_themeMenuFramePinned=YES; strongSelf->_themeRenamePath=renamePath; strongSelf->_themeRenameField=nil; [strongSelf updateThemeMenu]; }] forControlEvents:UIControlEventTouchUpInside];
                 [_themeMenuScroll addSubview:rename];
             }
             if (!editingThisTheme) {
@@ -1638,7 +1648,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     }
     NSString *selectedPath=[NSURL fileURLWithPath:(_themePath ?: @"")].standardizedURL.path;
     if ([selectedPath isEqualToString:target.path]) { _themeName=newName; [NSUserDefaults.standardUserDefaults setObject:newName forKey:k_theme_name_key]; }
-    [_themeRenameField resignFirstResponder]; _themeRenameField=nil; _themeRenamePath=nil;
+    [_themeRenameField resignFirstResponder]; _themeRenameField=nil; _themeRenamePath=nil; _themeMenuFramePinned=NO;
     [self updateThemeMenu]; [self updateEditor];
 }
 - (void)confirmDeleteThemeAtPath:(NSString *)path name:(NSString *)name {
@@ -2067,10 +2077,12 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _editInfo.numberOfLines=2; _editInfo.font=[UIFont systemFontOfSize:11];
     _editInfo.textColor=UIColor.whiteColor; [_tools addSubview:_editInfo];
     _themeButton=[self editorButton:@"Theme: ANIMAL WELL ▾" action:@selector(toggleThemeMenu) frame:CGRectMake(8,220,164,32) parent:_tools];
-    _themeMenuOverlay=[UIButton buttonWithType:UIButtonTypeCustom];
+    _themeMenuOverlay=[UIView new];
     _themeMenuOverlay.backgroundColor=UIColor.clearColor;
     _themeMenuOverlay.hidden=YES;
-    [_themeMenuOverlay addTarget:self action:@selector(closeThemeMenu) forControlEvents:UIControlEventTouchUpInside];
+    UITapGestureRecognizer *themeMenuOutsideTap=[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(closeThemeMenu)];
+    themeMenuOutsideTap.delegate=self;
+    [_themeMenuOverlay addGestureRecognizer:themeMenuOutsideTap];
     [self addSubview:_themeMenuOverlay];
     _themeMenuPanel=[UIView new];
     [self applyThemeSelectorPopupStyle:_themeMenuPanel];
