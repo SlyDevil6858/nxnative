@@ -1574,9 +1574,9 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             NSString *renamePath=[path copy],*renameName=[title copy];
             [rename addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) {
                 (void)action;
-                [weakSelf closeThemeMenu];
-                // Defer presentation until the selector overlay has finished
-                // handling this tap and the current UI event has unwound.
+                // Keep the selector attached while the alert is presented. Hiding
+                // the overlay first can invalidate the presentation context in
+                // some editor/LiveContainer hosting arrangements.
                 dispatch_async(dispatch_get_main_queue(), ^{
                     [weakSelf renameThemeAtPath:renamePath name:renameName];
                 });
@@ -1649,6 +1649,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         }
         [self updateThemeMenu];
         [self updateEditor];
+        [self closeThemeMenu];
     }]];
     // Resolve the actual visible controller from this view's window first. The
     // responder chain can point at a stale controller while the launcher editor
