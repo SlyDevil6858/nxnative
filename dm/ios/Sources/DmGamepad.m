@@ -1276,7 +1276,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     __weak UIAlertController *weakPrompt=prompt;
     [prompt addAction:[UIAlertAction actionWithTitle:@"Rename" style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) {
         NSString *newName=[weakPrompt.textFields.firstObject.text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
-        if (!newName.length) return;
+        if (!newName.length || [newName caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
+            [newName caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame) return;
         NSString *manifestPath=[[folder URLByAppendingPathComponent:@"theme.json"] path];
         NSMutableDictionary *json=[[NSJSONSerialization JSONObjectWithData:[NSData dataWithContentsOfFile:manifestPath]
             options:NSJSONReadingMutableContainers error:nil] mutableCopy];
