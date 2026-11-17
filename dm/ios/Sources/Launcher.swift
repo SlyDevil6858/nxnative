@@ -206,7 +206,11 @@ private struct LauncherView: View {
                 .frame(width: geometry.size.width * 0.30, height: geometry.size.height)
                 // Drawer expansion is confined to the settings list; the static
                 // game panel should not participate in its animation transaction.
-                .transaction { $0.animation = nil }
+                .compositingGroup()
+                .transaction { transaction in
+                    transaction.animation = nil
+                    transaction.disablesAnimations = true
+                }
                 ScrollViewReader { themeScrollProxy in
                 List {
                     ForEach(m.sections, id: \.self) { section in
