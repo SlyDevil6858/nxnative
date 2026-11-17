@@ -1724,6 +1724,14 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [[self editorPresenter] presentViewController:alert animated:YES completion:nil];
 }
 
+- (void)applyThemeSelectorPopupStyle:(UIView *)panel {
+    panel.backgroundColor=[UIColor colorWithWhite:0.035 alpha:0.98];
+    panel.layer.cornerRadius=10;
+    panel.layer.borderWidth=1;
+    panel.layer.borderColor=[UIColor colorWithWhite:1 alpha:0.16].CGColor;
+    panel.clipsToBounds=YES;
+    panel.overrideUserInterfaceStyle=UIUserInterfaceStyleDark;
+}
 - (UIButton *)editorButton:(NSString *)title action:(SEL)action frame:(CGRect)frame parent:(UIView *)parent {
     UIButton *button=[UIButton buttonWithType:UIButtonTypeSystem]; button.frame=frame;
     [button setTitle:title forState:UIControlStateNormal];
@@ -1838,11 +1846,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [_themeMenuOverlay addTarget:self action:@selector(closeThemeMenu) forControlEvents:UIControlEventTouchUpInside];
     [self addSubview:_themeMenuOverlay];
     _themeMenuPanel=[UIView new];
-    _themeMenuPanel.backgroundColor=[UIColor colorWithWhite:0.035 alpha:0.98];
-    _themeMenuPanel.layer.cornerRadius=10;
-    _themeMenuPanel.layer.borderWidth=1;
-    _themeMenuPanel.layer.borderColor=[UIColor colorWithWhite:1 alpha:0.16].CGColor;
-    _themeMenuPanel.clipsToBounds=YES;
+    [self applyThemeSelectorPopupStyle:_themeMenuPanel];
     [_themeMenuOverlay addSubview:_themeMenuPanel];
     _themeMenuScroll=[UIScrollView new];
     _themeMenuScroll.showsVerticalScrollIndicator=YES;
@@ -1855,11 +1859,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [_editorPopupOverlay addTarget:self action:@selector(closeEditorPopup) forControlEvents:UIControlEventTouchUpInside];
     [self addSubview:_editorPopupOverlay];
     _editorPopupPanel=[UIView new];
-    _editorPopupPanel.backgroundColor=[UIColor colorWithWhite:0.035 alpha:0.98];
-    _editorPopupPanel.layer.cornerRadius=10;
-    _editorPopupPanel.layer.borderWidth=1;
-    _editorPopupPanel.layer.borderColor=[UIColor colorWithWhite:1 alpha:0.16].CGColor;
-    _editorPopupPanel.clipsToBounds=YES;
+    [self applyThemeSelectorPopupStyle:_editorPopupPanel];
     _editorPopupPanel.userInteractionEnabled=YES;
     [_editorPopupOverlay addSubview:_editorPopupPanel];
     _editorPopupTitle=[UILabel new];
