@@ -1503,7 +1503,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 }
 - (void)updateThemeMenu {
     NSString *current=[NSUserDefaults.standardUserDefaults stringForKey:k_theme_name_key] ?: @"ANIMAL WELL";
-    [_themeButton setTitle:[NSString stringWithFormat:@"Theme: %@ ▾",current] forState:UIControlStateNormal];
+    [_themeButton setTitle:[NSString stringWithFormat:@"%@ ▾",current] forState:UIControlStateNormal];
     for (UIView *view in _themeMenuScroll.subviews) [view removeFromSuperview];
 
     NSURL *documentsRoot=[self themesDirectoryCreating:YES];
@@ -2101,7 +2101,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _editInfo=[[UILabel alloc] initWithFrame:CGRectMake(8,184,344,32)];
     _editInfo.numberOfLines=2; _editInfo.font=[UIFont systemFontOfSize:11];
     _editInfo.textColor=UIColor.whiteColor; [_tools addSubview:_editInfo];
-    _themeButton=[self editorButton:@"Theme: ANIMAL WELL ▾" action:@selector(toggleThemeMenu) frame:CGRectMake(8,220,164,32) parent:_tools];
+    _themeButton=[self editorButton:@"ANIMAL WELL ▾" action:@selector(toggleThemeMenu) frame:CGRectMake(8,220,164,32) parent:_tools];
     _themeMenuOverlay=[UIView new];
     _themeMenuOverlay.backgroundColor=UIColor.clearColor;
     _themeMenuOverlay.hidden=YES;
