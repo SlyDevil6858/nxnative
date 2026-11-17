@@ -51,7 +51,7 @@ struct SettingRow: View {
     let s: Setting
     @ObservedObject var m: LauncherModel
     let accentColor: Color
-    @State private var showingChoicePopover = false
+    @State private var showingChoiceList = false
 
     #if os(iOS)
     private var selectedChoiceLabel: String {
@@ -59,46 +59,36 @@ struct SettingRow: View {
         return s.options?.first(where: { $0.count >= 2 && $0[0] == value })?[1] ?? value
     }
 
-    private var choicePopover: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                ForEach(s.options ?? [], id: \.self) { option in
-                    if option.count >= 2 {
-                        Button {
-                            m.values[s.env] = option[0]
-                            showingChoicePopover = false
-                        } label: {
-                            HStack(spacing: 8) {
-                                Text(option[1]).lineLimit(1)
-                                Spacer(minLength: 4)
-                                if (m.values[s.env] ?? s.def) == option[0] {
-                                    Image(systemName: "checkmark")
-                                        .foregroundStyle(.white)
-                                }
+    private var choiceListContent: some View {
+        VStack(spacing: 0) {
+            ForEach(s.options ?? [], id: \.self) { option in
+                if option.count >= 2 {
+                    Button {
+                        m.values[s.env] = option[0]
+                        showingChoiceList = false
+                    } label: {
+                        HStack(spacing: 8) {
+                            Text(option[1]).lineLimit(1)
+                            Spacer(minLength: 4)
+                            if (m.values[s.env] ?? s.def) == option[0] {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(.white)
                             }
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                            .padding(.horizontal, 8)
-                            .contentShape(Rectangle())
                         }
-                        .buttonStyle(.plain)
-                        .frame(height: 40)
-                        Rectangle()
-                            .fill(Color.white.opacity(0.12))
-                            .frame(height: 0.5)
+                        .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
+                        .padding(.horizontal, 8)
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
+                    Rectangle()
+                        .fill(Color.white.opacity(0.12))
+                        .frame(height: 0.5)
                 }
             }
         }
-        .frame(width: 210)
-        .frame(maxHeight: 180)
-        .padding(6)
-        .background(Color(red: 0.035, green: 0.035, blue: 0.035))
-        // Match the native popover arrow to the opaque dark choice list.
-        .presentationBackground(Color(red: 0.035, green: 0.035, blue: 0.035))
-        .presentationCompactAdaptation(.popover)
-        .environment(\.colorScheme, .dark)
+        .padding(.top, 4)
     }
-    #endif
+
 
     private var locked: Bool { m.fixed.contains(s.env) }
     private var note: String {
@@ -123,8 +113,8 @@ struct SettingRow: View {
             switch s.kind {
             case "choice":
                 #if os(iOS)
-                Button {
-                    showingChoicePopover = true
+                DisclosureGroup(isExpanded: $showingChoiceList) {
+                    choiceListContent
                 } label: {
                     HStack(spacing: 8) {
                         settingLabel
@@ -132,15 +122,8 @@ struct SettingRow: View {
                         Text(selectedChoiceLabel)
                             .foregroundStyle(locked ? Color(white: 0.58) : accentColor)
                             .lineLimit(1)
-                        Image(systemName: "chevron.down")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(locked ? Color(white: 0.58) : accentColor)
                     }
                     .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .popover(isPresented: $showingChoicePopover, attachmentAnchor: .point(.leading), arrowEdge: .trailing) {
-                    choicePopover
                 }
                 #else
                 Picker(selection: m.binding(s)) {
