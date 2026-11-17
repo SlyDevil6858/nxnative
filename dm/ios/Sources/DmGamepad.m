@@ -978,7 +978,9 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         NSURL *bundled=[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES];
         NSURL *forestSource=[bundled URLByAppendingPathComponent:@"FOREST" isDirectory:YES];
         NSURL *forestDestination=[dir URLByAppendingPathComponent:@"FOREST" isDirectory:YES];
-        if (![fm fileExistsAtPath:forestDestination.path]) [fm copyItemAtURL:forestSource toURL:forestDestination error:nil];
+        NSURL *forestDeletionMarker=[dir URLByAppendingPathComponent:@".FOREST.deleted"];
+        if (![fm fileExistsAtPath:forestDestination.path] && ![fm fileExistsAtPath:forestDeletionMarker.path])
+            [fm copyItemAtURL:forestSource toURL:forestDestination error:nil];
         // Keep the writable FOREST copy; remove identical legacy copies of the protected built-ins.
         NSArray<NSURL *> *bundledFolders=[fm contentsOfDirectoryAtURL:bundled
             includingPropertiesForKeys:@[NSURLIsDirectoryKey] options:NSDirectoryEnumerationSkipsHiddenFiles error:nil];
@@ -1072,9 +1074,10 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         includingPropertiesForKeys:nil options:NSDirectoryEnumerationSkipsHiddenFiles error:nil] ?: @[];
     BOOL hasDocumentsForest=NO;
     for (NSURL *folder in importedFolders) if ([folder.lastPathComponent caseInsensitiveCompare:@"FOREST"]==NSOrderedSame) { hasDocumentsForest=YES; break; }
+    BOOL forestWasDeleted=[NSFileManager.defaultManager fileExistsAtPath:[[documentsRoot URLByAppendingPathComponent:@".FOREST.deleted"] path]];
     NSMutableArray<NSURL *> *visibleBundled=[NSMutableArray array];
     for (NSURL *folder in bundledFolders) {
-        if (hasDocumentsForest && [folder.lastPathComponent caseInsensitiveCompare:@"FOREST"]==NSOrderedSame) continue;
+        if ((hasDocumentsForest || forestWasDeleted) && [folder.lastPathComponent caseInsensitiveCompare:@"FOREST"]==NSOrderedSame) continue;
         [visibleBundled addObject:folder];
     }
     NSArray<NSURL *> *folders=[visibleBundled arrayByAddingObjectsFromArray:importedFolders];
@@ -1125,6 +1128,10 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
     [alert addAction:[UIAlertAction actionWithTitle:@"Delete" style:UIAlertActionStyleDestructive handler:^(__unused UIAlertAction *action) {
         NSError *error=nil;
+        if ([folderName caseInsensitiveCompare:@"FOREST"]==NSOrderedSame) {
+            NSURL *marker=[documentsRoot URLByAppendingPathComponent:@".FOREST.deleted"];
+            [NSData data].writeToURL:marker atomically:YES;
+        }
         if (![NSFileManager.defaultManager removeItemAtPath:path error:&error]) {
             UIAlertController *failure=[UIAlertController alertControllerWithTitle:@"Could Not Delete Theme"
                 message:error.localizedDescription ?: @"The theme folder could not be deleted."
