@@ -1311,7 +1311,11 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             [title caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
             [title caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame;
         NSString *documentsPrefix=[documentsRoot.standardizedURL.path stringByAppendingString:@"/"];
-        BOOL writable=[path hasPrefix:documentsPrefix];
+        NSString *manifestPath=[[folder URLByAppendingPathComponent:@"theme.json"] path];
+        BOOL belongsToCustomThemes=[path hasPrefix:documentsPrefix];
+        BOOL writable=belongsToCustomThemes &&
+            [NSFileManager.defaultManager isWritableFileAtPath:folder.path] &&
+            [NSFileManager.defaultManager isWritableFileAtPath:manifestPath];
         if (writable && !protectedTheme) {
             UIButton *rename=[UIButton buttonWithType:UIButtonTypeSystem];
             rename.frame=CGRectMake(216,row*rowHeight+4,32,32);
