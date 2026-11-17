@@ -5,7 +5,7 @@ Themes can be bundled into the IPA or imported by the user. The IPA workflow let
 ## Built-in themes
 
 - `ANIMAL WELL` — the default touch control theme.
-- `CLASSIC` — the classic neutral-gray theme.
+- `CLASSIC` — the brighter neutral-gray theme.
 - `FOREST` — the restored forest-green theme with gold accents.
 
 Only the themes selected in the Run workflow menu are bundled. Other themes can still be imported by the user.
