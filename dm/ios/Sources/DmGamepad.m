@@ -1362,10 +1362,19 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             [NSFileManager.defaultManager isWritableFileAtPath:folder.path] &&
             [NSFileManager.defaultManager isWritableFileAtPath:manifestURL.path];
         if (writable && !protectedTheme) {
-            UIButton *rename=[UIButton buttonWithType:UIButtonTypeSystem];
+            // Match the launcher's plain 32x32 pencil and trash actions exactly.
+            // This selector is shared by the pre-launch preview and live editor.
+            UIImageSymbolConfiguration *actionSymbol=[UIImageSymbolConfiguration configurationWithPointSize:17 weight:UIImageSymbolWeightRegular];
+
+            UIButton *rename=[UIButton buttonWithType:UIButtonTypeCustom];
             rename.frame=CGRectMake(216,row*rowHeight+4,32,32);
-            [rename setImage:[UIImage systemImageNamed:@"pencil"] forState:UIControlStateNormal];
+            rename.backgroundColor=UIColor.clearColor;
+            [rename setImage:[[UIImage systemImageNamed:@"pencil" withConfiguration:actionSymbol] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate]
+                forState:UIControlStateNormal];
             rename.tintColor=[UIColor colorWithWhite:1 alpha:0.82];
+            rename.contentHorizontalAlignment=UIControlContentHorizontalAlignmentCenter;
+            rename.contentVerticalAlignment=UIControlContentVerticalAlignmentCenter;
+            rename.adjustsImageWhenHighlighted=NO;
             rename.accessibilityLabel=[NSString stringWithFormat:@"Rename %@",title];
             NSString *renamePath=[path copy],*renameName=[title copy];
             [rename addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) {
@@ -1375,10 +1384,15 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             }] forControlEvents:UIControlEventTouchUpInside];
             [_themeMenuScroll addSubview:rename];
 
-            UIButton *remove=[UIButton buttonWithType:UIButtonTypeSystem];
+            UIButton *remove=[UIButton buttonWithType:UIButtonTypeCustom];
             remove.frame=CGRectMake(252,row*rowHeight+4,32,32);
-            [remove setImage:[UIImage systemImageNamed:@"trash"] forState:UIControlStateNormal];
+            remove.backgroundColor=UIColor.clearColor;
+            [remove setImage:[[UIImage systemImageNamed:@"trash" withConfiguration:actionSymbol] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate]
+                forState:UIControlStateNormal];
             remove.tintColor=[UIColor colorWithRed:0.55 green:0.08 blue:0.08 alpha:1];
+            remove.contentHorizontalAlignment=UIControlContentHorizontalAlignmentCenter;
+            remove.contentVerticalAlignment=UIControlContentVerticalAlignmentCenter;
+            remove.adjustsImageWhenHighlighted=NO;
             remove.accessibilityLabel=[NSString stringWithFormat:@"Delete %@",title];
             NSString *deletePath=[path copy],*deleteName=[title copy];
             [remove addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) {
