@@ -1516,7 +1516,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         return byName==NSOrderedSame?[left.path localizedCaseInsensitiveCompare:right.path]:byName;
     }];
 
-    CGFloat rowHeight=40;
+    CGFloat rowHeight=48;
     NSUInteger row=0;
     for (NSURL *folder in folders) {
         BOOL isDir=NO;
@@ -1529,7 +1529,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         pick.frame=CGRectMake(0,row*rowHeight,212,rowHeight);
         [pick setTitle:title forState:UIControlStateNormal];
         pick.contentHorizontalAlignment=UIControlContentHorizontalAlignmentLeft;
-        pick.contentEdgeInsets=UIEdgeInsetsMake(0,8,0,0);
+        pick.contentEdgeInsets=UIEdgeInsetsMake(0,12,0,0);
+        pick.contentVerticalAlignment=UIControlContentVerticalAlignmentCenter;
         pick.titleLabel.font=[UIFont systemFontOfSize:14];
         pick.titleLabel.lineBreakMode=NSLineBreakByTruncatingTail;
         pick.tintColor=UIColor.whiteColor;
@@ -1566,7 +1567,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             UIImageSymbolConfiguration *actionSymbol=[UIImageSymbolConfiguration configurationWithPointSize:17 weight:UIImageSymbolWeightSemibold];
 
             UIButton *rename=[UIButton buttonWithType:UIButtonTypeCustom];
-            rename.frame=CGRectMake(216,row*rowHeight+4,32,32);
+            rename.frame=CGRectMake(216,row*rowHeight+8,32,32);
             rename.backgroundColor=UIColor.clearColor;
             [rename setImage:[[UIImage systemImageNamed:@"pencil" withConfiguration:actionSymbol] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate]
                 forState:UIControlStateNormal];
@@ -1588,7 +1589,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             [_themeMenuScroll addSubview:rename];
 
             UIButton *remove=[UIButton buttonWithType:UIButtonTypeCustom];
-            remove.frame=CGRectMake(252,row*rowHeight+4,32,32);
+            remove.frame=CGRectMake(252,row*rowHeight+8,32,32);
             remove.backgroundColor=UIColor.clearColor;
             [remove setImage:[[UIImage systemImageNamed:@"trash" withConfiguration:actionSymbol] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate]
                 forState:UIControlStateNormal];
@@ -1660,13 +1661,19 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     // is being presented or dismissed.
     __block void (^attemptPresentation)(NSUInteger);
     attemptPresentation = ^(NSUInteger attempt) {
-        if (attempt > 20) {
-            LOG("touch controls: rename prompt could not find a stable presenter");
+        if (attempt > 40) {
+            LOG("touch controls: rename prompt could not find a visible presenter");
+            attemptPresentation=nil;
             return;
         }
 
+        // Always start from the view's own window when possible, then walk to
+        // the top-most controller. Do not reject a presenter just because it
+        // has a transition coordinator: UIKit keeps that coordinator available
+        // briefly after animations and it was preventing the rename alert.
         UIWindow *window=self.window;
-        if (!window || !window.windowScene || window.windowScene.activationState!=UISceneActivationStateForegroundActive) {
+        if (!window || window.windowScene.activationState!=UISceneActivationStateForegroundActive) {
+            window=nil;
             for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
                 if (![scene isKindOfClass:UIWindowScene.class] || scene.activationState!=UISceneActivationStateForegroundActive) continue;
                 for (UIWindow *candidate in ((UIWindowScene *)scene).windows) {
@@ -1678,10 +1685,10 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 
         UIViewController *presenter=window.rootViewController ?: [self editorPresenter];
         while (presenter.presentedViewController) presenter=presenter.presentedViewController;
-        if (!presenter || !presenter.viewIfLoaded.window ||
+        if (!presenter || !presenter.isViewLoaded || !presenter.view.window ||
             presenter.isBeingDismissed || presenter.isBeingPresented ||
-            presenter.transitionCoordinator) {
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.15 * NSEC_PER_SEC)),
+            presenter.presentedViewController) {
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.12 * NSEC_PER_SEC)),
                            dispatch_get_main_queue(), ^{
                 attemptPresentation(attempt+1);
             });
