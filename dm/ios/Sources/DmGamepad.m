@@ -121,13 +121,13 @@ static const CGFloat
     K_PILL_DX = 52, K_PILL_Y = 22, K_PILL_W = 50, K_PILL_H = 28,   // − / +: centre from the screen's midline (the middle goes to the layout button) and from the top, size
     K_SWAP_R = 15,                                  // layout button: top centre, level with − / +
     K_STICK_X = 81, K_STICK_R = 77, K_KNOB_R = 30,  // left stick: mirrors the diamond, the ring as large as the whole diamond (key distance + key radius), the knob a little larger than a diamond key
-    K_STICK_GRAB = 1.4,                             // how near the ring centre a touch-down grabs a stick (times the ring radius)
+    K_STICK_GRAB = 1.0,                             // how near the ring centre a touch-down grabs a stick (times the ring radius)
     K_FULL = 0.8,                                   // full tilt at this fraction of the ring radius (the knob still travels to the ring edge)
     K_DEAD = 0.1,                                   // stick dead zone (times the ring radius)
     // controls only the 3D layout has
     K_LOW_X = 231, K_LOW_Y = 64,                    // D-pad centre from the outer edge and the bottom (inward of and below the left stick, as on a Pro Controller)
     K_DPAD_R = 48, K_ARM_W = 17, K_ARM_IN = 11,     // D-pad: arm outer edge from the centre, half-width, tip from the centre
-    K_DPAD_GRAB = 1.3,                              // D-pad grab radius (times the outer edge)
+    K_DPAD_GRAB = 1.0,                              // D-pad grab radius (times the outer edge)
     K_RSTICK_R = 60,                                // right stick (not drawn): radius around its centre, the touch-down point
     K_RSWIPE = 1.0 / 3,                             // right stick area: this fraction of the screen width from the right edge (not in u)
     K_CLICK_X = 102, K_CLICK_R = 17;                // L3 / R3: centre from the outer edge (level with ZL / ZR), radius
@@ -824,16 +824,16 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
     CGFloat u = self.u;
     for (int i = 0; i < (int)(sizeof k_btns / sizeof *k_btns); i++) { int b = k_btns[i];
         if (fullOnly(b) && !_full) continue;
-        BOOL hit = isDrop(b) ? dist(p, [self dropCenter:b]) <= [self dropR:b] * 1.35
-                 : isClick(b) ? dist(p, [self clickCenter:b]) <= K_CLICK_R * u * [self scale:b] * 1.35
-                 : CGRectContainsPoint(CGRectInset([self pillRect:b], -8 * u, -8 * u), p);
+        BOOL hit = isDrop(b) ? dist(p, [self dropCenter:b]) <= [self dropR:b] * K_DROP_TIP
+                 : isClick(b) ? dist(p, [self clickCenter:b]) <= K_CLICK_R * u * [self scale:b]
+                 : CGRectContainsPoint([self pillRect:b], p);
         if (hit) return b; }
     return -1;
 }
-- (BOOL)inSwap:(CGPoint)p { return dist(p, self.swapCenter) <= K_SWAP_R * self.u * 1.6; }
+- (BOOL)inSwap:(CGPoint)p { return dist(p, self.swapCenter) <= K_SWAP_R * self.u; }
 - (uint64_t)faceAt:(CGPoint)p {   // keys under the finger in the diamond (between two keys both count)
     uint64_t m = 0;
-    for (int b = B_A; b <= B_Y; b++) if (dist(p, [self facePos:b]) <= [self faceRadius:b] * 1.25) m |= 1ull << b;
+    for (int b = B_A; b <= B_Y; b++) if (dist(p, [self facePos:b]) <= [self faceRadius:b]) m |= 1ull << b;
     return m;
 }
 - (uint64_t)dpadAt:(CGPoint)p {   // 8 directions: 45° each, diagonals press two keys; a small centre circle counts as none
@@ -998,10 +998,10 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
         if (_tap) { game |= [self gameBegin:t]; continue; }
         // diamond, D-pad, left stick: take the one with the smallest distance / grab radius, if it is <= 1
         CGFloat best = 1; int kind = C_NONE, idx = 0;
-        CGFloat f = dist(p, [self faceGrabCenter]) / [self faceGrabRadius]; if (f <= best) { best = f; kind = C_FACE; }
+        uint64_t faceHit = [self faceAt:p]; if (faceHit) { kind = C_FACE; best = 0; }
         if (_full) { CGFloat d = dist(p, self.dpadCenter) / (self.dpadR * K_DPAD_GRAB); if (d < best) { best = d; kind = C_DPAD; } }
         if (!_stick[0]) { CGFloat s = dist(p, self.stickHome) / ([self stickR:0] * K_STICK_GRAB); if (s < best) { best = s; kind = C_STICK; } }
-        if (kind == C_NONE && _full && !_stick[1] && [self inRightArea:p]) { kind = C_STICK; idx = 1; _rCentre = p; }   // the right stick: centred where the touch lands
+        // The right stick has no visible control, so it has no touch target; unused touches pass through to the game.
         if (kind == C_FACE) { [_owner setObject:@(C_FACE) forKey:t]; [_faceOf setObject:@([self faceAt:p]) forKey:t]; }
         else if (kind == C_DPAD) [_owner setObject:@(C_DPAD) forKey:t];
         else if (kind == C_STICK) { [_owner setObject:@(C_STICK | (uint64_t)idx << 8) forKey:t]; _stick[idx] = t; _stickTouchOrigin[idx] = p; _stickNow[idx] = idx == 0 ? self.stickHome : p; }
