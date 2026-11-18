@@ -886,8 +886,8 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
 }
 - (void)showLauncherEditorFinishTipIfNeeded {
     if (!_launcherPreview ||
-        [NSUserDefaults.standardUserDefaults boolForKey:@"DmPadLauncherEditorFinishTipShown"]) return;
-    [NSUserDefaults.standardUserDefaults setBool:YES forKey:@"DmPadLauncherEditorFinishTipShown"];
+        [NSUserDefaults.standardUserDefaults boolForKey:@"DmPadMenuTipShown"]) return;
+    [NSUserDefaults.standardUserDefaults setBool:YES forKey:@"DmPadMenuTipShown"];
     [self showLauncherReopenTip];
 }
 - (void)showLauncherReopenTip {
@@ -941,7 +941,7 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
     _menuTip=nil;
     _menuTipBubble=nil;
     _launcherReopenTip=NO;
-    [UIView animateWithDuration:0.16 delay:0 options:UIViewAnimationOptionBeginFromCurrentState|UIViewAnimationOptionCurveEaseOut animations:^{
+    [UIView animateWithDuration:0.66 delay:0 options:UIViewAnimationOptionBeginFromCurrentState|UIViewAnimationOptionCurveEaseOut animations:^{
         tip.alpha=0;
     } completion:^(__unused BOOL finished) {
         [tip removeFromSuperview];
@@ -949,7 +949,7 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
     CABasicAnimation *fade=[CABasicAnimation animationWithKeyPath:@"opacity"];
     fade.fromValue=@(bubble.presentationLayer ? ((CAShapeLayer *)bubble.presentationLayer).opacity : bubble.opacity);
     fade.toValue=@0;
-    fade.duration=0.16;
+    fade.duration=0.66;
     fade.timingFunction=[CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseOut];
     bubble.opacity=0;
     [bubble addAnimation:fade forKey:@"bubbleFade"];
