@@ -1462,15 +1462,26 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 }
 - (BOOL)isBuiltInThemeSelected {
     if (!_themePath.length) return YES;
-    // Decide from the actual selected theme files, not their folder name or
-    // location. Imported themes (including nested folders) are writable;
-    // bundled themes are read-only.
-    NSURL *folder=[NSURL fileURLWithPath:_themePath isDirectory:YES];
-    NSURL *manifest=[self themeJSONURLInFolder:folder];
-    NSFileManager *fm=NSFileManager.defaultManager;
-    BOOL writableFolder=[fm isWritableFileAtPath:folder.path];
-    BOOL writableManifest=[fm fileExistsAtPath:manifest.path] && [fm isWritableFileAtPath:manifest.path];
-    return !(writableFolder && writableManifest);
+
+    // Identify built-ins by their origin inside the app bundle, not by file
+    // permissions. App runners such as LiveContainer can make a guest app's
+    // bundle appear writable even though its bundled themes are still meant
+    // to be protected.
+    NSURL *bundledRootURL=[[NSBundle.mainBundle.resourceURL
+        URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES]
+        URLByResolvingSymlinksInPath];
+    NSString *bundledRoot=bundledRootURL.URLByStandardizingPath.path;
+    NSString *selectedPath=[[[NSURL fileURLWithPath:_themePath isDirectory:YES]
+        URLByResolvingSymlinksInPath] URLByStandardizingPath].path;
+
+    // Fail closed if the bundle location cannot be established. This prevents
+    // a bundled theme from becoming editable because of a host/runtime quirk.
+    if (!bundledRoot.length || !selectedPath.length) return YES;
+
+    bundledRoot=[bundledRoot stringByTrimmingCharactersInSet:
+        [NSCharacterSet characterSetWithCharactersInString:@"/"]];
+    NSString *prefix=[bundledRoot stringByAppendingString:@"/"];
+    return [selectedPath isEqualToString:bundledRoot] || [selectedPath hasPrefix:prefix];
 }
 - (void)applyThemePath:(NSString *)path name:(NSString *)name {
     if (![self loadThemeAtPath:path]) return;
