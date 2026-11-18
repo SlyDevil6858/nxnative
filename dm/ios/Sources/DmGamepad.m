@@ -1478,8 +1478,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     // a bundled theme from becoming editable because of a host/runtime quirk.
     if (!bundledRoot.length || !selectedPath.length) return YES;
 
-    bundledRoot=[bundledRoot stringByTrimmingCharactersInSet:
-        [NSCharacterSet characterSetWithCharactersInString:@"/"]];
+    if ([bundledRoot hasSuffix:@"/"] && bundledRoot.length>1)
+        bundledRoot=[bundledRoot substringToIndex:bundledRoot.length-1];
     NSString *prefix=[bundledRoot stringByAppendingString:@"/"];
     return [selectedPath isEqualToString:bundledRoot] || [selectedPath hasPrefix:prefix];
 }
