@@ -746,6 +746,22 @@ static CGPoint side(CGRect s, int right, CGFloat dx, CGFloat y) { return CGPoint
     }
 }
 - (CGPoint)facePos:(int)b { return [self position:b base:[self baseFacePos:b]]; }
+- (CGPoint)faceGrabCenter {
+    CGPoint center=CGPointZero;
+    for (int b=B_A;b<=B_Y;b++) {
+        CGPoint point=[self facePos:b];
+        center.x+=point.x/4.0;
+        center.y+=point.y/4.0;
+    }
+    return center;
+}
+- (CGFloat)faceGrabRadius {
+    CGPoint center=[self faceGrabCenter];
+    CGFloat radius=self.faceR*1.6;
+    for (int b=B_A;b<=B_Y;b++)
+        radius=MAX(radius,dist(center,[self facePos:b])+self.faceR*1.6);
+    return radius;
+}
 - (CGPoint)baseStickHome {
     CGRect s = self.corner;
     return side(s, 0, K_STICK_X * self.u, CGRectGetMaxY(s) - K_PAD_Y * self.u);
@@ -980,7 +996,7 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
         if (_tap) { game |= [self gameBegin:t]; continue; }
         // diamond, D-pad, left stick: take the one with the smallest distance / grab radius, if it is <= 1
         CGFloat best = 1; int kind = C_NONE, idx = 0;
-        CGFloat f = dist(p, self.faceCenter) / (self.faceGap + self.faceR * 1.6); if (f <= best) { best = f; kind = C_FACE; }
+        CGFloat f = dist(p, [self faceGrabCenter]) / [self faceGrabRadius]; if (f <= best) { best = f; kind = C_FACE; }
         if (_full) { CGFloat d = dist(p, self.dpadCenter) / (self.dpadR * K_DPAD_GRAB); if (d < best) { best = d; kind = C_DPAD; } }
         if (!_stick[0]) { CGFloat s = dist(p, self.stickHome) / ([self stickR:0] * K_STICK_GRAB); if (s < best) { best = s; kind = C_STICK; } }
         if (kind == C_NONE && _full && !_stick[1] && [self inRightArea:p]) { kind = C_STICK; idx = 1; _rCentre = p; }   // the right stick: centred where the touch lands
