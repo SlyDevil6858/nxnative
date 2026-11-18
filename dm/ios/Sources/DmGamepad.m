@@ -397,6 +397,7 @@ static void pads_start(void);   // Physical controllers, below
     NSMutableDictionary *_custom;
     DmPadProfiles *_profiles;
     BOOL _editing, _editWasTap;
+    BOOL _toolsTemporarilyHidden;
     BOOL _launcherPreview;
     int _selected;
     UITouch *_dragTouch;
@@ -974,7 +975,13 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
     [self recompute];
 }
 - (void)endTouches:(NSSet<UITouch *> *)ts tapped:(BOOL)ended {
-    if (_editing) { if ([ts containsObject:_dragTouch]) _dragTouch=nil; return; }
+    if (_editing) {
+        if ([ts containsObject:_dragTouch]) {
+            _dragTouch=nil; _dragAllHomes=nil;
+            [self setToolsTemporarilyHidden:NO];
+        }
+        return;
+    }
     BOOL swap = NO, game = NO;
     for (UITouch *t in ts) {
         uint64_t v = [_owner objectForKey:t].unsignedLongLongValue;
@@ -2605,6 +2612,30 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
                            green:[dominant[1] doubleValue]/divisor
                             blue:[dominant[2] doubleValue]/divisor alpha:1];
 }
+- (void)setToolsTemporarilyHidden:(BOOL)hidden {
+    if (!_tools || _tools.hidden || _toolsTemporarilyHidden==hidden) return;
+    _toolsTemporarilyHidden=hidden;
+    _tools.userInteractionEnabled=!hidden;
+    [UIView animateWithDuration:0.12 delay:0
+        options:UIViewAnimationOptionBeginFromCurrentState|UIViewAnimationOptionCurveEaseOut
+        animations:^{ self->_tools.alpha=hidden ? 0.0 : 1.0; }
+        completion:nil];
+}
+- (void)updateToolsVisibilityForDraggedControls {
+    if (!_editing || !_dragTouch || _tools.hidden) return;
+    CGRect menuFrame=CGRectInset(_tools.frame,-8*self.u,-8*self.u);
+    BOOL overlaps=NO;
+    NSInteger first=(_selected<0 ? 0 : _selected);
+    NSInteger last=(_selected<0 ? 18 : _selected+1);
+    for (NSInteger b=first;b<last;b++) {
+        if (![self editable:(int)b]) continue;
+        CGPoint center=[self controlCenter:(int)b];
+        CGFloat radius=MAX(20*self.u,[self editHighlightRadiusForControl:(int)b]);
+        CGRect controlFrame=CGRectInset(CGRectMake(center.x,center.y,0,0),-radius,-radius);
+        if (CGRectIntersectsRect(menuFrame,controlFrame)) { overlaps=YES; break; }
+    }
+    [self setToolsTemporarilyHidden:overlaps];
+}
 - (void)editTouches:(NSSet<UITouch *> *)touches began:(BOOL)began {
     if (began && !_dragTouch) {
         UITouch *touch=touches.anyObject; CGPoint start=[touch locationInView:self];
@@ -2629,6 +2660,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     if (_dragTouch && [touches containsObject:_dragTouch]) {
         CGPoint point=[_dragTouch locationInView:self];
         [self storeControlAt:CGPointMake(_dragHome.x+point.x-_dragStart.x,_dragHome.y+point.y-_dragStart.y)];
+        [self updateToolsVisibilityForDraggedControls];
     }
 }
 
