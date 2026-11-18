@@ -449,8 +449,13 @@ static UIColor *themeHex(NSString *value) {
     }
     return [UIColor colorWithRed:red green:green blue:blue alpha:alpha];
 }
+static CGFloat themeColorAlpha(UIColor *color) {
+    CGFloat red=0,green=0,blue=0,alpha=1;
+    if (![color getRed:&red green:&green blue:&blue alpha:&alpha]) return 1;
+    return alpha;
+}
 static UIColor *themeColorWithAlphaMultiplier(UIColor *color, CGFloat multiplier) {
-    return [color colorWithAlphaComponent:color.CGColor.alpha * multiplier];
+    return [color colorWithAlphaComponent:themeColorAlpha(color) * multiplier];
 }
 static id themePaletteValue(NSDictionary *palette, NSString *key) {
     id value=palette[key];
@@ -1953,7 +1958,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     NSMutableDictionary *palette=[json[@"palette"] isKindOfClass:NSDictionary.class]?[json[@"palette"] mutableCopy]:[NSMutableDictionary dictionary];
     // k_text includes the renderer's 0.96 opacity multiplier. Store the
     // pre-multiplied alpha so reloading the theme does not apply it twice.
-    UIColor *storedText=[k_text colorWithAlphaComponent:MIN(1.0,k_text.CGColor.alpha/0.96)];
+    UIColor *storedText=[k_text colorWithAlphaComponent:MIN(1.0,themeColorAlpha(k_text)/0.96)];
     palette[@"text"]=[self hexForColor:storedText];
     palette[@"pressedText"]=[self hexForColor:k_textOn];
     json[@"palette"]=palette;
