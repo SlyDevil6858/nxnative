@@ -1373,7 +1373,7 @@ static NSString *const k_theme_path_key = @"DmTouchControlThemePath";
 static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 - (NSURL *)bundledAnimalWellThemeDirectory {
     NSURL *overrides=[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"OVERRIDES" isDirectory:YES];
-    return [overrides URLByAppendingPathComponent:@"ANIMAL WELL" isDirectory:YES];
+    return [overrides URLByAppendingPathComponent:@"Animalwell" isDirectory:YES];
 }
 - (NSURL *)selectedOverrideThemeDirectory {
     NSString *folder=[NSBundle.mainBundle objectForInfoDictionaryKey:@"DMOverrideFolder"];
@@ -1411,7 +1411,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             if (bundledJSON && [bundledJSON isEqualToData:legacyJSON]) [fm removeItemAtURL:legacy error:nil];
         }
         NSURL *animalWell=[self bundledAnimalWellThemeDirectory];
-        NSURL *legacyAnimalWell=[dir URLByAppendingPathComponent:@"ANIMAL WELL" isDirectory:YES];
+        NSURL *legacyAnimalWell=[dir URLByAppendingPathComponent:@"Animalwell" isDirectory:YES];
         NSData *animalWellJSON=[NSData dataWithContentsOfURL:[animalWell URLByAppendingPathComponent:@"theme.json"]];
         NSData *legacyAnimalWellJSON=[NSData dataWithContentsOfURL:[legacyAnimalWell URLByAppendingPathComponent:@"theme.json"]];
         if (animalWellJSON && [animalWellJSON isEqualToData:legacyAnimalWellJSON])
