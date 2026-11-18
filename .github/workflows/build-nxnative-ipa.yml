@@ -29,10 +29,15 @@ on:
         type: string
         default: "ANIMAL WELL"
       dominant_color_styling:
-        description: "Use the game's app-icon dominant color for launcher accents (off uses the default blue styling)"
+        description: "Use the game's app-icon dominant color for launcher accents"
         required: true
         type: boolean
         default: true
+      custom_accent_hex:
+        description: "Custom launcher accent hex when dominant color styling is off (blank keeps nxnative defaults; e.g. #FF8800)"
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -61,18 +66,40 @@ jobs:
           path: nxnative
           persist-credentials: false
 
-      - name: Select launcher appearance override folder
+      - name: Select launcher appearance and accent color
         working-directory: nxnative
         env:
           OVERRIDE_FOLDER: ${{ inputs.override_folder }}
+          DOMINANT_COLOR_STYLING: ${{ inputs.dominant_color_styling }}
+          CUSTOM_ACCENT_HEX: ${{ inputs.custom_accent_hex }}
         run: |
           python3 - <<'PY'
           import os
+          import re
           from pathlib import Path
 
           root = Path.cwd().resolve()
           overrides_root = (root / "OVERRIDES").resolve()
           selected = os.environ.get("OVERRIDE_FOLDER", "").strip()
+          dominant_enabled = os.environ.get("DOMINANT_COLOR_STYLING", "true").lower() == "true"
+          custom_hex = os.environ.get("CUSTOM_ACCENT_HEX", "").strip()
+
+          # A custom colour is only used when dominant-colour styling is disabled.
+          # Blank intentionally leaves nxnative's built-in system-blue default intact.
+          normalized_hex = ""
+          if not dominant_enabled and custom_hex:
+              if not re.fullmatch(r"#?[0-9a-fA-F]{6}", custom_hex):
+                  raise SystemExit("custom_accent_hex must be blank or a six-digit hex colour such as #FF8800.")
+              normalized_hex = custom_hex if custom_hex.startswith("#") else f"#{custom_hex}"
+
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
+              env.write(f"NXNATIVE_CUSTOM_ACCENT_HEX={normalized_hex}\\n")
+          if dominant_enabled:
+              print("Dominant-colour styling is enabled; custom accent input will be ignored.")
+          elif normalized_hex:
+              print(f"Using custom launcher accent colour {normalized_hex}.")
+          else:
+              print("No custom launcher accent colour supplied; nxnative's default styling will be used.")
 
           if not selected:
               with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
@@ -216,6 +243,7 @@ jobs:
           DM_OVERRIDE_FOLDER: ${{ env.NXNATIVE_OVERRIDE_FOLDER }}
           DM_SHOW_FPS: "0"
           DM_DOMINANT_ACCENT: ${{ inputs.dominant_color_styling }}
+          DM_CUSTOM_ACCENT_HEX: ${{ env.NXNATIVE_CUSTOM_ACCENT_HEX }}
         run: |
           set -o pipefail
           DATA_ROOT="$GITHUB_WORKSPACE/private-game-data"
