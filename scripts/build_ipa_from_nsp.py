@@ -464,7 +464,7 @@ def version_of(path):
 COMPRESSED = {'.nsz': '.nsp', '.xcz': '.xci'}   # nsz's compressed NSP / XCI and what nsz -D makes of them
 
 
-def scan_nsps(nsp_dir, from_package=None):
+def scan_nsps(nsp_dir, from_package=None, selected=None):
     """Group by game: {application title ID: {'base': path, 'updates': [(version, path)], 'dlc': [(title ID, version, path)]}}. An NSZ / XCZ is listed as it is (its ticket names
     the title as an NSP's does) and converted afterwards (decompress_nsz). A package with neither is asked for its title ID: from_package(path) (package_title_reader)"""
     fams, unknown = {}, []
@@ -487,6 +487,21 @@ def scan_nsps(nsp_dir, from_package=None):
     if len(fams) == 1 and len(unknown) == 1 and next(iter(fams.values()))['base'] is None:   # a base game converted from a cartridge may have neither tags nor a ticket; build IDs are checked afterwards
         next(iter(fams.values()))['base'] = unknown[0]
     if not fams: raise BuildError(f'no NSP with a readable title ID in {nsp_dir}')
+    if selected is not None:
+        selected = Path(selected)
+        if not selected.is_file() or not is_package(selected):
+            raise BuildError(f'selected game package is missing or invalid: {selected}')
+        selected_tid = title_of(selected, from_package)
+        if selected_tid is None:
+            raise BuildError(f'could not read the selected package title ID: {selected.name}')
+        low = selected_tid & 0xFFF
+        selected_app = selected_tid if low == 0 else selected_tid & ~0xFFF if low == 0x800 else (selected_tid & ~0xFFF) - 0x1000
+        if selected_app not in fams:
+            raise BuildError(f'the selected package {selected.name} (title ID {selected_tid:016X}) has no matching base-game family in {nsp_dir}')
+        if len(fams) > 1:
+            say(f'selected game {selected_app:016X} from {selected.name}; ignoring packages for other games: ' +
+                ', '.join(f'{t:016X}' for t in fams if t != selected_app))
+        fams = {selected_app: fams[selected_app]}
     if len(fams) > 1: raise BuildError('more than one game in the folder, keep one game per folder: ' + ', '.join(f'{t:016X}' for t in fams))
     app, fam = next(iter(fams.items()))
     if fam['base'] is None: raise BuildError(f'no base game NSP found in {nsp_dir} (title ID {app:016X})')
@@ -2306,7 +2321,10 @@ def main(args=None):
     configure_dotnet(env)
     env.setdefault('J', str(os.cpu_count() or 8))   # shader_split.py's and dmsh_build.py's workers (their default is 8)
     py = sys.executable
-    with package_title_reader(repo, keys, env) as from_package: app, fam = scan_nsps(nsp_dir, from_package)
+    selected_rom_name = os.environ.get('DM_SELECTED_ROM_FILE', '').strip()
+    selected_rom = nsp_dir / selected_rom_name if selected_rom_name else None
+    with package_title_reader(repo, keys, env) as from_package:
+        app, fam = scan_nsps(nsp_dir, from_package, selected_rom)
     fam = decompress_nsz(nsp_dir, app, fam, keys, env, work_dir(args))
     force =args.provisional or PROVISIONAL   # a provisional profile even when dm/games has one (testing the guesses)
     g, provisional, shadowed = None if force else gamemod.by_title(app), False, False
