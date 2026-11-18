@@ -1218,7 +1218,7 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     CGFloat toolsY=MIN(MAX(centeredY,minToolsY),maxToolsY);
     _tools.frame=CGRectMake(toolsX,toolsY,toolsWidth,toolsHeight);
     _toolsVisibilityButton.frame=CGRectMake(CGRectGetMidX(_tools.frame)-17,
-        CGRectGetMinY(_tools.frame)-34,34,28);
+        CGRectGetMaxY(_tools.frame)+8,34,28);
     [self updateToolsVisibilityButtonAppearance];
     if (!_toolsVisibilityButton.hidden) [self bringSubviewToFront:_toolsVisibilityButton];
     _themeMenuOverlay.frame=self.bounds;
@@ -2103,9 +2103,9 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _profileButton=[self editorButton:@"Profile" action:@selector(showProfilePopup) frame:CGRectMake(8,8,220,32) parent:_tools];
     _profileButton.titleLabel.adjustsFontSizeToFitWidth=YES; _profileButton.titleLabel.minimumScaleFactor=0.75;
     _saveAsButton=[self editorButton:@"Save as…" action:@selector(showSaveAsPopup) frame:CGRectMake(236,8,116,32) parent:_tools];
-    [self editorButton:@"Save" action:@selector(saveEdit) frame:CGRectMake(8,48,90,32) parent:_tools];
-    [self editorButton:@"Cancel" action:@selector(cancelEdit) frame:CGRectMake(110,48,132,32) parent:_tools];
-    [self editorButton:@"Reset all" action:@selector(resetAllControls) frame:CGRectMake(252,48,100,32) parent:_tools];
+    [self editorButton:@"Save" action:@selector(saveEdit) frame:CGRectMake(8,48,92,32) parent:_tools];
+    [self editorButton:@"Cancel" action:@selector(cancelEdit) frame:CGRectMake(111,48,132,32) parent:_tools];
+    [self editorButton:@"Reset all" action:@selector(resetAllControls) frame:CGRectMake(254,48,98,32) parent:_tools];
     _chooseButton=[self editorButton:@"A ▾" action:@selector(showControlPopup) frame:CGRectMake(8,86,120,30) parent:_tools];
     _colorWellButton=[UIButton buttonWithType:UIButtonTypeCustom];
     _colorWellButton.frame=CGRectMake(136,86,100,30);
