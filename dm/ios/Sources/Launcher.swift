@@ -240,9 +240,7 @@ private struct LauncherView: View {
                                     }
                                     .disclosureGroupStyle(LauncherDisclosureGroupStyle(accentColor: accentColor))
                                     .background(Color.black)
-                                    .onChange(of: showingThemeList) { isShowing in
-                                        if isShowing { refreshThemes() }
-                                    }
+                                    .onChange(of: showingThemeList, perform: themeListVisibilityChanged)
                                     Button("Edit touch controls layout…") {
                                         dm_gamepad_present_launcher_editor()
                                     }
@@ -637,6 +635,10 @@ private struct LauncherView: View {
             guard normalized.range(of: "^[0-9A-Fa-f]{6}$", options: .regularExpression) != nil else { return nil }
         }
         return json
+    }
+
+    private func themeListVisibilityChanged(_ isShowing: Bool) {
+        if isShowing { refreshThemes() }
     }
 
     private func refreshThemes() {
