@@ -205,7 +205,7 @@ private struct LauncherView: View {
     @State private var memory = os_proc_available_memory()
     @State private var isControlLayoutEditing = false
     @State private var themes: [LauncherTheme] = []
-    @State private var selectedTheme = UserDefaults.standard.string(forKey: "DmTouchControlThemeName") ?? "ANIMAL WELL"
+    @State private var selectedTheme = UserDefaults.standard.string(forKey: "DmTouchControlThemeName") ?? "CLASSIC"
     @State private var pickingTheme = false
     @State private var showingThemeList = false
     @State private var confirmingThemeDeletion = false
@@ -616,11 +616,6 @@ private struct LauncherView: View {
                 }
             }
         }
-        if let animalWell = animalWellThemeDirectory(),
-           let json = themeJSON(in: animalWell),
-           let name = json["name"] as? String, !name.isEmpty {
-            existing.insert(name)
-        }
         if let selectedOverride = selectedOverrideThemeDirectory(),
            let json = themeJSON(in: selectedOverride),
            let name = json["name"] as? String, !name.isEmpty {
@@ -652,17 +647,13 @@ private struct LauncherView: View {
         let path = URL(fileURLWithPath: theme.path).standardizedFileURL.path
         let root = bundledRoot.standardizedFileURL.path + "/"
         if path.hasPrefix(root) { return true }
-        if let animalWell = animalWellThemeDirectory(),
-           path == animalWell.standardizedFileURL.path { return true }
         guard let selectedOverride = selectedOverrideThemeDirectory() else { return false }
         return path == selectedOverride.standardizedFileURL.path
     }
 
     private func canDeleteTheme(_ theme: LauncherTheme) -> Bool {
         let folderName = URL(fileURLWithPath: theme.path).lastPathComponent
-        guard folderName.caseInsensitiveCompare("Animalwell") != .orderedSame,
-              folderName.caseInsensitiveCompare("CLASSIC") != .orderedSame,
-              theme.name.caseInsensitiveCompare("ANIMAL WELL") != .orderedSame,
+        guard folderName.caseInsensitiveCompare("CLASSIC") != .orderedSame,
               theme.name.caseInsensitiveCompare("CLASSIC") != .orderedSame else { return false }
         let documentsRoot = themesDirectory().standardizedFileURL.path + "/"
         let folderURL = URL(fileURLWithPath: theme.path).standardizedFileURL
@@ -677,7 +668,6 @@ private struct LauncherView: View {
         guard canDeleteTheme(theme) else { return }
         let newName = proposedName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !newName.isEmpty,
-              newName.caseInsensitiveCompare("ANIMAL WELL") != .orderedSame,
               newName.caseInsensitiveCompare("CLASSIC") != .orderedSame,
               let json = themeJSON(in: URL(fileURLWithPath: theme.path)) else { return }
         var updated = json
@@ -702,9 +692,13 @@ private struct LauncherView: View {
                 FileManager.default.createFile(atPath: marker.path, contents: Data())
             }
             try FileManager.default.removeItem(at: URL(fileURLWithPath: theme.path))
-            if selectedTheme == theme.name,
-               let animalWell = themes.first(where: { URL(fileURLWithPath: $0.path).lastPathComponent.caseInsensitiveCompare("Animalwell") == .orderedSame }) {
-                selectTheme(animalWell.path, name: animalWell.name)
+            if selectedTheme == theme.name {
+                if let selectedOverride = selectedOverrideThemeDirectory(),
+                   let matching = themes.first(where: { URL(fileURLWithPath: $0.path).standardizedFileURL == selectedOverride.standardizedFileURL }) {
+                    selectTheme(matching.path, name: matching.name)
+                } else if let classic = themes.first(where: { URL(fileURLWithPath: $0.path).lastPathComponent.caseInsensitiveCompare("CLASSIC") == .orderedSame }) {
+                    selectTheme(classic.path, name: classic.name)
+                }
             }
             refreshThemes()
         } catch {
