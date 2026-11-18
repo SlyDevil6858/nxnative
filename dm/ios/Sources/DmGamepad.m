@@ -888,7 +888,7 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
     if (!tip.text.length) return;
     NSMutableParagraphStyle *paragraph=[NSMutableParagraphStyle new];
     paragraph.alignment=NSTextAlignmentCenter;
-    paragraph.lineSpacing=3.0;
+    paragraph.lineSpacing=5.0;
     tip.attributedText=[[NSAttributedString alloc] initWithString:tip.text
         attributes:@{NSParagraphStyleAttributeName:paragraph}];
 }
@@ -1212,8 +1212,11 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     if (_menuTip) {
         CGFloat tipWidth=MIN(340, MAX(0,self.bounds.size.width-32));
         CGSize tipSize=[_menuTip sizeThatFits:CGSizeMake(tipWidth,CGFLOAT_MAX)];
-        // Both one-time helper boxes use the same post-launch screen position.
-        CGFloat tipY=self.safeAreaInsets.top+44;
+        // Place the arrow tip exactly against the lower edge of the layout switcher.
+        CGPoint layoutCenter=self.swapCenter;
+        CGFloat layoutRadius=K_SWAP_R*self.u;
+        CGFloat arrowHeight=11.0;
+        CGFloat tipY=layoutCenter.y+layoutRadius+arrowHeight;
         _menuTip.frame=CGRectMake((self.bounds.size.width-tipWidth)/2, tipY, tipWidth, tipSize.height);
         CGRect r=_menuTip.frame;
         CGFloat radius=10.0, arrowHalf=10.0, arrowHeight=11.0;
