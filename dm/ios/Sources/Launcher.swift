@@ -305,6 +305,10 @@ private struct LauncherView: View {
             }
         }
         .preferredColorScheme(.dark)
+        // Keep the launcher underneath the pre-launch control editor fixed
+        // when its theme rename field brings up the keyboard. The editor's
+        // own menu handles keyboard positioning independently.
+        .ignoresSafeArea(.keyboard, edges: isControlLayoutEditing ? .bottom : [])
         .sheet(isPresented: $pickingTheme) {
             DocumentPicker(types: [.folder]) { url in
                 pickingTheme = false
