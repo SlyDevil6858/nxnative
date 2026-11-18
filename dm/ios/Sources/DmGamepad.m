@@ -1447,6 +1447,9 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     }
     if (b==B_N) key=@"Layout";
     UIColor *color=key ? _themeButtonColors[[@"Border" stringByAppendingString:key]] : nil;
+    // Preserve the old shared border color for themes that predate separate
+    // L3 and R3 entries, until either button receives its own border color.
+    if (!color && (b==B_LS || b==B_RS)) color=_themeButtonColors[@"BorderStick"];
     return color ?: k_line;
 }
 - (NSString *)borderColorKeyForControl:(int)control {
@@ -1948,7 +1951,10 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     for (NSString *key in _themeButtonColors) buttons[key]=[self hexForColor:_themeButtonColors[key]];
     json[@"buttons"]=buttons;
     NSMutableDictionary *palette=[json[@"palette"] isKindOfClass:NSDictionary.class]?[json[@"palette"] mutableCopy]:[NSMutableDictionary dictionary];
-    palette[@"text"]=[self hexForColor:k_text];
+    // k_text includes the renderer's 0.96 opacity multiplier. Store the
+    // pre-multiplied alpha so reloading the theme does not apply it twice.
+    UIColor *storedText=[k_text colorWithAlphaComponent:MIN(1.0,k_text.CGColor.alpha/0.96)];
+    palette[@"text"]=[self hexForColor:storedText];
     palette[@"pressedText"]=[self hexForColor:k_textOn];
     json[@"palette"]=palette;
     NSData *data=[NSJSONSerialization dataWithJSONObject:json options:NSJSONWritingPrettyPrinted error:nil];
