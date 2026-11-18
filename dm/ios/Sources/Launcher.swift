@@ -186,7 +186,6 @@ private struct LauncherView: View {
     @FocusState private var themeRenameFocused: Bool
     @State private var showingThemeImportAlert = false
     @State private var themeImportMessage = ""
-    @State private var launcherKeyboardHeight: CGFloat = 0
 
     var body: some View {
         GeometryReader { geometry in
@@ -204,10 +203,10 @@ private struct LauncherView: View {
                     playButton
                 }
                 .padding(16)
-                .frame(width: geometry.size.width * 0.30, height: geometry.size.height + launcherKeyboardHeight, alignment: .top)
-                // GeometryReader shrinks when the keyboard appears. Extend this
-                // column by the keyboard height and top-align it so its contents
-                // stay at their original screen coordinates.
+                .frame(width: geometry.size.width * 0.30, height: geometry.size.height)
+                // Keep the left panel anchored to its normal top position while
+                // allowing it to extend behind the keyboard without resizing it.
+                .ignoresSafeArea(.keyboard, edges: themeRenamePath != nil ? .bottom : [])
                 .contentShape(Rectangle())
                 .onTapGesture {
                     if themeRenamePath != nil { cancelLauncherThemeRename() }
@@ -307,7 +306,6 @@ private struct LauncherView: View {
                 }
             }
             }
-            .frame(height: geometry.size.height + launcherKeyboardHeight, alignment: .top)
             .opacity(isControlLayoutEditing ? 0 : 1)
             .animation(.easeInOut(duration: 0.25), value: isControlLayoutEditing)
             .allowsHitTesting(!isControlLayoutEditing)
@@ -317,12 +315,11 @@ private struct LauncherView: View {
         .background {
             if let background = launcherBackground() {
                 Image(uiImage: background).resizable().scaledToFill()
-                    .clipped()
                     .overlay(.black.opacity(0.48))
-                    // Keep the artwork attached to the full launcher area
-                    // rather than sizing it from the keyboard-shrunk reader.
+                    .ignoresSafeArea()
+                    // The background stays fixed while the settings List alone
+                    // responds to the keyboard's safe-area change.
                     .ignoresSafeArea(.keyboard, edges: themeRenamePath != nil ? .bottom : [])
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
         }
         .preferredColorScheme(.dark)
@@ -356,13 +353,6 @@ private struct LauncherView: View {
             if !editing {
                 refreshThemes()
             }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { notification in
-            guard let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
-            launcherKeyboardHeight = max(0, frame.height)
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
-            launcherKeyboardHeight = 0
         }
         .onAppear(perform: refreshThemes)
         .task {
