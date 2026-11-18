@@ -93,7 +93,7 @@ jobs:
               normalized_hex = custom_hex if custom_hex.startswith("#") else f"#{custom_hex}"
 
           with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
-              env.write(f"NXNATIVE_CUSTOM_ACCENT_HEX={normalized_hex}\\n")
+              env.write(f"NXNATIVE_CUSTOM_ACCENT_HEX={normalized_hex}\n")
           if dominant_enabled:
               print("Dominant-colour styling is enabled; custom accent input will be ignored.")
           elif normalized_hex:
