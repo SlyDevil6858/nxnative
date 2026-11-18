@@ -78,9 +78,27 @@ private func launcherUsesDominantAccent() -> Bool {
     return true
 }
 
-/// Shared launcher accent. Builds with the toggle off use the standard system blue.
+/// Optional six-digit custom launcher accent supplied by the build workflow.
+private func launcherCustomAccentColor() -> UIColor? {
+    guard let rawHex = info("DMLauncherAccentHex") as? String else { return nil }
+    let hex = rawHex.trimmingCharacters(in: .whitespacesAndNewlines)
+        .trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+    guard hex.count == 6, let value = UInt32(hex, radix: 16) else { return nil }
+
+    return UIColor(
+        red: CGFloat((value >> 16) & 0xFF) / 255.0,
+        green: CGFloat((value >> 8) & 0xFF) / 255.0,
+        blue: CGFloat(value & 0xFF) / 255.0,
+        alpha: 1.0
+    )
+}
+
+/// Shared launcher accent. When dominant styling is off, a supplied custom
+/// colour wins; an empty custom value preserves nxnative's standard system blue.
 private func launcherAccentColor() -> Color {
-    guard launcherUsesDominantAccent() else { return Color(uiColor: .systemBlue) }
+    guard launcherUsesDominantAccent() else {
+        return Color(uiColor: launcherCustomAccentColor() ?? .systemBlue)
+    }
     return Color(uiColor: launcherAppIcon()?.dominantColor() ?? .systemBlue)
 }
 
