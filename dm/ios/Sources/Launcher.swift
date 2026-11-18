@@ -310,21 +310,18 @@ private struct LauncherView: View {
             .animation(.easeInOut(duration: 0.25), value: isControlLayoutEditing)
             .allowsHitTesting(!isControlLayoutEditing)
         }
-        // Keep the entire launcher layout at its pre-keyboard size during a theme rename.
-        // The theme row is scrolled to the top separately so the keyboard does not cover its field.
-        .ignoresSafeArea(.keyboard, edges: themeRenamePath != nil ? .bottom : [])
-        // Keep the artwork on the GeometryReader itself, outside the HStack/List
-        // that changes when the theme disclosure expands and collapses.
+        // Keep the artwork outside the HStack/List so drawer updates cannot move it.
         .background {
             if let background = launcherBackground() {
                 Image(uiImage: background).resizable().scaledToFill()
                     .overlay(.black.opacity(0.48))
                     .ignoresSafeArea()
-                    // The background stays fixed while the settings List alone
-                    // responds to the keyboard's safe-area change.
                     .ignoresSafeArea(.keyboard, edges: themeRenamePath != nil ? .bottom : [])
             }
         }
+        // Apply keyboard avoidance to the GeometryReader and its background together.
+        // This keeps the artwork anchored while the settings List handles the keyboard.
+        .ignoresSafeArea(.keyboard, edges: themeRenamePath != nil ? .bottom : [])
         .preferredColorScheme(.dark)
         // Keep the launcher underneath the pre-launch control editor fixed
         // when its theme rename field brings up the keyboard. The editor's
