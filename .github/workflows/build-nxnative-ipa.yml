@@ -199,7 +199,7 @@ jobs:
           PY
 
       - name: Commit newly created ROM override folder
-        if: always() && steps.verify-input.outputs.list_only != 'true'
+        if: steps.verify-input.outputs.list_only != 'true' && steps.verify-input.outputs.override_folder != ''
         working-directory: nxnative
         env:
           OVERRIDE_FOLDER: ${{ steps.verify-input.outputs.override_folder }}
@@ -309,7 +309,7 @@ jobs:
           echo "Final IPA filename: $(basename "$FINAL_IPA")"
 
       - name: Commit generated ROM touch theme
-        if: steps.verify-input.outputs.list_only != 'true'
+        if: always() && steps.verify-input.outputs.list_only != 'true' && steps.verify-input.outputs.override_folder != ''
         working-directory: nxnative
         env:
           OVERRIDE_FOLDER: ${{ steps.verify-input.outputs.override_folder }}
