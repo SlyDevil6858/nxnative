@@ -759,8 +759,8 @@ private struct LauncherView: View {
             func priority(_ theme: LauncherTheme) -> Int {
                 let folder = normalizedThemeName(URL(fileURLWithPath: theme.path).lastPathComponent)
                 let display = normalizedThemeName(theme.name)
-                let selectedOverridePath = selectedOverrideThemeDirectory()?.standardizedFileURL.path
-                if selectedOverridePath == URL(fileURLWithPath: theme.path).standardizedFileURL.path { return 0 }
+                if let selectedOverridePath = selectedOverrideThemeDirectory()?.standardizedFileURL.path,
+                   selectedOverridePath == URL(fileURLWithPath: theme.path).standardizedFileURL.path { return 0 }
                 if folder == "ANIMAL WELL" || display == "ANIMAL WELL" { return 1 }
                 if folder == "CLASSIC" || display == "CLASSIC" { return 2 }
                 // FOREST is intentionally treated like an imported/user-added theme.
