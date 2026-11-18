@@ -37,7 +37,7 @@ on:
         description: "Bundle the FOREST touch controls theme"
         required: true
         type: boolean
-        default: true
+        default: false
 
 permissions:
   contents: read
