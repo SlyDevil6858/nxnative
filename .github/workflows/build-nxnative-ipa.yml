@@ -35,7 +35,7 @@ on:
         default: ""
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -59,7 +59,7 @@ jobs:
         with:
           ref: iphone-4gb
           path: nxnative
-          persist-credentials: false
+          persist-credentials: true
 
       - name: List ROM files and verify selected game file
         id: verify-input
@@ -197,6 +197,32 @@ jobs:
           print(f"Using ROM-matched override directory OVERRIDES/{rom_stem}/")
           print("Missing override images are optional; nxnative will use its built-in defaults for those assets.")
           PY
+
+      - name: Commit newly created ROM override folder
+        if: steps.verify-input.outputs.list_only != 'true'
+        working-directory: nxnative
+        env:
+          OVERRIDE_FOLDER: ${{ steps.verify-input.outputs.override_folder }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          override_path="OVERRIDES/$OVERRIDE_FOLDER"
+          if [ ! -d "$override_path" ]; then
+            echo "::error::Expected ROM override folder was not created: $override_path"
+            exit 1
+          fi
+
+          git add -- "$override_path"
+          if git diff --cached --quiet; then
+            echo "The ROM-matched override folder already exists in the repository; nothing to commit."
+            exit 0
+          fi
+
+          git commit -m "Add override folder for $OVERRIDE_FOLDER"
+          git push origin HEAD:iphone-4gb
+          echo "Committed and pushed $override_path to the iphone-4gb branch."
 
       - name: Verify macOS and Xcode
         if: steps.verify-input.outputs.list_only != 'true'
