@@ -1583,6 +1583,11 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         if (!json) continue;
         NSString *path=folder.standardizedURL.path;
         NSString *title=[json[@"name"] isKindOfClass:NSString.class] && [json[@"name"] length] ? json[@"name"] : folder.lastPathComponent;
+        NSString *folderName=folder.lastPathComponent;
+        BOOL protectedTheme=[folderName caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
+            [folderName caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame ||
+            [title caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
+            [title caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame;
         __weak typeof(self) weakSelf=self;
         BOOL editingThisTheme=[_themeRenamePath isEqualToString:path];
         if (editingThisTheme) {
@@ -1600,7 +1605,19 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             UIButton *cancel=[UIButton buttonWithType:UIButtonTypeCustom]; cancel.frame=CGRectMake(252,row*rowHeight+8,32,32);
             [cancel setImage:[UIImage systemImageNamed:@"xmark" withConfiguration:[UIImageSymbolConfiguration configurationWithPointSize:15 weight:UIImageSymbolWeightSemibold]] forState:UIControlStateNormal];
             cancel.tintColor=[UIColor colorWithWhite:1 alpha:0.78]; cancel.accessibilityLabel=@"Cancel theme rename";
-            [cancel addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; DmGamepad *strongSelf=weakSelf; if (!strongSelf) return; [strongSelf->_themeRenameField resignFirstResponder]; strongSelf->_themeRenamePath=nil; strongSelf->_themeRenameField=nil; strongSelf->_themeMenuFramePinned=NO; [strongSelf updateThemeMenu]; }] forControlEvents:UIControlEventTouchUpInside]; [_themeMenuScroll addSubview:cancel];
+            [cancel addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) {
+                (void)action;
+                DmGamepad *strongSelf=weakSelf; if (!strongSelf) return;
+                // Preserve the visible selector position while the keyboard closes.
+                CGRect visibleFrame=strongSelf->_themeMenuPanel.frame;
+                strongSelf->_themeMenuPinnedFrame=visibleFrame;
+                strongSelf->_themeMenuRenameOriginFrame=visibleFrame;
+                strongSelf->_themeMenuFramePinned=YES;
+                [strongSelf->_themeRenameField resignFirstResponder];
+                strongSelf->_themeRenamePath=nil;
+                strongSelf->_themeRenameField=nil;
+                [strongSelf updateThemeMenu];
+            }] forControlEvents:UIControlEventTouchUpInside]; [_themeMenuScroll addSubview:cancel];
             dispatch_async(dispatch_get_main_queue(), ^{ DmGamepad *strongSelf=weakSelf; if (strongSelf && strongSelf->_themeRenameField==field) [field becomeFirstResponder]; });
         } else {
             UIButton *pick=[UIButton buttonWithType:UIButtonTypeSystem]; pick.frame=CGRectMake(0,row*rowHeight,212,rowHeight);
@@ -1611,19 +1628,15 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             pick.accessibilityLabel=[NSString stringWithFormat:@"Select %@",title];
             [pick addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; [weakSelf applyThemePath:path name:title]; [weakSelf closeThemeMenu]; }] forControlEvents:UIControlEventTouchUpInside]; [_themeMenuScroll addSubview:pick];
             if ([current isEqualToString:title]) {
-                UILabel *activeMark=[[UILabel alloc] initWithFrame:CGRectMake(178,row*rowHeight,26,rowHeight)];
+                CGFloat markX=protectedTheme ? 258 : 178;
+                UILabel *activeMark=[[UILabel alloc] initWithFrame:CGRectMake(markX,row*rowHeight,26,rowHeight)];
                 activeMark.text=@"✓"; activeMark.textAlignment=NSTextAlignmentRight;
-                activeMark.font=[UIFont systemFontOfSize:14 weight:UIFontWeightSemibold];
+                activeMark.font=[UIFont systemFontOfSize:18 weight:UIFontWeightBold];
                 activeMark.textColor=[UIColor colorWithRed:0.22 green:0.48 blue:0.28 alpha:1];
                 activeMark.userInteractionEnabled=NO;
                 [_themeMenuScroll addSubview:activeMark];
             }
         }
-        NSString *folderName=folder.lastPathComponent;
-        BOOL protectedTheme=[folderName caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
-            [folderName caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame ||
-            [title caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
-            [title caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame;
         // Only direct child folders in the app's imported-themes directory are custom themes.
         // Do not gate the actions on isWritableFileAtPath: that check can incorrectly return
         // false for app-managed/document-provider files even when the app can edit them.
