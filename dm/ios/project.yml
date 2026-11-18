@@ -23,8 +23,8 @@ targets:
       - path: ../../TouchControlThemes
         type: folder
         buildPhase: resources
-      # Bundle the parent directory so the app can find
-      # Bundle.main.resourceURL/OVERRIDES/ANIMAL WELL/theme.json.
+      # Bundle the parent directory so the app can find the ROM-matched
+      # folder at Bundle.main.resourceURL/OVERRIDES/<ROM filename without extension>/.
       - path: ../../OVERRIDES
         type: folder
         buildPhase: resources
