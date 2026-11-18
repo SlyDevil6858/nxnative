@@ -1614,7 +1614,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
                 UILabel *activeMark=[[UILabel alloc] initWithFrame:CGRectMake(178,row*rowHeight,26,rowHeight)];
                 activeMark.text=@"✓"; activeMark.textAlignment=NSTextAlignmentRight;
                 activeMark.font=[UIFont systemFontOfSize:14 weight:UIFontWeightSemibold];
-                activeMark.textColor=[UIColor colorWithRed:0.05 green:0.38 blue:0.16 alpha:1];
+                activeMark.textColor=[UIColor colorWithRed:0.22 green:0.48 blue:0.28 alpha:1];
                 activeMark.userInteractionEnabled=NO;
                 [_themeMenuScroll addSubview:activeMark];
             }
