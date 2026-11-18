@@ -539,12 +539,6 @@ private struct LauncherView: View {
         launcherAppIcon()
     }
 
-    private func animalWellThemeDirectory() -> URL? {
-        Bundle.main.resourceURL?
-            .appendingPathComponent("OVERRIDES", isDirectory: true)
-            .appendingPathComponent("Animalwell", isDirectory: true)
-    }
-
     private func selectedOverrideThemeDirectory() -> URL? {
         guard let folder = info("DMOverrideFolder") as? String,
               !folder.isEmpty, folder != ".", folder != "..",
@@ -562,10 +556,6 @@ private struct LauncherView: View {
         var folders = bundledRoot.flatMap {
             try? FileManager.default.contentsOfDirectory(at: $0, includingPropertiesForKeys: [.isDirectoryKey])
         } ?? []
-        if let animalWell = animalWellThemeDirectory(),
-           FileManager.default.fileExists(atPath: animalWell.appendingPathComponent("theme.json").path) {
-            folders.append(animalWell)
-        }
         if let selectedOverride = selectedOverrideThemeDirectory(),
            !folders.contains(where: { $0.standardizedFileURL == selectedOverride.standardizedFileURL }) {
             folders.append(selectedOverride)
@@ -779,10 +769,9 @@ private struct LauncherView: View {
                 let display = normalizedThemeName(theme.name)
                 if let selectedOverridePath = selectedOverrideThemeDirectory()?.standardizedFileURL.path,
                    selectedOverridePath == URL(fileURLWithPath: theme.path).standardizedFileURL.path { return 0 }
-                if folder == "ANIMAL WELL" || display == "ANIMAL WELL" { return 1 }
-                if folder == "CLASSIC" || display == "CLASSIC" { return 2 }
-                // FOREST is intentionally treated like an imported/user-added theme.
-                return 3
+                if folder == "CLASSIC" || display == "CLASSIC" { return 1 }
+                // Other themes remain available after the ROM-matched override and CLASSIC.
+                return 2
             }
             let leftPriority = priority($0), rightPriority = priority($1)
             if leftPriority != rightPriority { return leftPriority < rightPriority }
@@ -794,15 +783,22 @@ private struct LauncherView: View {
         let path = defaults.string(forKey: "DmTouchControlThemePath")
         if let selected = themes.first(where: { $0.path == path }) {
             selectedTheme = selected.name
-        } else if let animalWell = themes.first(where: {
-            URL(fileURLWithPath: $0.path).lastPathComponent.caseInsensitiveCompare("ANIMAL WELL") == .orderedSame
+        } else if let selectedOverride = selectedOverrideThemeDirectory(),
+                  let matchingTheme = themes.first(where: {
+                      URL(fileURLWithPath: $0.path).standardizedFileURL == selectedOverride.standardizedFileURL
+                  }) {
+            defaults.set(matchingTheme.path, forKey: "DmTouchControlThemePath")
+            defaults.set(matchingTheme.name, forKey: "DmTouchControlThemeName")
+            selectedTheme = matchingTheme.name
+        } else if let classic = themes.first(where: {
+            URL(fileURLWithPath: $0.path).lastPathComponent.caseInsensitiveCompare("CLASSIC") == .orderedSame
         }) {
-            defaults.set(animalWell.path, forKey: "DmTouchControlThemePath")
-            defaults.set(animalWell.name, forKey: "DmTouchControlThemeName")
-            selectedTheme = animalWell.name
+            defaults.set(classic.path, forKey: "DmTouchControlThemePath")
+            defaults.set(classic.name, forKey: "DmTouchControlThemeName")
+            selectedTheme = classic.name
         } else {
-            selectedTheme = "ANIMAL WELL"
-            defaults.set("ANIMAL WELL", forKey: "DmTouchControlThemeName")
+            selectedTheme = "CLASSIC"
+            defaults.set("CLASSIC", forKey: "DmTouchControlThemeName")
         }
     }
 
