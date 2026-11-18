@@ -888,7 +888,7 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
     if (!tip.text.length) return;
     NSMutableParagraphStyle *paragraph=[NSMutableParagraphStyle new];
     paragraph.alignment=NSTextAlignmentCenter;
-    paragraph.lineSpacing=5.0;
+    paragraph.lineSpacing=6.0;
     tip.attributedText=[[NSAttributedString alloc] initWithString:tip.text
         attributes:@{NSParagraphStyleAttributeName:paragraph}];
 }
