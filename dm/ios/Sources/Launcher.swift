@@ -295,12 +295,14 @@ private struct LauncherView: View {
             .opacity(isControlLayoutEditing ? 0 : 1)
             .animation(.easeInOut(duration: 0.25), value: isControlLayoutEditing)
             .allowsHitTesting(!isControlLayoutEditing)
-            .background {
-                if let background = launcherBackground() {
-                    Image(uiImage: background).resizable().scaledToFill()
-                        .overlay(.black.opacity(0.48))
-                        .ignoresSafeArea()
-                }
+        }
+        // Keep the artwork on the GeometryReader itself, outside the HStack/List
+        // that changes when the theme disclosure expands and collapses.
+        .background {
+            if let background = launcherBackground() {
+                Image(uiImage: background).resizable().scaledToFill()
+                    .overlay(.black.opacity(0.48))
+                    .ignoresSafeArea()
             }
         }
         .preferredColorScheme(.dark)
