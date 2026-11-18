@@ -2545,6 +2545,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 - (void)toggleToolsVisibility {
     if (!_editing) return;
     _tools.hidden=!_tools.hidden;
+    [_touchFeedback impactOccurredWithIntensity:0.6]; [_touchFeedback prepare];
     [self updateToolsVisibilityButtonAppearance];
     [self setNeedsLayout];
 }
