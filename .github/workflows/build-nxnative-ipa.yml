@@ -81,9 +81,6 @@ jobs:
               "CLASSIC": os.environ["INCLUDE_CLASSIC"].lower() == "true",
               "FOREST": os.environ["INCLUDE_FOREST"].lower() == "true",
           }
-          if not any(selections.values()):
-              raise SystemExit("Select at least one built-in touch control theme to bundle.")
-
           for name, enabled in selections.items():
               folder = theme_root / name
               if not folder.is_dir() or not (folder / "theme.json").is_file():
@@ -93,7 +90,8 @@ jobs:
                   shutil.rmtree(folder)
 
           bundled = [name for name, enabled in selections.items() if enabled]
-          print("Bundled touch control themes in TouchControlThemes/: " + ", ".join(bundled))
+          print("Bundled optional themes in TouchControlThemes/: " + (", ".join(bundled) or "(none)"))
+          print("ANIMAL WELL theme is bundled separately from OVERRIDES/ANIMAL WELL/.")
           PY
 
       - name: Select launcher appearance override folder
