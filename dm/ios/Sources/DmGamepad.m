@@ -1710,9 +1710,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         NSString *path=folder.standardizedURL.path;
         NSString *title=[json[@"name"] isKindOfClass:NSString.class] && [json[@"name"] length] ? json[@"name"] : folder.lastPathComponent;
         NSString *folderName=folder.lastPathComponent;
-        BOOL protectedTheme=[folderName caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
-            [folderName caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame ||
-            [title caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
+        BOOL protectedTheme=[folderName caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame ||
             [title caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame;
         __weak typeof(self) weakSelf=self;
         BOOL editingThisTheme=[_themeRenamePath isEqualToString:path];
@@ -1836,7 +1834,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 }
 - (void)saveInlineThemeRenameAtPath:(NSString *)path {
     NSString *newName=[_themeRenameField.text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
-    if (!newName.length || [newName caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame || [newName caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame) {
+    if (!newName.length || [newName caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame) {
         _themeRenameField.layer.borderWidth=1.5; _themeRenameField.layer.borderColor=[UIColor systemRedColor].CGColor; return;
     }
     NSURL *target=[NSURL fileURLWithPath:path isDirectory:YES].standardizedURL;
@@ -1844,7 +1842,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     NSArray<NSURL *> *imported=[NSFileManager.defaultManager contentsOfDirectoryAtURL:documentsRoot includingPropertiesForKeys:nil options:NSDirectoryEnumerationSkipsHiddenFiles error:nil] ?: @[];
     BOOL isDirectImport=NO;
     for (NSURL *folder in imported) if ([folder.standardizedURL.path isEqualToString:target.path]) { isDirectImport=YES; break; }
-    if (!isDirectImport || [target.lastPathComponent caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame || [target.lastPathComponent caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame) return;
+    if (!isDirectImport || [target.lastPathComponent caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame) return;
     NSURL *manifestURL=[self themeJSONURLInFolder:target];
     NSData *source=[NSData dataWithContentsOfURL:manifestURL];
     NSMutableDictionary *json=source ? [[NSJSONSerialization JSONObjectWithData:source options:NSJSONReadingMutableContainers error:nil] mutableCopy] : nil;
@@ -1872,9 +1870,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         if ([folder.standardizedURL.path isEqualToString:target.path]) { isDirectDocumentsTheme=YES; break; }
     }
     if (!isDirectDocumentsTheme ||
-        [folderName caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
         [folderName caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame ||
-        [name caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
         [name caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame) return;
 
     UIAlertController *alert=[UIAlertController alertControllerWithTitle:[NSString stringWithFormat:@"Delete %@?",name]
@@ -1899,8 +1895,13 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         }
         NSString *selectedPath=[NSUserDefaults.standardUserDefaults stringForKey:k_theme_path_key];
         if ([selectedPath isEqualToString:path] || [selectedPath isEqualToString:target.path]) {
-            NSURL *animalWell=[[self bundledAnimalWellThemeDirectory] standardizedURL];
-            [self applyThemePath:animalWell.path name:@"ANIMAL WELL"];
+            NSURL *selectedOverride=[self selectedOverrideThemeDirectory];
+            NSURL *classic=[[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES]
+                URLByAppendingPathComponent:@"CLASSIC" isDirectory:YES];
+            if (selectedOverride && [self loadThemeAtPath:selectedOverride.path])
+                [self applyThemePath:selectedOverride.path name:selectedOverride.lastPathComponent];
+            else
+                [self applyThemePath:classic.path name:@"CLASSIC"];
         } else {
             [self updateThemeMenu];
         }
@@ -2179,9 +2180,9 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             }
         }
     }
-    NSDictionary *animalWellManifest=[self validThemeJSONAtFolder:[self bundledAnimalWellThemeDirectory]];
-    NSString *animalWellName=[animalWellManifest[@"name"] isKindOfClass:NSString.class] ? animalWellManifest[@"name"] : @"ANIMAL WELL";
-    if (animalWellName.length) [existing addObject:animalWellName];
+    NSDictionary *selectedOverrideManifest=[self validThemeJSONAtFolder:[self selectedOverrideThemeDirectory]];
+    NSString *selectedOverrideName=[selectedOverrideManifest[@"name"] isKindOfClass:NSString.class] ? selectedOverrideManifest[@"name"] : nil;
+    if (selectedOverrideName.length) [existing addObject:selectedOverrideName];
     NSString *candidate=base;
     NSUInteger suffix=2;
     while ([existing containsObject:candidate]) {
@@ -2375,7 +2376,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _editInfo=[[UILabel alloc] initWithFrame:CGRectMake(8,184,344,32)];
     _editInfo.numberOfLines=2; _editInfo.font=[UIFont systemFontOfSize:11];
     _editInfo.textColor=UIColor.whiteColor; [_tools addSubview:_editInfo];
-    _themeButton=[self editorButton:@"ANIMAL WELL ▾" action:@selector(toggleThemeMenu) frame:CGRectMake(8,220,164,32) parent:_tools];
+    _themeButton=[self editorButton:@"CLASSIC ▾" action:@selector(toggleThemeMenu) frame:CGRectMake(8,220,164,32) parent:_tools];
     _themeMenuOverlay=[UIView new];
     _themeMenuOverlay.backgroundColor=UIColor.clearColor;
     _themeMenuOverlay.hidden=YES;
