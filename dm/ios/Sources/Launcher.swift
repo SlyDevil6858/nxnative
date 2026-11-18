@@ -393,7 +393,7 @@ private struct LauncherView: View {
                         } label: {
                             HStack(spacing: 8) {
                                 Text(theme.name)
-                                    .foregroundStyle(accentColor)
+                                    .foregroundStyle(.white)
                                     .lineLimit(1)
                                 Spacer(minLength: 4)
                                 if selectedTheme == theme.name {
