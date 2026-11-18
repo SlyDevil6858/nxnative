@@ -1236,8 +1236,8 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     CGFloat maxToolsY=MAX(minToolsY,CGRectGetMaxY(safe)-toolsHeight-4);
     CGFloat toolsY=MIN(MAX(centeredY,minToolsY),maxToolsY);
     _tools.frame=CGRectMake(toolsX,toolsY,toolsWidth,toolsHeight);
-    _toolsVisibilityButton.frame=CGRectMake(CGRectGetMidX(_tools.frame)-17,
-        CGRectGetMaxY(_tools.frame)+8,34,28);
+    _toolsVisibilityButton.frame=CGRectMake(CGRectGetMidX(_tools.frame)-20,
+        CGRectGetMaxY(_tools.frame)+8,40,34);
     [self updateToolsVisibilityButtonAppearance];
     if (!_toolsVisibilityButton.hidden) [self bringSubviewToFront:_toolsVisibilityButton];
     _themeMenuOverlay.frame=self.bounds;
@@ -2166,7 +2166,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _tools.layer.cornerRadius=10;
     [self addSubview:_tools]; _tools.hidden=YES;
     _toolsVisibilityButton=[UIButton buttonWithType:UIButtonTypeSystem];
-    _toolsVisibilityButton.frame=CGRectMake(0,0,34,28);
+    _toolsVisibilityButton.frame=CGRectMake(0,0,40,34);
     _toolsVisibilityButton.backgroundColor=[UIColor colorWithWhite:0.12 alpha:0.96];
     _toolsVisibilityButton.layer.cornerRadius=8;
     _toolsVisibilityButton.layer.borderWidth=1;
