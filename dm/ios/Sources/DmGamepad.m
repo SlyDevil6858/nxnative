@@ -1308,7 +1308,7 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
         BOOL on = (all >> b) & 1;
         _key[b].fillColor = [self themeColorForButton:b pressed:on].CGColor;
         _key[b].strokeColor = [self themeBorderColorForButton:b].CGColor;
-        _label[b].foregroundColor = (on ? k_textOn : k_text).CGColor;
+        _label[b].foregroundColor = [self themeTextColorForButton:b pressed:on].CGColor;
         _key[b].opacity = [self opacity:(b >= B_LEFT ? 17 : b)];
     }
     _ring.opacity = _knob.opacity = [self opacity:16];
@@ -1317,7 +1317,7 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     CAShapeLayer *innerRing=(CAShapeLayer *)_knob.sublayers.firstObject;
     innerRing.strokeColor=k_stickBorder.CGColor;
     _swap.fillColor = [self themeColorForButton:B_N pressed:_swapHeld].CGColor;
-    _swap.strokeColor = [self themeBorderColorForButton:B_N].CGColor; _swapLabel.foregroundColor = (_swapHeld ? k_textOn : k_text).CGColor;
+    _swap.strokeColor = [self themeBorderColorForButton:B_N].CGColor; _swapLabel.foregroundColor = [self themeTextColorForControl:18 pressed:_swapHeld].CGColor;
     // Keep the 2D / 3D / TAP layout control above every other touch-control layer.
     [_controls addSublayer:_swap];
     CGPoint h = self.stickHome, o = [self knobOffset:0];
@@ -1442,6 +1442,14 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     if (!base) return pressed ? k_on : k_idle;
     return themeColorWithAlphaMultiplier(base,pressed ? 0.92 : 0.36);
 }
+- (UIColor *)themeTextColorForControl:(int)control pressed:(BOOL)pressed {
+    NSString *base=[self themeColorKeyForControl:control];
+    NSString *key=base.length ? [NSString stringWithFormat:@"%@%@",pressed?@"PressedText":@"Text",base] : nil;
+    return (key.length && _themeButtonColors[key]) ? _themeButtonColors[key] : (pressed?k_textOn:k_text);
+}
+- (UIColor *)themeTextColorForButton:(int)b pressed:(BOOL)pressed {
+    return [self themeTextColorForControl:b pressed:pressed];
+}
 - (UIColor *)themeBorderColorForButton:(int)b {
     NSString *key=nil;
     switch (b) {
@@ -1473,8 +1481,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     }
 }
 - (UIColor *)currentColorForEditorSelection {
-    if (_colorTarget==3) return k_text;
-    if (_colorTarget==4) return k_textOn;
+    if (_colorTarget==3) return _selected<0 ? k_text : [self themeTextColorForControl:_selected pressed:NO];
+    if (_colorTarget==4) return _selected<0 ? k_textOn : [self themeTextColorForControl:_selected pressed:YES];
     if (_colorTarget==2) return _themeButtonColors[@"StickTrack"] ?: k_stickTrack;
     if (_colorTarget==1) {
         if (_selected<0) return _themeButtonColors[@"BorderA"] ?: k_line;
@@ -2010,10 +2018,22 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 - (void)applyEditorColor:(UIColor *)color {
     if (!color) return;
     NSMutableDictionary *colors=[_themeButtonColors mutableCopy] ?: [NSMutableDictionary dictionary];
-    if (_colorTarget==3) {
-        k_text=themeColorWithAlphaMultiplier(color,0.96);
-    } else if (_colorTarget==4) {
-        k_textOn=color;
+    if (_colorTarget==3 || _colorTarget==4) {
+        if (_selected<0) {
+            if (_colorTarget==3) k_text=themeColorWithAlphaMultiplier(color,0.96);
+            else k_textOn=color;
+            // "All controls" resets per-control overrides so the global text
+            // color applies consistently across every control.
+            NSArray *keys=[colors.allKeys copy];
+            for (NSString *key in keys)
+                if ([key hasPrefix:@"Text"] || [key hasPrefix:@"PressedText"])
+                    [colors removeObjectForKey:key];
+        } else {
+            NSString *base=[self themeColorKeyForControl:_selected];
+            if (!base.length) return;
+            NSString *key=[NSString stringWithFormat:@"%@%@",_colorTarget==3?@"Text":@"PressedText",base];
+            colors[key]=color;
+        }
     } else if (_colorTarget==2) {
         // The track is an independent layer and never changes the stick fill or border.
         colors[@"StickTrack"]=color;
