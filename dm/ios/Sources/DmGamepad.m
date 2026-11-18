@@ -1576,17 +1576,20 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             dispatch_async(dispatch_get_main_queue(), ^{ DmGamepad *strongSelf=weakSelf; if (strongSelf && strongSelf->_themeRenameField==field) [field becomeFirstResponder]; });
         } else {
             UIButton *pick=[UIButton buttonWithType:UIButtonTypeSystem]; pick.frame=CGRectMake(0,row*rowHeight,212,rowHeight);
-            [pick setTitle:title forState:UIControlStateNormal]; pick.contentHorizontalAlignment=UIControlContentHorizontalAlignmentLeft; pick.contentEdgeInsets=UIEdgeInsetsMake(0,12,0,0);
+            [pick setTitle:title forState:UIControlStateNormal]; pick.contentHorizontalAlignment=UIControlContentHorizontalAlignmentLeft; pick.contentEdgeInsets=UIEdgeInsetsMake(0,12,0,32);
             pick.contentVerticalAlignment=UIControlContentVerticalAlignmentCenter; pick.titleLabel.font=[UIFont systemFontOfSize:14]; pick.titleLabel.lineBreakMode=NSLineBreakByTruncatingTail;
-            UIColor *themeTextColor=[self editorAccentColor];
-            pick.tintColor=themeTextColor;
-            [pick setTitleColor:themeTextColor forState:UIControlStateNormal];
-            NSString *displayTitle=[current isEqualToString:title] ? [title stringByAppendingString:@"  ✓"] : title;
-            NSMutableAttributedString *themeTitle=[[NSMutableAttributedString alloc] initWithString:displayTitle];
-            [themeTitle addAttribute:NSForegroundColorAttributeName value:themeTextColor range:NSMakeRange(0,themeTitle.length)];
-            [pick setAttributedTitle:themeTitle forState:UIControlStateNormal];
+            pick.tintColor=UIColor.whiteColor;
+            [pick setTitleColor:UIColor.whiteColor forState:UIControlStateNormal];
             pick.accessibilityLabel=[NSString stringWithFormat:@"Select %@",title];
             [pick addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; [weakSelf applyThemePath:path name:title]; [weakSelf closeThemeMenu]; }] forControlEvents:UIControlEventTouchUpInside]; [_themeMenuScroll addSubview:pick];
+            if ([current isEqualToString:title]) {
+                UILabel *activeMark=[[UILabel alloc] initWithFrame:CGRectMake(178,row*rowHeight,26,rowHeight)];
+                activeMark.text=@"✓"; activeMark.textAlignment=NSTextAlignmentRight;
+                activeMark.font=[UIFont systemFontOfSize:14 weight:UIFontWeightSemibold];
+                activeMark.textColor=[UIColor colorWithRed:0.05 green:0.38 blue:0.16 alpha:1];
+                activeMark.userInteractionEnabled=NO;
+                [_themeMenuScroll addSubview:activeMark];
+            }
         }
         NSString *folderName=folder.lastPathComponent;
         BOOL protectedTheme=[folderName caseInsensitiveCompare:@"ANIMAL WELL"]==NSOrderedSame ||
