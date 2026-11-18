@@ -432,11 +432,25 @@ static UIColor *themeHex(NSString *value) {
     if (![value isKindOfClass:NSString.class]) return nil;
     NSString *hex = [[value stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet] uppercaseString];
     if ([hex hasPrefix:@"#"]) hex=[hex substringFromIndex:1];
-    if (hex.length != 6) return nil;
-    unsigned int rgb = 0; NSScanner *scanner = [NSScanner scannerWithString:hex];
+    if (hex.length != 6 && hex.length != 8) return nil;
+    unsigned int rgba = 0; NSScanner *scanner = [NSScanner scannerWithString:hex];
     scanner.charactersToBeSkipped=nil;
-    if (![scanner scanHexInt:&rgb] || !scanner.isAtEnd) return nil;
-    return [UIColor colorWithRed:((rgb >> 16) & 255)/255.0 green:((rgb >> 8) & 255)/255.0 blue:(rgb & 255)/255.0 alpha:1];
+    if (![scanner scanHexInt:&rgba] || !scanner.isAtEnd) return nil;
+    CGFloat red,green,blue,alpha=1;
+    if (hex.length==8) {
+        red=((rgba >> 24) & 255)/255.0;
+        green=((rgba >> 16) & 255)/255.0;
+        blue=((rgba >> 8) & 255)/255.0;
+        alpha=(rgba & 255)/255.0;
+    } else {
+        red=((rgba >> 16) & 255)/255.0;
+        green=((rgba >> 8) & 255)/255.0;
+        blue=(rgba & 255)/255.0;
+    }
+    return [UIColor colorWithRed:red green:green blue:blue alpha:alpha];
+}
+static UIColor *themeColorWithAlphaMultiplier(UIColor *color, CGFloat multiplier) {
+    return [color colorWithAlphaComponent:color.CGColor.alpha * multiplier];
 }
 static id themePaletteValue(NSDictionary *palette, NSString *key) {
     id value=palette[key];
@@ -1302,7 +1316,9 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     // Keep the 2D / 3D / TAP layout control above every other touch-control layer.
     [_controls addSublayer:_swap];
     CGPoint h = self.stickHome, o = [self knobOffset:0];
-    _knob.position = CGPointMake(h.x + o.x, h.y + o.y); _knob.fillColor = [self themeColorForButton:B_LS pressed:_stick[0] != nil].CGColor;
+    _knob.position = CGPointMake(h.x + o.x, h.y + o.y);
+    UIColor *stickFill=_themeButtonColors[@"Stick"];
+    _knob.fillColor=(stickFill ? themeColorWithAlphaMultiplier(stickFill,_stick[0] ? 0.92 : 0.36) : (_stick[0] ? k_on : k_idle)).CGColor;
     [CATransaction commit];
 }
 
@@ -1369,11 +1385,11 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     if ([buttons isKindOfClass:NSDictionary.class]) for (NSString *key in buttons) {
         UIColor *color=themeHex(buttons[key]); if (color) parsed[key]=color;
     }
-    k_idle=[idle colorWithAlphaComponent:0.36]; k_on=[pressed colorWithAlphaComponent:0.92];
-    k_line=[outline colorWithAlphaComponent:0.88]; k_ringFill=[ring colorWithAlphaComponent:0.25];
-    k_stickTrack=[(themeHex(buttons[@"StickTrack"]) ?: ring) colorWithAlphaComponent:0.25];
-    k_stickBorder=[(themeHex(buttons[@"StickBorder"]) ?: outline) colorWithAlphaComponent:0.88];
-    k_text=[text colorWithAlphaComponent:0.96]; k_textOn=pressedText;
+    k_idle=themeColorWithAlphaMultiplier(idle,0.36); k_on=themeColorWithAlphaMultiplier(pressed,0.92);
+    k_line=themeColorWithAlphaMultiplier(outline,0.88); k_ringFill=themeColorWithAlphaMultiplier(ring,0.25);
+    k_stickTrack=themeColorWithAlphaMultiplier(themeHex(buttons[@"StickTrack"]) ?: ring,0.25);
+    k_stickBorder=themeColorWithAlphaMultiplier(themeHex(buttons[@"StickBorder"]) ?: outline,0.88);
+    k_text=themeColorWithAlphaMultiplier(text,0.96); k_textOn=pressedText;
     _themeButtonColors=parsed;
     _themePath=[path copy];
     _themeName=[json[@"name"] isKindOfClass:NSString.class] && [json[@"name"] length] ? json[@"name"] : path.lastPathComponent;
@@ -1409,20 +1425,23 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     NSString *key=nil;
     switch (b) {
         case B_A:key=@"A";break; case B_B:key=@"B";break; case B_X:key=@"X";break; case B_Y:key=@"Y";break;
-        case B_LS:case B_RS:key=@"Stick";break; case B_L:key=@"L";break; case B_R:key=@"R";break;
+        case B_LS:key=@"L3";break; case B_RS:key=@"R3";break; case B_L:key=@"L";break; case B_R:key=@"R";break;
         case B_ZL:key=@"ZL";break; case B_ZR:key=@"ZR";break; case B_PLUS:key=@"Plus";break;
         case B_MINUS:key=@"Minus";break; default:if (b>=B_LEFT) key=@"Dpad";break;
     }
     UIColor *base=key ? _themeButtonColors[key] : nil;
+    // Older themes stored both thumbstick buttons under "Stick". Keep that
+    // appearance until a dedicated L3 or R3 color has been saved.
+    if (!base && (b==B_LS || b==B_RS)) base=_themeButtonColors[@"Stick"];
     if (b==B_N) base=_themeButtonColors[@"Layout"];
     if (!base) return pressed ? k_on : k_idle;
-    return [base colorWithAlphaComponent:pressed ? 0.92 : 0.36];
+    return themeColorWithAlphaMultiplier(base,pressed ? 0.92 : 0.36);
 }
 - (UIColor *)themeBorderColorForButton:(int)b {
     NSString *key=nil;
     switch (b) {
         case B_A:key=@"A";break; case B_B:key=@"B";break; case B_X:key=@"X";break; case B_Y:key=@"Y";break;
-        case B_LS:case B_RS:key=@"Stick";break; case B_L:key=@"L";break; case B_R:key=@"R";break;
+        case B_LS:key=@"L3";break; case B_RS:key=@"R3";break; case B_L:key=@"L";break; case B_R:key=@"R";break;
         case B_ZL:key=@"ZL";break; case B_ZR:key=@"ZR";break; case B_PLUS:key=@"Plus";break;
         case B_MINUS:key=@"Minus";break; default:if (b>=B_LEFT) key=@"Dpad";break;
     }
@@ -1904,7 +1923,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     if (control==18) return @"Layout";
     switch (control) {
         case B_A:return @"A"; case B_B:return @"B"; case B_X:return @"X"; case B_Y:return @"Y";
-        case B_LS:case B_RS:return @"Stick"; case B_L:return @"L"; case B_R:return @"R";
+        case B_LS:return @"L3"; case B_RS:return @"R3"; case B_L:return @"L"; case B_R:return @"R";
         case B_ZL:return @"ZL"; case B_ZR:return @"ZR"; case B_PLUS:return @"Plus";
         case B_MINUS:return @"Minus";
         default:return nil;
@@ -1913,6 +1932,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 - (NSString *)hexForColor:(UIColor *)color {
     CGFloat red=0,green=0,blue=0,alpha=1;
     if (![color getRed:&red green:&green blue:&blue alpha:&alpha]) return @"FFFFFF";
+    if (alpha<0.999)
+        return [NSString stringWithFormat:@"%02X%02X%02X%02X",(int)round(red*255),(int)round(green*255),(int)round(blue*255),(int)round(alpha*255)];
     return [NSString stringWithFormat:@"%02X%02X%02X",(int)round(red*255),(int)round(green*255),(int)round(blue*255)];
 }
 - (void)persistCustomTheme {
@@ -1955,7 +1976,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     if (!_colorWellButton.enabled) return;
     UIColorPickerViewController *picker=[UIColorPickerViewController new];
     picker.delegate=self;
-    picker.supportsAlpha=NO;
+    picker.supportsAlpha=YES;
     picker.selectedColor=_editorColor ?: k_idle;
     picker.overrideUserInterfaceStyle=UIUserInterfaceStyleDark;
     // Put the picker inside a plain host controller. Presenting UIColorPickerViewController
@@ -1979,13 +2000,13 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     if (!color) return;
     NSMutableDictionary *colors=[_themeButtonColors mutableCopy] ?: [NSMutableDictionary dictionary];
     if (_colorTarget==3) {
-        k_text=[color colorWithAlphaComponent:0.96];
+        k_text=themeColorWithAlphaMultiplier(color,0.96);
     } else if (_colorTarget==4) {
         k_textOn=color;
     } else if (_colorTarget==2) {
         // The track is an independent layer and never changes the stick fill or border.
         colors[@"StickTrack"]=color;
-        k_stickTrack=[color colorWithAlphaComponent:0.25];
+        k_stickTrack=themeColorWithAlphaMultiplier(color,0.25);
     } else if (_colorTarget==1) {
         if (_colorPickerControl<0) {
             for (int control=0;control<18;control++) if ([self editable:control]) {
@@ -1997,9 +2018,9 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             NSString *key=[self borderColorKeyForControl:_colorPickerControl];
             if (!key.length) return;
             colors[key]=color;
-            if (_colorPickerControl==16) k_stickBorder=[color colorWithAlphaComponent:0.88];
+            if (_colorPickerControl==16) k_stickBorder=themeColorWithAlphaMultiplier(color,0.88);
         }
-        if (_colorPickerControl<0) k_stickBorder=[color colorWithAlphaComponent:0.88];
+        if (_colorPickerControl<0) k_stickBorder=themeColorWithAlphaMultiplier(color,0.88);
     } else {
         if (_colorPickerControl<0) {
             for (int control=0;control<18;control++) if ([self editable:control]) {
