@@ -2657,6 +2657,17 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [self updateEditor]; [self setNeedsLayout];
 }
 - (void)openMenuFromController {
+    if (_launcherPreview) {
+        // On the launcher control-editor page, holding Select should reveal
+        // the editor rather than toggle it closed when it is already visible.
+        if (!_editing) [self toggleEditor];
+        else if (_tools.hidden) {
+            _tools.hidden=NO;
+            [self updateToolsVisibilityButtonAppearance];
+            [self setNeedsLayout];
+        }
+        return;
+    }
     if (_padOff && !_editing) [self toggleEditor];
     else if (_editing) [self toggleEditor];
 }
