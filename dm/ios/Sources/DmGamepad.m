@@ -539,6 +539,7 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
             // A one-time hint points out the 2D / 3D layout button without covering the game.
             _menuTip=[DmPaddedTipLabel new];
             _menuTip.text=@"Press and hold the 2D, 3D, or Tap button, or hold Select on your controller, to open the in-game control menu.";
+            [self applyTipLineSpacing:_menuTip];
             _menuTip.textColor=UIColor.whiteColor;
             _menuTip.font=[UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
             _menuTip.textAlignment=NSTextAlignmentCenter;
@@ -875,11 +876,26 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
     for (int i = 0; i < 16; i++) if (!_game[i]) { _game[i] = t; [_owner setObject:@(C_GAME | (uint64_t)i << 8) forKey:t]; return YES; }
     return NO;
 }
+- (void)applyTipLineSpacing:(DmPaddedTipLabel *)tip {
+    if (!tip.text.length) return;
+    NSMutableParagraphStyle *paragraph=[NSMutableParagraphStyle new];
+    paragraph.alignment=NSTextAlignmentCenter;
+    paragraph.lineSpacing=2.0;
+    tip.attributedText=[[NSAttributedString alloc] initWithString:tip.text
+        attributes:@{NSParagraphStyleAttributeName:paragraph}];
+}
+- (void)showLauncherEditorFinishTipIfNeeded {
+    if (!_launcherPreview ||
+        [NSUserDefaults.standardUserDefaults boolForKey:@"DmPadLauncherEditorFinishTipShown"]) return;
+    [NSUserDefaults.standardUserDefaults setBool:YES forKey:@"DmPadLauncherEditorFinishTipShown"];
+    [self showLauncherReopenTip];
+}
 - (void)showLauncherReopenTip {
     [self dismissMenuTip];
     _launcherReopenTip=YES;
     _menuTip=[DmPaddedTipLabel new];
     _menuTip.text=@"To reopen the control config menu, press and hold the layout mode switcher.";
+    [self applyTipLineSpacing:_menuTip];
     _menuTip.textColor=UIColor.whiteColor;
     _menuTip.font=[UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
     _menuTip.textAlignment=NSTextAlignmentCenter;
@@ -2652,8 +2668,16 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [_editHighlight removeAnimationForKey:@"synchronizedPulse"];
     [self setNeedsLayout];
 }
-- (void)saveEdit { [_profiles save:_custom layout:self.controlsLayout slot:_profiles.selected]; [self finishEdit]; }
-- (void)cancelEdit { [self loadControls]; [self finishEdit]; }
+- (void)saveEdit {
+    [_profiles save:_custom layout:self.controlsLayout slot:_profiles.selected];
+    [self finishEdit];
+    [self showLauncherEditorFinishTipIfNeeded];
+}
+- (void)cancelEdit {
+    [self loadControls];
+    [self finishEdit];
+    [self showLauncherEditorFinishTipIfNeeded];
+}
 - (void)resetAllControls { [_custom removeAllObjects]; [self updateEditor]; [self setNeedsLayout]; }
 - (void)resetControl {
     if (_selected==18) return;
