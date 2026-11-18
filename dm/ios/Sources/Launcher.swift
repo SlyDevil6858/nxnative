@@ -206,7 +206,11 @@ private struct LauncherView: View {
                 .frame(width: geometry.size.width * 0.30, height: geometry.size.height)
                 // Drawer expansion is confined to the settings list; the static
                 // game panel should not participate in its animation transaction.
+                .background(Color.black)
+                // Render the stationary game panel as an opaque layer so
+                // List/DisclosureGroup updates cannot flash its backing surface.
                 .compositingGroup()
+                .drawingGroup(opaque: true, color: .black)
                 .transaction { transaction in
                     transaction.animation = nil
                     transaction.disablesAnimations = true
