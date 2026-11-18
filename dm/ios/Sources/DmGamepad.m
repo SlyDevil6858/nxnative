@@ -1488,7 +1488,9 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     (void)gesture;
     // While renaming, an outside tap is a keyboard-dismiss action, not a
     // request to dismiss the theme selector itself.
-    if (_themeRenamePath.length && _themeRenameField) {
+    if (_themeRenamePath.length) {
+        // Keep the selector open for the entire rename session. The text field
+        // can briefly lose its reference while UIKit is dismissing the keyboard.
         if (_themeRenameField.isFirstResponder) [_themeRenameField resignFirstResponder];
         return;
     }
@@ -1515,7 +1517,9 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     } completion:nil];
 }
 - (void)themeRenameKeyboardWillHide:(NSNotification *)notification {
-    if (!_themeMenuFramePinned || !_themeRenameField || _themeMenuOverlay.hidden) return;
+    // Restore the pinned panel even if UIKit temporarily detached the field
+    // while ending editing; hiding the keyboard must not dismiss the menu.
+    if (!_themeMenuFramePinned || _themeMenuOverlay.hidden) return;
     NSDictionary *info=notification.userInfo;
     NSTimeInterval duration=[info[UIKeyboardAnimationDurationUserInfoKey] doubleValue];
     UIViewAnimationOptions curve=(UIViewAnimationOptions)([info[UIKeyboardAnimationCurveUserInfoKey] integerValue]<<16);
