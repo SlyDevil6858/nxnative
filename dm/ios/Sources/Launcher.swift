@@ -542,7 +542,7 @@ private struct LauncherView: View {
     private func animalWellThemeDirectory() -> URL? {
         Bundle.main.resourceURL?
             .appendingPathComponent("OVERRIDES", isDirectory: true)
-            .appendingPathComponent("ANIMAL WELL", isDirectory: true)
+            .appendingPathComponent("Animalwell", isDirectory: true)
     }
 
     private func selectedOverrideThemeDirectory() -> URL? {
@@ -670,7 +670,7 @@ private struct LauncherView: View {
 
     private func canDeleteTheme(_ theme: LauncherTheme) -> Bool {
         let folderName = URL(fileURLWithPath: theme.path).lastPathComponent
-        guard folderName.caseInsensitiveCompare("ANIMAL WELL") != .orderedSame,
+        guard folderName.caseInsensitiveCompare("Animalwell") != .orderedSame,
               folderName.caseInsensitiveCompare("CLASSIC") != .orderedSame,
               theme.name.caseInsensitiveCompare("ANIMAL WELL") != .orderedSame,
               theme.name.caseInsensitiveCompare("CLASSIC") != .orderedSame else { return false }
@@ -713,7 +713,7 @@ private struct LauncherView: View {
             }
             try FileManager.default.removeItem(at: URL(fileURLWithPath: theme.path))
             if selectedTheme == theme.name,
-               let animalWell = themes.first(where: { URL(fileURLWithPath: $0.path).lastPathComponent.caseInsensitiveCompare("ANIMAL WELL") == .orderedSame }) {
+               let animalWell = themes.first(where: { URL(fileURLWithPath: $0.path).lastPathComponent.caseInsensitiveCompare("Animalwell") == .orderedSame }) {
                 selectTheme(animalWell.path, name: animalWell.name)
             }
             refreshThemes()
