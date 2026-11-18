@@ -1517,17 +1517,25 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     } completion:nil];
 }
 - (void)themeRenameKeyboardWillHide:(NSNotification *)notification {
-    // Restore the pinned panel even if UIKit temporarily detached the field
-    // while ending editing; hiding the keyboard must not dismiss the menu.
+    // Return the selector to the exact frame it occupied before renaming.
+    // Keep it pinned through the keyboard animation; unpin only after the
+    // animation completes so layoutSubviews cannot briefly place it at (0, 0).
     if (!_themeMenuFramePinned || _themeMenuOverlay.hidden) return;
     NSDictionary *info=notification.userInfo;
     NSTimeInterval duration=[info[UIKeyboardAnimationDurationUserInfoKey] doubleValue];
     UIViewAnimationOptions curve=(UIViewAnimationOptions)([info[UIKeyboardAnimationCurveUserInfoKey] integerValue]<<16);
-    CGFloat originY=_themeMenuRenameOriginFrame.origin.y;
-    _themeMenuPinnedFrame.origin.y=originY;
+    CGRect originFrame=_themeMenuRenameOriginFrame;
+    _themeMenuPinnedFrame=originFrame;
     [UIView animateWithDuration:duration delay:0 options:curve|UIViewAnimationOptionBeginFromCurrentState animations:^{
-        self->_themeMenuPanel.frame=CGRectMake(self->_themeMenuRenameOriginFrame.origin.x,originY,self->_themeMenuPanel.frame.size.width,self->_themeMenuPanel.frame.size.height);
-    } completion:nil];
+        self->_themeMenuPanel.frame=CGRectMake(originFrame.origin.x,originFrame.origin.y,self->_themeMenuPanel.frame.size.width,self->_themeMenuPanel.frame.size.height);
+    } completion:^(BOOL finished) {
+        (void)finished;
+        if (!self->_themeRenamePath.length) {
+            self->_themeMenuFramePinned=NO;
+            [self setNeedsLayout];
+            [self layoutIfNeeded];
+        }
+    }];
 }
 - (void)updateThemeMenu {
     NSString *current=[NSUserDefaults.standardUserDefaults stringForKey:k_theme_name_key] ?: @"ANIMAL WELL";
@@ -1608,15 +1616,16 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             [cancel addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) {
                 (void)action;
                 DmGamepad *strongSelf=weakSelf; if (!strongSelf) return;
-                // Preserve the visible selector position while the keyboard closes.
-                // Cancel should end the pinned/keyboard-raised rename state just
-                // like Save does, allowing the selector to return to its normal
-                // anchor position instead of preserving the raised frame.
-                [strongSelf->_themeRenameField resignFirstResponder];
+                // Keep the panel pinned at its original anchor until UIKit
+                // finishes dismissing the keyboard. Releasing it immediately
+                // lets the next layout pass briefly assign the (0, 0) frame.
+                UITextField *field=strongSelf->_themeRenameField;
                 strongSelf->_themeRenamePath=nil;
                 strongSelf->_themeRenameField=nil;
-                strongSelf->_themeMenuFramePinned=NO;
+                strongSelf->_themeMenuPinnedFrame=strongSelf->_themeMenuRenameOriginFrame;
+                strongSelf->_themeMenuFramePinned=YES;
                 [strongSelf updateThemeMenu];
+                [field resignFirstResponder];
             }] forControlEvents:UIControlEventTouchUpInside]; [_themeMenuScroll addSubview:cancel];
             dispatch_async(dispatch_get_main_queue(), ^{ DmGamepad *strongSelf=weakSelf; if (strongSelf && strongSelf->_themeRenameField==field) [field becomeFirstResponder]; });
         } else {
