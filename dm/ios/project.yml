@@ -18,13 +18,13 @@ targets:
       - path: Gen/dm          # Rewriter tables (*.fixups.tsv / gates / cuts / obs) + shader map / c1 list / warm-up list
         type: folder
         buildPhase: resources
-      # Bundle the parent directory so the app can find
-      # Bundle.main.resourceURL/TouchControlThemes/<theme>/theme.json.
+      # Bundle optional built-in themes separately from game-specific overrides.
       # The workflow removes unselected folders before XcodeGen runs.
       - path: ../../TouchControlThemes
         type: folder
         buildPhase: resources
-      # ANIMAL WELL's built-in touch theme lives with its game-specific overrides.
+      # Bundle the parent directory so the app can find
+      # Bundle.main.resourceURL/OVERRIDES/ANIMAL WELL/theme.json.
       - path: ../../OVERRIDES
         type: folder
         buildPhase: resources
