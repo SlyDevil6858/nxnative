@@ -210,7 +210,7 @@ private struct LauncherView: View {
                 // Render the stationary game panel as an opaque layer so
                 // List/DisclosureGroup updates cannot flash its backing surface.
                 .compositingGroup()
-                .drawingGroup(opaque: true, color: .black)
+                .drawingGroup(opaque: true)
                 .transaction { transaction in
                     transaction.animation = nil
                     transaction.disablesAnimations = true
