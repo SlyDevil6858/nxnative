@@ -253,7 +253,7 @@ jobs:
         if: steps.verify-input.outputs.list_only != 'true'
         run: |
           python -m pip install --upgrade pip
-          python -m pip install lz4 "capstone>=5,<6" fonttools nsz zbic "backports.zstd; python_version < '3.14'"
+          python -m pip install Pillow lz4 "capstone>=5,<6" fonttools nsz zbic "backports.zstd; python_version < '3.14'"
 
       - name: Build IPA for a 6 GB iPhone
         if: steps.verify-input.outputs.list_only != 'true'
@@ -307,6 +307,25 @@ jobs:
           mv "$BASE_IPA" "$FINAL_IPA"
           echo "ipa_path=$FINAL_IPA" >> "$GITHUB_OUTPUT"
           echo "Final IPA filename: $(basename "$FINAL_IPA")"
+
+      - name: Commit generated ROM touch theme
+        if: steps.verify-input.outputs.list_only != 'true'
+        working-directory: nxnative
+        env:
+          OVERRIDE_FOLDER: ${{ steps.verify-input.outputs.override_folder }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          override_path="OVERRIDES/$OVERRIDE_FOLDER"
+          git add -- "$override_path"
+          if git diff --cached --quiet; then
+            echo "No generated ROM touch theme changes to commit."
+            exit 0
+          fi
+          git commit -m "Generate touch theme for $OVERRIDE_FOLDER from game icon"
+          git push origin HEAD:iphone-4gb
+          echo "Committed generated touch theme in $override_path."
 
       - name: Upload IPA to a private release in myprivaterepo
         if: steps.verify-input.outputs.list_only != 'true'
