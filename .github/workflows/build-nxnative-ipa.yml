@@ -7,12 +7,12 @@ on:
         description: "Folder inside myprivaterepo containing the game's .xci/.nsp files"
         required: true
         type: string
-        default: "ROM"
+        default: "SWITCH/ROMS"
       prod_keys_path:
         description: "Path to prod.keys inside myprivaterepo"
         required: true
         type: string
-        default: "KEYS/prod.keys"
+        default: "SWITCH/KEYS/prod.keys"
       build_number:
         description: "App build number"
         required: true
