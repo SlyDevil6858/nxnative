@@ -1679,7 +1679,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         BOOL editingThisTheme=[_themeRenamePath isEqualToString:path];
         if (editingThisTheme) {
             UITextField *field=[[UITextField alloc] initWithFrame:CGRectMake(4,row*rowHeight+7,204,34)];
-            field.text=title; field.placeholder=@"Theme name"; field.borderStyle=UITextBorderStyleRoundedRect;
+            field.text=title; field.placeholder=@"CUSTOM THEME"; field.borderStyle=UITextBorderStyleRoundedRect;
             field.backgroundColor=[UIColor colorWithWhite:1 alpha:0.10]; field.textColor=UIColor.whiteColor; field.tintColor=UIColor.whiteColor;
             field.font=[UIFont systemFontOfSize:13]; field.autocapitalizationType=UITextAutocapitalizationTypeWords; field.clearButtonMode=UITextFieldViewModeWhileEditing;
             field.returnKeyType=UIReturnKeyDone; field.accessibilityLabel=@"New theme name"; _themeRenameField=field; [_themeMenuScroll addSubview:field];
@@ -2163,7 +2163,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         preferredStyle:UIAlertControllerStyleAlert];
     [prompt addTextFieldWithConfigurationHandler:^(UITextField *field) {
         field.placeholder=@"Theme name";
-        field.text=@"My Custom Theme";
+        field.text=@"CUSTOM THEME";
         field.autocapitalizationType=UITextAutocapitalizationTypeWords;
     }];
     [prompt addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
@@ -2173,7 +2173,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         NSMutableString *safe=[NSMutableString string];
         for (NSUInteger i=0;i<name.length;i++) { unichar ch=[name characterAtIndex:i]; [safe appendFormat:@"%C",[allowed characterIsMember:ch]?ch:'_']; }
         NSString *requestedName=[safe stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@" ._"]];
-        if (!requestedName.length) requestedName=@"My Custom Theme";
+        if (!requestedName.length) requestedName=@"CUSTOM THEME";
         NSString *displayName=[self uniqueCustomThemeName:requestedName root:root];
         NSString *folderName=[self uniqueCustomThemeFolderName:displayName root:root];
         NSURL *destination=[root URLByAppendingPathComponent:folderName isDirectory:YES];
