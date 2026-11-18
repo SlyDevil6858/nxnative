@@ -54,6 +54,7 @@ targets:
         LSApplicationCategoryType: ${DM_APP_CATEGORY}   # game profile app_category
         DMShowFPS: ${DM_SHOW_FPS}           # YES = the frame-rate counter is on (front_ios.m; set by build_ipa.sh)
         DMDominantAccent: ${DM_DOMINANT_ACCENT} # workflow toggle for dominant app-icon launcher styling
+        DMLauncherAccentHex: ${DM_CUSTOM_ACCENT_HEX} # optional custom launcher accent when dominant styling is off
         DMOverrideFolder: ${DM_OVERRIDE_FOLDER} # selected OVERRIDES folder; its theme.json gets list priority
         DMLanguage: ${DM_LANG}              # the game language code (main.m sets DM_LANG from it; set by build_ipa.sh)
         LSSupportsGameMode: true
