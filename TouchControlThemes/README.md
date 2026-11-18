@@ -1,14 +1,14 @@
 # Touch Control Themes
 
-Themes can be bundled into the IPA or imported by the user. The IPA workflow lets you choose which built-in themes to include; ANIMAL WELL and CLASSIC are enabled by default, while FOREST is optional and disabled by default.
+Themes can be bundled into the IPA or imported by the user.
 
 ## Built-in themes
 
-- `ANIMAL WELL` — the default touch control theme.
+- `ANIMAL WELL` — the default touch control theme. Its `theme.json` lives in `OVERRIDES/ANIMAL WELL/` alongside that game's icon and launcher background; it is bundled independently of the optional theme selections.
 - `CLASSIC` — the brighter neutral-gray theme.
 - `FOREST` — the restored forest-green theme with gold accents.
 
-Only the themes selected in the Run workflow menu are bundled. Other themes can still be imported by the user.
+The Run workflow menu controls whether CLASSIC and FOREST are bundled. ANIMAL WELL is always bundled from its game-specific override folder. Other themes can still be imported by the user.
 
 ## Installing a theme
 
