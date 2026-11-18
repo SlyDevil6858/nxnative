@@ -144,9 +144,9 @@ jobs:
               print(f"  {path.name} ({path.stat().st_size:,} bytes)")
           if not selected_name.strip():
               with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as out:
-                  out.write("\\nNo ROM was selected. This was a list-only run; rerun the workflow and enter one exact filename in the **ROM file** field.\\n")
+                  out.write("\nNo ROM was selected. This was a list-only run; rerun the workflow and enter one exact filename in the **ROM file** field.\n")
               with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-                  output.write("list_only=true\\n")
+                  output.write("list_only=true\n")
               print("List-only run: no build will be started.")
               raise SystemExit(0)
           if not rom_files:
@@ -165,6 +165,7 @@ jobs:
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
               output.write(f"ipa_name={rom_name}\n")
               output.write(f"rom_file={selected.name}\n")
+              output.write("list_only=false\n")
 
           print(f"Selected ROM: {selected.name}")
           print(f"Initial IPA filename: {rom_name}.ipa (the build step appends A15 and the metadata version)")
