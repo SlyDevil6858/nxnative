@@ -1736,7 +1736,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
                 [rename setImage:[[UIImage systemImageNamed:@"pencil" withConfiguration:renameSymbol] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate] forState:UIControlStateNormal];
                 rename.tintColor=[self editorAccentColor]; rename.accessibilityLabel=[NSString stringWithFormat:@"Rename %@",title];
                 NSString *renamePath=[path copy];
-                [rename addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; DmGamepad *strongSelf=weakSelf; if (!strongSelf) return; strongSelf->_themeMenuRenameOriginFrame=strongSelf->_themeMenuPanel.frame; strongSelf->_themeMenuPinnedFrame=strongSelf->_themeMenuRenameOriginFrame; strongSelf->_themeMenuFramePinned=YES; strongSelf->_themeRenamePath=renamePath; strongSelf->_themeRenameField=nil; [strongSelf updateThemeMenu]; }] forControlEvents:UIControlEventTouchUpInside];
+                [rename addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; DmGamepad *strongSelf=weakSelf; if (!strongSelf) return; if (!strongSelf->_themeMenuFramePinned) strongSelf->_themeMenuRenameOriginFrame=strongSelf->_themeMenuPanel.frame; strongSelf->_themeMenuPinnedFrame=strongSelf->_themeMenuRenameOriginFrame; strongSelf->_themeMenuFramePinned=YES; strongSelf->_themeRenamePath=renamePath; strongSelf->_themeRenameField=nil; [strongSelf updateThemeMenu]; }] forControlEvents:UIControlEventTouchUpInside];
                 [_themeMenuScroll addSubview:rename];
             }
             if (!editingThisTheme) {
