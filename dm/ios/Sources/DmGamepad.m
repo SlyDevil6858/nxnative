@@ -408,6 +408,7 @@ static void pads_start(void);   // Physical controllers, below
     BOOL _launcherReopenTip;
     UILongPressGestureRecognizer *_editHold;
     UIView *_tools;
+    UIButton *_toolsVisibilityButton;
     UISlider *_sizeSlider, *_alphaSlider;
     UIButton *_fpsButton, *_hudButton;
     UIView *_themeMenuOverlay;
@@ -1216,6 +1217,10 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     CGFloat maxToolsY=MAX(minToolsY,CGRectGetMaxY(safe)-toolsHeight-4);
     CGFloat toolsY=MIN(MAX(centeredY,minToolsY),maxToolsY);
     _tools.frame=CGRectMake(toolsX,toolsY,toolsWidth,toolsHeight);
+    _toolsVisibilityButton.frame=CGRectMake(CGRectGetMidX(_tools.frame)-17,
+        CGRectGetMinY(_tools.frame)-34,34,28);
+    [self updateToolsVisibilityButtonAppearance];
+    if (!_toolsVisibilityButton.hidden) [self bringSubviewToFront:_toolsVisibilityButton];
     _themeMenuOverlay.frame=self.bounds;
     if (!_themeMenuOverlay.hidden) {
         CGRect anchor=[_themeButton convertRect:_themeButton.bounds toView:self];
@@ -2084,6 +2089,17 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _tools.backgroundColor=UIColor.systemBackgroundColor;
     _tools.layer.cornerRadius=10;
     [self addSubview:_tools]; _tools.hidden=YES;
+    _toolsVisibilityButton=[UIButton buttonWithType:UIButtonTypeSystem];
+    _toolsVisibilityButton.frame=CGRectMake(0,0,34,28);
+    _toolsVisibilityButton.backgroundColor=[UIColor colorWithWhite:0.12 alpha:0.96];
+    _toolsVisibilityButton.layer.cornerRadius=8;
+    _toolsVisibilityButton.layer.borderWidth=1;
+    _toolsVisibilityButton.layer.borderColor=[UIColor colorWithWhite:1 alpha:0.16].CGColor;
+    _toolsVisibilityButton.tintColor=UIColor.whiteColor;
+    _toolsVisibilityButton.accessibilityLabel=@"Hide control editor menu";
+    [_toolsVisibilityButton addTarget:self action:@selector(toggleToolsVisibility) forControlEvents:UIControlEventTouchUpInside];
+    [self addSubview:_toolsVisibilityButton];
+    _toolsVisibilityButton.hidden=YES;
     _profileButton=[self editorButton:@"Profile" action:@selector(showProfilePopup) frame:CGRectMake(8,8,220,32) parent:_tools];
     _profileButton.titleLabel.adjustsFontSizeToFitWidth=YES; _profileButton.titleLabel.minimumScaleFactor=0.75;
     _saveAsButton=[self editorButton:@"Save as…" action:@selector(showSaveAsPopup) frame:CGRectMake(236,8,116,32) parent:_tools];
@@ -2456,10 +2472,24 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _padOff=NO;
     [self toggleEditor];
 }
+- (void)updateToolsVisibilityButtonAppearance {
+    if (!_toolsVisibilityButton) return;
+    BOOL menuVisible=!_tools.hidden;
+    UIImage *image=[UIImage systemImageNamed:menuVisible?@"eye.slash.fill":@"eye.fill"];
+    [_toolsVisibilityButton setImage:image forState:UIControlStateNormal];
+    _toolsVisibilityButton.accessibilityLabel=menuVisible?@"Hide control editor menu":@"Show control editor menu";
+}
+- (void)toggleToolsVisibility {
+    if (!_editing) return;
+    _tools.hidden=!_tools.hidden;
+    [self updateToolsVisibilityButtonAppearance];
+    [self setNeedsLayout];
+}
 - (void)toggleEditor {
     if (_editing) {
         BOOL wasVisible=!_tools.hidden;
         _tools.hidden=!_tools.hidden;
+        [self updateToolsVisibilityButtonAppearance];
         // In the pre-launch editor, show this hint the first time its settings
         // panel is dismissed. The layout-mode switcher is the way to reopen it.
         if (_launcherPreview && wasVisible && _tools.hidden &&
@@ -2472,6 +2502,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _editWasTap=_tap;
     if (_tap) { _tap=NO; [self loadControls]; [self applyLayout]; }
     [self reset]; _editing=YES; _controls.hidden=_padOff; _selected=B_A; _tools.hidden=NO;
+    _toolsVisibilityButton.hidden=NO;
+    [self updateToolsVisibilityButtonAppearance];
     if (!UIAccessibilityIsReduceMotionEnabled()) {
         CABasicAnimation *pulse = [CABasicAnimation animationWithKeyPath:@"opacity"];
         pulse.fromValue = @0.22;
@@ -2491,7 +2523,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 - (void)finishEdit {
     [self reset]; _editing=NO;
     if (_editWasTap) { _tap=YES; [self applyLayout]; }
-    _tools.hidden=YES; _controls.hidden=_padOff;
+    _tools.hidden=YES; _toolsVisibilityButton.hidden=YES; _controls.hidden=_padOff;
     _editHighlight.hidden=YES;
     [_editHighlight removeAnimationForKey:@"synchronizedPulse"];
     [self setNeedsLayout];
