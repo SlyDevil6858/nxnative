@@ -1889,11 +1889,11 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             failure=@"No valid theme.json was found. The selected theme must contain all six palette colors: idle, pressed, outline, ringFill, text, and pressedText.";
             return;
         }
-        NSString *folderName=[json[@"name"] isKindOfClass:NSString.class] && [json[@"name"] length]?json[@"name"]:themeFolder.lastPathComponent;
+        NSString *rawName=[json[@"name"] isKindOfClass:NSString.class] && [json[@"name"] length]?json[@"name"]:themeFolder.lastPathComponent;
         NSCharacterSet *allowed=[NSCharacterSet characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 _-"];
         NSMutableString *safeBuffer=[NSMutableString string];
-        for (NSUInteger i=0;i<folderName.length;i++) {
-            unichar ch=[folderName characterAtIndex:i];
+        for (NSUInteger i=0;i<rawName.length;i++) {
+            unichar ch=[rawName characterAtIndex:i];
             [safeBuffer appendFormat:@"%C",[allowed characterIsMember:ch] ? ch : '_'];
         }
         NSString *safeName=[safeBuffer stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@" ._"]];
@@ -2149,9 +2149,9 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         NSCharacterSet *allowed=[NSCharacterSet characterSetWithCharactersInString:@"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 _-"];
         NSMutableString *safe=[NSMutableString string];
         for (NSUInteger i=0;i<name.length;i++) { unichar ch=[name characterAtIndex:i]; [safe appendFormat:@"%C",[allowed characterIsMember:ch]?ch:'_']; }
-        NSString *folderName=[safe stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@" ._"]];
-        if (!folderName.length) folderName=@"My Custom Theme";
-        NSString *displayName=[self uniqueCustomThemeName:folderName root:root];
+        NSString *requestedName=[safe stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@" ._"]];
+        if (!requestedName.length) requestedName=@"My Custom Theme";
+        NSString *displayName=[self uniqueCustomThemeName:requestedName root:root];
         NSString *folderName=[self uniqueCustomThemeFolderName:displayName root:root];
         NSURL *destination=[root URLByAppendingPathComponent:folderName isDirectory:YES];
         NSDictionary *source=[self validThemeJSONAtFolder:[NSURL fileURLWithPath:_themePath ?: @""]];
