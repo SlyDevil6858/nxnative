@@ -558,17 +558,27 @@ private struct LauncherView: View {
                 at: directory, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]
             )) ?? []
             for entry in entries where (try? entry.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
-                existing.insert(entry.lastPathComponent.lowercased())
                 if let json = themeJSON(in: entry), let name = json["name"] as? String, !name.isEmpty {
-                    existing.insert(name.lowercased())
+                    existing.insert(name)
+                } else {
+                    existing.insert(entry.lastPathComponent)
                 }
             }
         }
         var candidate = base
         var suffix = 2
-        while existing.contains(candidate.lowercased()) ||
-                FileManager.default.fileExists(atPath: root.appendingPathComponent(candidate, isDirectory: true).path) {
+        while existing.contains(candidate) {
             candidate = "\(base) \(suffix)"
+            suffix += 1
+        }
+        return candidate
+    }
+
+    private func uniqueThemeFolderName(_ proposed: String, root: URL) -> String {
+        var candidate = proposed
+        var suffix = 2
+        while FileManager.default.fileExists(atPath: root.appendingPathComponent(candidate, isDirectory: true).path) {
+            candidate = "\(proposed) \(suffix)"
             suffix += 1
         }
         return candidate
@@ -733,6 +743,7 @@ private struct LauncherView: View {
         defer { if scoped { source.stopAccessingSecurityScopedResource() } }
 
         var importedName: String?
+        var importedPath: String?
         var importFailure: String?
         var coordinationError: NSError?
         let coordinator = NSFileCoordinator(filePresenter: nil)
@@ -780,7 +791,8 @@ private struct LauncherView: View {
             }).trimmingCharacters(in: CharacterSet(charactersIn: " ._"))
             let root = themesDirectory()
             let uniqueName = uniqueImportedThemeName(safeName.isEmpty ? "Imported Theme" : safeName, root: root)
-            let destination = root.appendingPathComponent(uniqueName, isDirectory: true)
+            let folderName = uniqueThemeFolderName(uniqueName, root: root)
+            let destination = root.appendingPathComponent(folderName, isDirectory: true)
             let staging = root.appendingPathComponent(".import-\(UUID().uuidString)", isDirectory: true)
 
             do {
@@ -802,6 +814,7 @@ private struct LauncherView: View {
                 }
                 try fileManager.moveItem(at: staging, to: destination)
                 importedName = uniqueName
+                importedPath = destination.path
             } catch {
                 try? fileManager.removeItem(at: staging)
                 importFailure = "The theme could not be copied into the app. \(error.localizedDescription)"
@@ -814,8 +827,7 @@ private struct LauncherView: View {
 
         if let importedName {
             refreshThemes()
-            let destination = themesDirectory().appendingPathComponent(importedName, isDirectory: true)
-            selectTheme(destination.path, name: importedName)
+            selectTheme(importedPath, name: importedName)
             themeImportMessage = "\(importedName) was imported successfully and added to the theme list."
         } else {
             themeImportMessage = importFailure ?? "The theme could not be imported for an unknown reason."
