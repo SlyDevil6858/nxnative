@@ -2067,7 +2067,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 }
 - (void)setEditorButton:(UIButton *)button title:(NSString *)title {
     if (!button || [[button titleForState:UIControlStateNormal] isEqualToString:title]) return;
-    [UIView transitionWithView:button.titleLabel duration:0.14
+    [UIView transitionWithView:button.titleLabel duration:0.045
         options:UIViewAnimationOptionTransitionCrossDissolve|UIViewAnimationOptionBeginFromCurrentState|UIViewAnimationOptionAllowAnimatedContent
         animations:^{ [button setTitle:title forState:UIControlStateNormal]; }
         completion:nil];
