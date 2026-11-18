@@ -9,10 +9,10 @@ on:
         type: string
         default: "SWITCH/ROMS"
       rom_file:
-        description: "Exact ROM filename from the list shown in the workflow run summary"
-        required: true
+        description: "Exact ROM filename from the list shown in a list-only run; leave blank to list files first"
+        required: false
         type: string
-        default: "AnimalWell.xci"
+        default: ""
       prod_keys_path:
         description: "Path to prod.keys inside myprivaterepo"
         required: true
@@ -142,6 +142,13 @@ jobs:
           print("Files found in ROM folder:")
           for path in all_files:
               print(f"  {path.name} ({path.stat().st_size:,} bytes)")
+          if not selected_name.strip():
+              with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as out:
+                  out.write("\\nNo ROM was selected. This was a list-only run; rerun the workflow and enter one exact filename in the **ROM file** field.\\n")
+              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+                  output.write("list_only=true\\n")
+              print("List-only run: no build will be started.")
+              raise SystemExit(0)
           if not rom_files:
               raise SystemExit("No non-empty .nsp, .xci, .nsz or .xcz files found directly inside game_folder")
 
@@ -165,6 +172,7 @@ jobs:
           PY
 
       - name: Verify macOS and Xcode
+        if: steps.verify-input.outputs.list_only != 'true'
         run: |
           test "$(uname -s)" = "Darwin"
           command -v xcodebuild
@@ -173,6 +181,7 @@ jobs:
           xcodebuild -downloadPlatform iOS
 
       - name: Install native build tools
+        if: steps.verify-input.outputs.list_only != 'true'
         run: |
           brew install xcodegen zstd glslang
           if ! dotnet --list-runtimes 2>/dev/null | grep -q 'Microsoft.NETCore.App 10\.'; then
@@ -181,17 +190,20 @@ jobs:
           dotnet --list-runtimes
 
       - name: Set up arm64 Python
+        if: steps.verify-input.outputs.list_only != 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
           architecture: arm64
 
       - name: Install Python dependencies
+        if: steps.verify-input.outputs.list_only != 'true'
         run: |
           python -m pip install --upgrade pip
           python -m pip install lz4 "capstone>=5,<6" fonttools nsz zbic "backports.zstd; python_version < '3.14'"
 
       - name: Build IPA for a 6 GB iPhone
+        if: steps.verify-input.outputs.list_only != 'true'
         id: build-ipa
         env:
           GAME_FOLDER: ${{ inputs.game_folder }}
@@ -243,6 +255,7 @@ jobs:
           echo "Final IPA filename: $(basename "$FINAL_IPA")"
 
       - name: Upload IPA to a private release in myprivaterepo
+        if: steps.verify-input.outputs.list_only != 'true'
         uses: softprops/action-gh-release@v2
         with:
           repository: SlyDevil6858/myprivaterepo
