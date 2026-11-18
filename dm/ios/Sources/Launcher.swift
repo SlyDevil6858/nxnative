@@ -561,14 +561,14 @@ private struct LauncherView: View {
         // Remove identical legacy copies of the other bundled themes, but preserve editable FOREST.
         let bundledFolders = bundledThemeFolders()
         for bundled in bundledFolders where (try? bundled.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
-                if bundled.lastPathComponent.caseInsensitiveCompare("FOREST") == .orderedSame { continue }
-                let legacy = directory.appendingPathComponent(bundled.lastPathComponent, isDirectory: true)
-                let bundledJSON = try? Data(contentsOf: bundled.appendingPathComponent("theme.json"))
-                let legacyJSON = try? Data(contentsOf: legacy.appendingPathComponent("theme.json"))
-                if let bundledJSON, bundledJSON == legacyJSON {
-                    try? FileManager.default.removeItem(at: legacy)
-                }
+            if bundled.lastPathComponent.caseInsensitiveCompare("FOREST") == .orderedSame { continue }
+            let legacy = directory.appendingPathComponent(bundled.lastPathComponent, isDirectory: true)
+            let bundledJSON = try? Data(contentsOf: bundled.appendingPathComponent("theme.json"))
+            let legacyJSON = try? Data(contentsOf: legacy.appendingPathComponent("theme.json"))
+            if let bundledJSON, bundledJSON == legacyJSON {
+                try? FileManager.default.removeItem(at: legacy)
             }
+        }
         return directory
     }
 
