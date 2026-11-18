@@ -880,7 +880,7 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
     if (!tip.text.length) return;
     NSMutableParagraphStyle *paragraph=[NSMutableParagraphStyle new];
     paragraph.alignment=NSTextAlignmentCenter;
-    paragraph.lineSpacing=2.0;
+    paragraph.lineSpacing=3.0;
     tip.attributedText=[[NSAttributedString alloc] initWithString:tip.text
         attributes:@{NSParagraphStyleAttributeName:paragraph}];
 }
@@ -894,7 +894,7 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
     [self dismissMenuTip];
     _launcherReopenTip=YES;
     _menuTip=[DmPaddedTipLabel new];
-    _menuTip.text=@"To reopen the control config menu, press and hold the layout mode switcher.";
+    _menuTip.text=@"Press and hold the 2D, 3D, or Tap button, or hold Select on your controller, to open the in-game control menu.";
     [self applyTipLineSpacing:_menuTip];
     _menuTip.textColor=UIColor.whiteColor;
     _menuTip.font=[UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
