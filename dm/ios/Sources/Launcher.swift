@@ -186,10 +186,11 @@ private struct LauncherView: View {
     @FocusState private var themeRenameFocused: Bool
     @State private var showingThemeImportAlert = false
     @State private var themeImportMessage = ""
+    @State private var launcherKeyboardHeight: CGFloat = 0
 
     var body: some View {
         GeometryReader { geometry in
-            HStack(spacing: 0) {
+            HStack(alignment: .top, spacing: 0) {
                 VStack(spacing: 16) {
                     if let icon = appIcon() {
                         Image(uiImage: icon).resizable().frame(width: 96, height: 96)
@@ -203,10 +204,10 @@ private struct LauncherView: View {
                     playButton
                 }
                 .padding(16)
-                .frame(width: geometry.size.width * 0.30, height: geometry.size.height)
-                // Keep only the stationary left panel out of keyboard avoidance;
-                // the settings List must retain its keyboard-safe area so it can scroll.
-                .ignoresSafeArea(.keyboard, edges: themeRenamePath != nil ? .bottom : [])
+                .frame(width: geometry.size.width * 0.30, height: geometry.size.height + launcherKeyboardHeight, alignment: .top)
+                // GeometryReader shrinks when the keyboard appears. Extend this
+                // column by the keyboard height and top-align it so its contents
+                // stay at their original screen coordinates.
                 .contentShape(Rectangle())
                 .onTapGesture {
                     if themeRenamePath != nil { cancelLauncherThemeRename() }
@@ -285,7 +286,7 @@ private struct LauncherView: View {
                 .listRowBackground(Color.black)
                 .background(Color.black)
                 .contentMargins(.horizontal, 0, for: .scrollContent)
-                .frame(width: geometry.size.width * 0.70)
+                .frame(width: geometry.size.width * 0.70, height: geometry.size.height)
                 .scrollContentBackground(.hidden)
                 .environment(\.colorScheme, .dark)
                 .scrollDismissesKeyboard(.interactively)
@@ -308,6 +309,7 @@ private struct LauncherView: View {
                 }
             }
             }
+            .frame(height: geometry.size.height + launcherKeyboardHeight, alignment: .top)
             .opacity(isControlLayoutEditing ? 0 : 1)
             .animation(.easeInOut(duration: 0.25), value: isControlLayoutEditing)
             .allowsHitTesting(!isControlLayoutEditing)
@@ -317,11 +319,11 @@ private struct LauncherView: View {
         .background {
             if let background = launcherBackground() {
                 Image(uiImage: background).resizable().scaledToFill()
+                    .frame(width: geometry.size.width,
+                           height: geometry.size.height + launcherKeyboardHeight)
+                    .clipped()
                     .overlay(.black.opacity(0.48))
-                    .ignoresSafeArea()
-                    // Keep the artwork anchored to the full launcher height while
-                    // the settings List adjusts its own visible area for the keyboard.
-                    .ignoresSafeArea(.keyboard, edges: themeRenamePath != nil ? .bottom : [])
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
         }
         .preferredColorScheme(.dark)
@@ -355,6 +357,13 @@ private struct LauncherView: View {
             if !editing {
                 refreshThemes()
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { notification in
+            guard let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
+            launcherKeyboardHeight = max(0, frame.height)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            launcherKeyboardHeight = 0
         }
         .onAppear(perform: refreshThemes)
         .task {
