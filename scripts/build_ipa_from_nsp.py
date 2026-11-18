@@ -2528,7 +2528,9 @@ def main(args=None):
                     return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
                 def readable_text(rgb):
                     return 'FFFFFF' if luminance(rgb) < 0.42 else '000000'
-                theme = json.loads(classic_manifest.read_text(encoding='utf-8'))
+                override_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(classic_manifest, manifest)
+                theme = json.loads(manifest.read_text(encoding='utf-8'))
                 theme['name'] = override_folder
                 theme['palette'] = {
                     'idle': hex_color(sampled[0]),
@@ -2538,7 +2540,6 @@ def main(args=None):
                     'text': readable_text(sampled[0]),
                     'pressedText': readable_text(sampled[1]),
                 }
-                override_dir.mkdir(parents=True, exist_ok=True)
                 manifest.write_text(json.dumps(theme, indent=2) + '\n', encoding='utf-8')
                 say(f'created ROM-specific touch theme from CLASSIC for {override_folder}; sampled icon colors: {", ".join(hex_color(c) for c in sampled)}')
             except Exception as error:
