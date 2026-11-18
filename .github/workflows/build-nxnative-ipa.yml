@@ -38,6 +38,11 @@ on:
         required: true
         type: boolean
         default: false
+      dominant_color_styling:
+        description: "Use the game's app-icon dominant color for launcher accents (off uses the default blue styling)"
+        required: true
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -231,6 +236,7 @@ jobs:
           DM_ICON: ${{ env.NXNATIVE_CUSTOM_ICON }}
           DM_LAUNCHER_BACKGROUND: ${{ env.NXNATIVE_CUSTOM_BACKGROUND }}
           DM_SHOW_FPS: "0"
+          DM_DOMINANT_ACCENT: ${{ inputs.dominant_color_styling }}
         run: |
           set -o pipefail
           DATA_ROOT="$GITHUB_WORKSPACE/private-game-data"
