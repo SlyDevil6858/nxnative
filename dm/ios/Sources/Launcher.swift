@@ -204,6 +204,13 @@ private struct LauncherView: View {
                 }
                 .padding(16)
                 .frame(width: geometry.size.width * 0.30, height: geometry.size.height)
+                // Keep only the stationary left panel out of keyboard avoidance;
+                // the settings List must retain its keyboard-safe area so it can scroll.
+                .ignoresSafeArea(.keyboard, edges: themeRenamePath != nil ? .bottom : [])
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    if themeRenamePath != nil { cancelLauncherThemeRename() }
+                }
                 // Keep the stationary game panel out of the drawer's animation
                 // transaction without painting an opaque rectangle over the artwork.
                 .transaction { transaction in
@@ -281,12 +288,21 @@ private struct LauncherView: View {
                 .frame(width: geometry.size.width * 0.70)
                 .scrollContentBackground(.hidden)
                 .environment(\.colorScheme, .dark)
+                .scrollDismissesKeyboard(.interactively)
                 .onChange(of: themeRenamePath) { path in
                     guard let path else { return }
                     themeRenameFocused = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    // Wait for the keyboard's safe-area change before scrolling,
+                    // then make a second adjustment after its animation settles.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) {
                         withAnimation(.easeInOut(duration: 0.25)) {
                             themeScrollProxy.scrollTo("launcher-theme-\(path)", anchor: .top)
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                            guard themeRenamePath == path else { return }
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                themeScrollProxy.scrollTo("launcher-theme-\(path)", anchor: .top)
+                            }
                         }
                     }
                 }
@@ -309,7 +325,7 @@ private struct LauncherView: View {
         // Keep the launcher underneath the pre-launch control editor fixed
         // when its theme rename field brings up the keyboard. The editor's
         // own menu handles keyboard positioning independently.
-        .ignoresSafeArea(.keyboard, edges: (isControlLayoutEditing || themeRenamePath != nil) ? .bottom : [])
+        .ignoresSafeArea(.keyboard, edges: isControlLayoutEditing ? .bottom : [])
         .sheet(isPresented: $pickingTheme) {
             DocumentPicker(types: [.folder]) { url in
                 pickingTheme = false
