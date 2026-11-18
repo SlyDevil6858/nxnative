@@ -199,7 +199,7 @@ jobs:
           PY
 
       - name: Commit newly created ROM override folder
-        if: steps.verify-input.outputs.list_only != 'true'
+        if: always() && steps.verify-input.outputs.list_only != 'true'
         working-directory: nxnative
         env:
           OVERRIDE_FOLDER: ${{ steps.verify-input.outputs.override_folder }}
