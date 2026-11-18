@@ -539,7 +539,7 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
         if (!g_launcher_preview && ![NSUserDefaults.standardUserDefaults boolForKey:@"DmPadMenuTipShown"]) {
             // A one-time hint points out the 2D / 3D layout button without covering the game.
             _menuTip=[DmPaddedTipLabel new];
-            _menuTip.text=@"Press and hold the 2D, 3D, or Tap button, or hold Select on your controller, to open the in-game control menu.";
+            _menuTip.text=@"Press and hold the 2D, 3D, or Tap button, or hold Select on your controller, to open the control editor menu.";
             [self applyTipLineSpacing:_menuTip];
             _menuTip.textColor=UIColor.whiteColor;
             _menuTip.font=[UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
@@ -902,7 +902,7 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
     [self dismissMenuTip];
     _launcherReopenTip=YES;
     _menuTip=[DmPaddedTipLabel new];
-    _menuTip.text=@"Press and hold the 2D, 3D, or Tap button, or hold Select on your controller, to open the in-game control menu.";
+    _menuTip.text=@"Press and hold the 2D, 3D, or Tap button, or hold Select on your controller, to open the control editor menu.";
     [self applyTipLineSpacing:_menuTip];
     _menuTip.textColor=UIColor.whiteColor;
     _menuTip.font=[UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
@@ -1212,12 +1212,8 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     if (_menuTip) {
         CGFloat tipWidth=MIN(340, MAX(0,self.bounds.size.width-32));
         CGSize tipSize=[_menuTip sizeThatFits:CGSizeMake(tipWidth,CGFLOAT_MAX)];
+        // Both one-time helper boxes use the same post-launch screen position.
         CGFloat tipY=self.safeAreaInsets.top+44;
-        if (_launcherReopenTip) {
-            tipY=CGRectGetMaxY(CGRectMake(self.swapCenter.x-K_SWAP_R*self.u*1.6,
-                                          self.swapCenter.y-K_SWAP_R*self.u*1.6,
-                                          K_SWAP_R*self.u*3.2,K_SWAP_R*self.u*3.2))+12;
-        }
         _menuTip.frame=CGRectMake((self.bounds.size.width-tipWidth)/2, tipY, tipWidth, tipSize.height);
         CGRect r=_menuTip.frame;
         CGFloat radius=10.0, arrowHalf=10.0, arrowHeight=11.0;
