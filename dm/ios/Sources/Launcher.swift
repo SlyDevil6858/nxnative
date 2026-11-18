@@ -319,6 +319,9 @@ private struct LauncherView: View {
                 Image(uiImage: background).resizable().scaledToFill()
                     .overlay(.black.opacity(0.48))
                     .ignoresSafeArea()
+                    // Keep the artwork anchored to the full launcher height while
+                    // the settings List adjusts its own visible area for the keyboard.
+                    .ignoresSafeArea(.keyboard, edges: themeRenamePath != nil ? .bottom : [])
             }
         }
         .preferredColorScheme(.dark)
