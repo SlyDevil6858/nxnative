@@ -27,7 +27,7 @@ on:
         description: "Folder inside OVERRIDES to use for the app icon and launcher background (blank disables overrides)"
         required: false
         type: string
-        default: "ANIMAL WELL"
+        default: "Animalwell"
       dominant_color_styling:
         description: "Use the game's app-icon dominant color for launcher accents"
         required: true
