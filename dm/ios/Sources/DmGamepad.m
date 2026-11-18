@@ -1371,6 +1371,10 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
 
 static NSString *const k_theme_path_key = @"DmTouchControlThemePath";
 static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
+- (NSURL *)bundledAnimalWellThemeDirectory {
+    NSURL *overrides=[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"OVERRIDES" isDirectory:YES];
+    return [overrides URLByAppendingPathComponent:@"ANIMAL WELL" isDirectory:YES];
+}
 - (NSURL *)themesDirectoryCreating:(BOOL)create {
     NSFileManager *fm=NSFileManager.defaultManager;
     NSURL *docs=[fm URLForDirectory:NSDocumentDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:nil];
@@ -1396,6 +1400,12 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             NSData *legacyJSON=[NSData dataWithContentsOfURL:[legacy URLByAppendingPathComponent:@"theme.json"]];
             if (bundledJSON && [bundledJSON isEqualToData:legacyJSON]) [fm removeItemAtURL:legacy error:nil];
         }
+        NSURL *animalWell=[self bundledAnimalWellThemeDirectory];
+        NSURL *legacyAnimalWell=[dir URLByAppendingPathComponent:@"ANIMAL WELL" isDirectory:YES];
+        NSData *animalWellJSON=[NSData dataWithContentsOfURL:[animalWell URLByAppendingPathComponent:@"theme.json"]];
+        NSData *legacyAnimalWellJSON=[NSData dataWithContentsOfURL:[legacyAnimalWell URLByAppendingPathComponent:@"theme.json"]];
+        if (animalWellJSON && [animalWellJSON isEqualToData:legacyAnimalWellJSON])
+            [fm removeItemAtURL:legacyAnimalWell error:nil];
     }
     return dir;
 }
@@ -1457,8 +1467,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     }
 
     [defaults removeObjectForKey:k_theme_path_key];
-    NSURL *bundledRoot=[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES];
-    NSURL *animalWell=[bundledRoot URLByAppendingPathComponent:@"ANIMAL WELL" isDirectory:YES];
+    NSURL *animalWell=[self bundledAnimalWellThemeDirectory];
     if ([self loadThemeAtPath:animalWell.path]) {
         [defaults setObject:animalWell.path forKey:k_theme_path_key];
         [defaults setObject:_themeName ?: @"ANIMAL WELL" forKey:k_theme_name_key];
@@ -1546,18 +1555,20 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     NSURL *bundledRootURL=[[NSBundle.mainBundle.resourceURL
         URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES]
         URLByResolvingSymlinksInPath];
+    NSURL *animalWellURL=[[self bundledAnimalWellThemeDirectory] URLByResolvingSymlinksInPath];
     NSString *bundledRoot=bundledRootURL.URLByStandardizingPath.path;
+    NSString *animalWellPath=animalWellURL.URLByStandardizingPath.path;
     NSString *selectedPath=[[[NSURL fileURLWithPath:_themePath isDirectory:YES]
         URLByResolvingSymlinksInPath] URLByStandardizingPath].path;
 
-    // Fail closed if the bundle location cannot be established. This prevents
-    // a bundled theme from becoming editable because of a host/runtime quirk.
-    if (!bundledRoot.length || !selectedPath.length) return YES;
-
-    if ([bundledRoot hasSuffix:@"/"] && bundledRoot.length>1)
-        bundledRoot=[bundledRoot substringToIndex:bundledRoot.length-1];
-    NSString *prefix=[bundledRoot stringByAppendingString:@"/"];
-    return [selectedPath isEqualToString:bundledRoot] || [selectedPath hasPrefix:prefix];
+    if ((!bundledRoot.length && !animalWellPath.length) || !selectedPath.length) return YES;
+    if (bundledRoot.length) {
+        if ([bundledRoot hasSuffix:@"/"] && bundledRoot.length>1)
+            bundledRoot=[bundledRoot substringToIndex:bundledRoot.length-1];
+        NSString *prefix=[bundledRoot stringByAppendingString:@"/"];
+        if ([selectedPath isEqualToString:bundledRoot] || [selectedPath hasPrefix:prefix]) return YES;
+    }
+    return animalWellPath.length && [selectedPath isEqualToString:animalWellPath];
 }
 - (void)applyThemePath:(NSString *)path name:(NSString *)name {
     if (![self loadThemeAtPath:path]) return;
@@ -1641,8 +1652,11 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 
     NSURL *documentsRoot=[self themesDirectoryCreating:YES];
     NSURL *bundledRoot=[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES];
-    NSArray<NSURL *> *bundledFolders=[NSFileManager.defaultManager contentsOfDirectoryAtURL:bundledRoot
-        includingPropertiesForKeys:nil options:NSDirectoryEnumerationSkipsHiddenFiles error:nil] ?: @[];
+    NSMutableArray<NSURL *> *bundledFolders=[[NSFileManager.defaultManager contentsOfDirectoryAtURL:bundledRoot
+        includingPropertiesForKeys:nil options:NSDirectoryEnumerationSkipsHiddenFiles error:nil] mutableCopy] ?: [NSMutableArray array];
+    NSURL *animalWell=[self bundledAnimalWellThemeDirectory];
+    if ([NSFileManager.defaultManager fileExistsAtPath:[[animalWell URLByAppendingPathComponent:@"theme.json"] path]])
+        [bundledFolders addObject:animalWell];
     NSArray<NSURL *> *importedFolders=[NSFileManager.defaultManager contentsOfDirectoryAtURL:documentsRoot
         includingPropertiesForKeys:nil options:NSDirectoryEnumerationSkipsHiddenFiles error:nil] ?: @[];
     BOOL hasDocumentsForest=NO;
