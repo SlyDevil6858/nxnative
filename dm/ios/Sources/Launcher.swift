@@ -291,7 +291,7 @@ private struct LauncherView: View {
                     themeRenameFocused = true
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                         withAnimation(.easeInOut(duration: 0.25)) {
-                            themeScrollProxy.scrollTo("launcher-theme-\(path)", anchor: .center)
+                            themeScrollProxy.scrollTo("launcher-theme-\(path)", anchor: .top)
                         }
                     }
                 }
@@ -312,7 +312,7 @@ private struct LauncherView: View {
         // Keep the launcher underneath the pre-launch control editor fixed
         // when its theme rename field brings up the keyboard. The editor's
         // own menu handles keyboard positioning independently.
-        .ignoresSafeArea(.keyboard, edges: isControlLayoutEditing ? .bottom : [])
+        .ignoresSafeArea(.keyboard, edges: (isControlLayoutEditing || themeRenamePath != nil) ? .bottom : [])
         .sheet(isPresented: $pickingTheme) {
             DocumentPicker(types: [.folder]) { url in
                 pickingTheme = false
