@@ -1892,8 +1892,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         }
         NSString *selectedPath=[NSUserDefaults.standardUserDefaults stringForKey:k_theme_path_key];
         if ([selectedPath isEqualToString:path] || [selectedPath isEqualToString:target.path]) {
-            NSURL *animalWell=[[[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES]
-                URLByAppendingPathComponent:@"ANIMAL WELL" isDirectory:YES] standardizedURL];
+            NSURL *animalWell=[[self bundledAnimalWellThemeDirectory] standardizedURL];
             [self applyThemePath:animalWell.path name:@"ANIMAL WELL"];
         } else {
             [self updateThemeMenu];
@@ -2171,6 +2170,9 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             }
         }
     }
+    NSDictionary *animalWellManifest=[self validThemeJSONAtFolder:[self bundledAnimalWellThemeDirectory]];
+    NSString *animalWellName=[animalWellManifest[@"name"] isKindOfClass:NSString.class] ? animalWellManifest[@"name"] : @"ANIMAL WELL";
+    if (animalWellName.length) [existing addObject:animalWellName];
     NSString *candidate=base;
     NSUInteger suffix=2;
     while ([existing containsObject:candidate]) {
