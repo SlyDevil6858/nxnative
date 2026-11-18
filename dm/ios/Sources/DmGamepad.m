@@ -2180,7 +2180,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             }
         }
     }
-    NSDictionary *selectedOverrideManifest=[self validThemeJSONAtFolder:[self selectedOverrideThemeDirectory]];
+    NSURL *selectedOverrideFolder=[self selectedOverrideThemeDirectory];
+    NSDictionary *selectedOverrideManifest=selectedOverrideFolder ? [self validThemeJSONAtFolder:selectedOverrideFolder] : nil;
     NSString *selectedOverrideName=[selectedOverrideManifest[@"name"] isKindOfClass:NSString.class] ? selectedOverrideManifest[@"name"] : nil;
     if (selectedOverrideName.length) [existing addObject:selectedOverrideName];
     NSString *candidate=base;
