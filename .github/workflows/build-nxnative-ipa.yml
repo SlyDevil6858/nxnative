@@ -84,8 +84,8 @@ jobs:
               available = sorted(p.name for p in overrides_root.iterdir() if p.is_dir()) if overrides_root.is_dir() else []
               raise SystemExit(f"Override folder '{selected}' was not found in OVERRIDES/. Available folders: {', '.join(available) or '(none)'}")
 
-          icon = folder / "custom-icon.png"
-          background = folder / "custom-background.png"
+          icon = folder / "ICON.png"
+          background = folder / "BACKGROUND.png"
           missing = [str(p.relative_to(root)) for p in (icon, background) if not p.is_file()]
           if missing:
               raise SystemExit("Selected override folder is missing required PNG file(s): " + ", ".join(missing))
