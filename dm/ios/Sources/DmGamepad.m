@@ -759,7 +759,8 @@ static CGPoint side(CGRect s, int right, CGFloat dx, CGFloat y) { return CGPoint
     CGPoint center=[self faceGrabCenter];
     CGFloat radius=self.faceR*1.6;
     for (int b=B_A;b<=B_Y;b++)
-        radius=MAX(radius,dist(center,[self facePos:b])+self.faceR*1.6);
+        CGPoint point=[self facePos:b];
+        radius=MAX(radius,hypot(point.x-center.x,point.y-center.y)+self.faceR*1.6);
     return radius;
 }
 - (CGPoint)baseStickHome {
