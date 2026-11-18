@@ -23,11 +23,6 @@ on:
         required: true
         type: number
         default: 0
-      override_folder:
-        description: "Folder inside OVERRIDES to use for the app icon and launcher background (blank disables overrides)"
-        required: false
-        type: string
-        default: "Animalwell"
       dominant_color_styling:
         description: "Use the game's app-icon dominant color for launcher accents"
         required: true
@@ -65,69 +60,6 @@ jobs:
           ref: iphone-4gb
           path: nxnative
           persist-credentials: false
-
-      - name: Select launcher appearance and accent color
-        working-directory: nxnative
-        env:
-          OVERRIDE_FOLDER: ${{ inputs.override_folder }}
-          DOMINANT_COLOR_STYLING: ${{ inputs.dominant_color_styling }}
-          CUSTOM_ACCENT_HEX: ${{ inputs.custom_accent_hex }}
-        run: |
-          python3 - <<'PY'
-          import os
-          import re
-          from pathlib import Path
-
-          root = Path.cwd().resolve()
-          overrides_root = (root / "OVERRIDES").resolve()
-          selected = os.environ.get("OVERRIDE_FOLDER", "").strip()
-          dominant_enabled = os.environ.get("DOMINANT_COLOR_STYLING", "true").lower() == "true"
-          custom_hex = os.environ.get("CUSTOM_ACCENT_HEX", "").strip()
-
-          # A custom colour is only used when dominant-colour styling is disabled.
-          # Blank intentionally leaves nxnative's built-in system-blue default intact.
-          normalized_hex = ""
-          if not dominant_enabled and custom_hex:
-              if not re.fullmatch(r"#?[0-9a-fA-F]{6}", custom_hex):
-                  raise SystemExit("custom_accent_hex must be blank or a six-digit hex colour such as #FF8800.")
-              normalized_hex = custom_hex if custom_hex.startswith("#") else f"#{custom_hex}"
-
-          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
-              env.write(f"NXNATIVE_CUSTOM_ACCENT_HEX={normalized_hex}\n")
-          if dominant_enabled:
-              print("Dominant-colour styling is enabled; custom accent input will be ignored.")
-          elif normalized_hex:
-              print(f"Using custom launcher accent colour {normalized_hex}.")
-          else:
-              print("No custom launcher accent colour supplied; nxnative's default styling will be used.")
-
-          if not selected:
-              with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
-                  env.write("NXNATIVE_OVERRIDE_FOLDER=\n")
-              print("No appearance override folder selected; using the game's original icon and launcher background.")
-              raise SystemExit(0)
-
-          # Accept one folder name only; never allow absolute paths or traversal.
-          if Path(selected).name != selected or selected in {".", ".."} or "/" in selected or "\\" in selected:
-              raise SystemExit("override_folder must be the name of one folder inside OVERRIDES.")
-
-          folder = (overrides_root / selected).resolve()
-          if folder.parent != overrides_root or not folder.is_dir():
-              available = sorted(p.name for p in overrides_root.iterdir() if p.is_dir()) if overrides_root.is_dir() else []
-              raise SystemExit(f"Override folder '{selected}' was not found in OVERRIDES/. Available folders: {', '.join(available) or '(none)'}")
-
-          icon = folder / "ICON.png"
-          background = folder / "BACKGROUND.png"
-          missing = [str(p.relative_to(root)) for p in (icon, background) if not p.is_file()]
-          if missing:
-              raise SystemExit("Selected override folder is missing required PNG file(s): " + ", ".join(missing))
-
-          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
-              env.write(f"NXNATIVE_CUSTOM_ICON={icon}\n")
-              env.write(f"NXNATIVE_CUSTOM_BACKGROUND={background}\n")
-              env.write(f"NXNATIVE_OVERRIDE_FOLDER={selected}\n")
-          print(f"Using appearance overrides from OVERRIDES/{selected}/")
-          PY
 
       - name: List ROM files and verify selected game file
         id: verify-input
@@ -189,14 +121,81 @@ jobs:
           rom_name = " ".join(selected.stem.replace(".", " ").split())
           if not rom_name.strip() or any(c in rom_name for c in "\r\n"):
               raise SystemExit("The selected ROM filename is empty or invalid.")
+          override_folder = selected.stem
+          if not override_folder or any(c in override_folder for c in "\r\n"):
+              raise SystemExit("The selected ROM filename cannot be used as an override folder name.")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
               output.write(f"ipa_name={rom_name}\n")
               output.write(f"rom_file={selected.name}\n")
+              output.write(f"override_folder={override_folder}\n")
               output.write("list_only=false\n")
 
           print(f"Selected ROM: {selected.name}")
           print(f"Initial IPA filename: {rom_name}.ipa (the build step appends A15 and the metadata version)")
           print("prod.keys file exists; its contents will not be printed or uploaded.")
+          PY
+
+      - name: Select ROM-matched launcher appearance and accent color
+        working-directory: nxnative
+        env:
+          ROM_FILE: ${{ steps.verify-input.outputs.rom_file }}
+          OVERRIDES_ROOT: ${{ github.workspace }}/nxnative/OVERRIDES
+          DOMINANT_COLOR_STYLING: ${{ inputs.dominant_color_styling }}
+          CUSTOM_ACCENT_HEX: ${{ inputs.custom_accent_hex }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          overrides_root = Path(os.environ["OVERRIDES_ROOT"]).resolve()
+          rom_file = os.environ["ROM_FILE"]
+          rom_stem = Path(rom_file).stem
+          if not rom_stem or rom_stem in {".", ".."} or "/" in rom_stem or "\\" in rom_stem or any(c in rom_stem for c in "\r\n"):
+              raise SystemExit("The selected ROM filename cannot be used as an override folder name.")
+
+          # Every ROM gets its own matching override directory. Keep a placeholder
+          # in newly created folders so XcodeGen can bundle the directory resource.
+          folder = (overrides_root / rom_stem).resolve()
+          if folder.parent != overrides_root:
+              raise SystemExit("The selected ROM filename produced an invalid override path.")
+          if not folder.exists():
+              folder.mkdir(parents=True, exist_ok=True)
+              (folder / ".keep").write_text("ROM-matched override folder. Add ICON.png, BACKGROUND.png, and/or theme.json here.\n", encoding="utf-8")
+              print(f"Created OVERRIDES/{rom_stem}/ for this ROM.")
+          elif not folder.is_dir():
+              raise SystemExit(f"Override path exists but is not a folder: OVERRIDES/{rom_stem}")
+
+          dominant_enabled = os.environ.get("DOMINANT_COLOR_STYLING", "true").lower() == "true"
+          custom_hex = os.environ.get("CUSTOM_ACCENT_HEX", "").strip()
+          normalized_hex = ""
+          if not dominant_enabled and custom_hex:
+              if not re.fullmatch(r"#?[0-9a-fA-F]{6}", custom_hex):
+                  raise SystemExit("custom_accent_hex must be blank or a six-digit hex colour such as #FF8800.")
+              normalized_hex = custom_hex if custom_hex.startswith("#") else f"#{custom_hex}"
+
+          env_path = os.environ["GITHUB_ENV"]
+          with open(env_path, "a", encoding="utf-8") as env:
+              env.write(f"NXNATIVE_CUSTOM_ACCENT_HEX={normalized_hex}\n")
+              env.write(f"NXNATIVE_OVERRIDE_FOLDER={rom_stem}\n")
+
+          if dominant_enabled:
+              print("Dominant-colour styling is enabled; custom accent input will be ignored.")
+          elif normalized_hex:
+              print(f"Using custom launcher accent colour {normalized_hex}.")
+          else:
+              print("No custom launcher accent colour supplied; nxnative's default styling will be used.")
+
+          icon = folder / "ICON.png"
+          background = folder / "BACKGROUND.png"
+          if icon.is_file():
+              with open(env_path, "a", encoding="utf-8") as env:
+                  env.write(f"NXNATIVE_CUSTOM_ICON={icon}\n")
+          if background.is_file():
+              with open(env_path, "a", encoding="utf-8") as env:
+                  env.write(f"NXNATIVE_CUSTOM_BACKGROUND={background}\n")
+          print(f"Using ROM-matched override directory OVERRIDES/{rom_stem}/")
+          print("Missing override images are optional; nxnative will use its built-in defaults for those assets.")
           PY
 
       - name: Verify macOS and Xcode
