@@ -136,6 +136,7 @@ jobs:
           PY
 
       - name: Select ROM-matched launcher appearance and accent color
+        if: steps.verify-input.outputs.list_only != 'true'
         working-directory: nxnative
         env:
           ROM_FILE: ${{ steps.verify-input.outputs.rom_file }}
