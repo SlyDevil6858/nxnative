@@ -358,6 +358,7 @@ int dm_opmode(void);   // hle_oe.c: 0 = handheld
 static __weak DmGamepad *g_view;
 static BOOL g_launcher_preview = NO;
 static void pads_start(void);   // Physical controllers, below
+static void pad_watch_select(GCController *c);
 
 @implementation DmGamepad {
     NSMapTable<UITouch *, NSNumber *> *_owner;     // touch → control (with the key for C_BTN or the stick for C_STICK, << 8)
@@ -584,8 +585,15 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
                 });
             });
         }
-        if (!g_launcher_preview) {
-            NSNotificationCenter *nc = NSNotificationCenter.defaultCenter;
+        NSNotificationCenter *nc = NSNotificationCenter.defaultCenter;
+        if (g_launcher_preview) {
+            // The launcher preview does not run the game's controller input
+            // setup, but still needs the Select-button long-press shortcut.
+            for (GCController *controller in GCController.controllers)
+                if (controller.extendedGamepad) pad_watch_select(controller);
+            [nc addObserver:self selector:@selector(launcherControllerConnected:)
+                       name:GCControllerDidConnectNotification object:nil];
+        } else {
             [nc addObserver:self selector:@selector(padsChanged:) name:GCControllerDidConnectNotification object:nil];
             [nc addObserver:self selector:@selector(padsChanged:) name:GCControllerDidDisconnectNotification object:nil];
             pads_start();
@@ -2909,6 +2917,10 @@ static BOOL pads_slotted(GCController *gone) {
     }
     dm_pad_players(pad_slot_mask(&g_slots));
     return pad_slot_mask(&g_slots) != 0;
+}
+- (void)launcherControllerConnected:(NSNotification *)note {
+    GCController *controller=note.object;
+    if (controller.extendedGamepad) pad_watch_select(controller);
 }
 - (void)padsChanged:(NSNotification *)note {
     GCController *c = note.object, *gone = [note.name isEqual:GCControllerDidDisconnectNotification] ? c : nil;
