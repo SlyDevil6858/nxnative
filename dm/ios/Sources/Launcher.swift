@@ -545,6 +545,35 @@ private struct LauncherView: View {
         return directory
     }
 
+    private func uniqueImportedThemeName(_ proposed: String, root: URL) -> String {
+        let trimmed = proposed.trimmingCharacters(in: .whitespacesAndNewlines)
+        let base = trimmed.isEmpty ? "Imported Theme" : trimmed
+        var existing = Set<String>()
+        var directories = [root]
+        if let bundled = Bundle.main.resourceURL?.appendingPathComponent("TouchControlThemes", isDirectory: true) {
+            directories.append(bundled)
+        }
+        for directory in directories {
+            let entries = (try? FileManager.default.contentsOfDirectory(
+                at: directory, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]
+            )) ?? []
+            for entry in entries where (try? entry.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
+                existing.insert(entry.lastPathComponent.lowercased())
+                if let json = themeJSON(in: entry), let name = json["name"] as? String, !name.isEmpty {
+                    existing.insert(name.lowercased())
+                }
+            }
+        }
+        var candidate = base
+        var suffix = 2
+        while existing.contains(candidate.lowercased()) ||
+                FileManager.default.fileExists(atPath: root.appendingPathComponent(candidate, isDirectory: true).path) {
+            candidate = "\(base) \(suffix)"
+            suffix += 1
+        }
+        return candidate
+    }
+
     private func isBundledTheme(_ theme: LauncherTheme) -> Bool {
         guard let bundledRoot = Bundle.main.resourceURL?.appendingPathComponent("TouchControlThemes", isDirectory: true) else {
             return false
@@ -750,7 +779,8 @@ private struct LauncherView: View {
                 $0.isLetter || $0.isNumber || $0 == " " || $0 == "_" || $0 == "-" ? $0 : "_"
             }).trimmingCharacters(in: CharacterSet(charactersIn: " ._"))
             let root = themesDirectory()
-            let destination = root.appendingPathComponent(safeName.isEmpty ? "Imported Theme" : safeName, isDirectory: true)
+            let uniqueName = uniqueImportedThemeName(safeName.isEmpty ? "Imported Theme" : safeName, root: root)
+            let destination = root.appendingPathComponent(uniqueName, isDirectory: true)
             let staging = root.appendingPathComponent(".import-\(UUID().uuidString)", isDirectory: true)
 
             do {
@@ -760,14 +790,18 @@ private struct LauncherView: View {
                 )
                 if let manifest = stagedFiles.first(where: {
                     $0.lastPathComponent.caseInsensitiveCompare("theme.json") == .orderedSame
-                }), manifest.lastPathComponent != "theme.json" {
-                    try fileManager.moveItem(at: manifest, to: staging.appendingPathComponent("theme.json"))
-                }
-                if fileManager.fileExists(atPath: destination.path) {
-                    try fileManager.removeItem(at: destination)
+                }) {
+                    let canonicalManifest = staging.appendingPathComponent("theme.json")
+                    if manifest.lastPathComponent != "theme.json" {
+                        try fileManager.moveItem(at: manifest, to: canonicalManifest)
+                    }
+                    var stagedJSON = try JSONSerialization.jsonObject(with: Data(contentsOf: canonicalManifest)) as? [String: Any] ?? [:]
+                    stagedJSON["name"] = uniqueName
+                    let normalizedData = try JSONSerialization.data(withJSONObject: stagedJSON, options: [.prettyPrinted])
+                    try normalizedData.write(to: canonicalManifest, options: .atomic)
                 }
                 try fileManager.moveItem(at: staging, to: destination)
-                importedName = rawName
+                importedName = uniqueName
             } catch {
                 try? fileManager.removeItem(at: staging)
                 importFailure = "The theme could not be copied into the app. \(error.localizedDescription)"
@@ -780,10 +814,7 @@ private struct LauncherView: View {
 
         if let importedName {
             refreshThemes()
-            let safeName = String(importedName.map {
-                $0.isLetter || $0.isNumber || $0 == " " || $0 == "_" || $0 == "-" ? $0 : "_"
-            }).trimmingCharacters(in: CharacterSet(charactersIn: " ._"))
-            let destination = themesDirectory().appendingPathComponent(safeName.isEmpty ? "Imported Theme" : safeName, isDirectory: true)
+            let destination = themesDirectory().appendingPathComponent(importedName, isDirectory: true)
             selectTheme(destination.path, name: importedName)
             themeImportMessage = "\(importedName) was imported successfully and added to the theme list."
         } else {
