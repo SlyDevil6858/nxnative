@@ -68,9 +68,20 @@ private func launcherAppIcon() -> UIImage? {
     return UIImage(named: last)
 }
 
-/// The original dominant app-icon colour, shared by both folder-import buttons.
+/// Whether this build uses the game's app-icon colour for launcher accents.
+private func launcherUsesDominantAccent() -> Bool {
+    guard let value = info("DMDominantAccent") else { return true }
+    if let string = value as? String {
+        return ["true", "yes", "1"].contains(string.lowercased())
+    }
+    if let number = value as? NSNumber { return number.boolValue }
+    return true
+}
+
+/// Shared launcher accent. Builds with the toggle off use the standard system blue.
 private func launcherAccentColor() -> Color {
-    Color(uiColor: launcherAppIcon()?.dominantColor() ?? .systemBlue)
+    guard launcherUsesDominantAccent() else { return Color(uiColor: .systemBlue) }
+    return Color(uiColor: launcherAppIcon()?.dominantColor() ?? .systemBlue)
 }
 
 
@@ -503,7 +514,7 @@ private struct LauncherView: View {
     }
 
     private var accentColor: Color {
-        Color(uiColor: appIcon()?.dominantColor() ?? .systemBlue)
+        launcherAccentColor()
     }
 
     private func appIcon() -> UIImage? {
