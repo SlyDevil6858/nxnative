@@ -1219,7 +1219,7 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
         CGFloat tipY=layoutCenter.y+layoutRadius+arrowHeight;
         _menuTip.frame=CGRectMake((self.bounds.size.width-tipWidth)/2, tipY, tipWidth, tipSize.height);
         CGRect r=_menuTip.frame;
-        CGFloat radius=10.0, arrowHalf=10.0, arrowHeight=11.0;
+        CGFloat radius=10.0, arrowHalf=10.0;
         CGFloat left=CGRectGetMinX(r), right=CGRectGetMaxX(r);
         CGFloat top=CGRectGetMinY(r), bottom=CGRectGetMaxY(r);
         CGFloat mid=CGRectGetMidX(r);
