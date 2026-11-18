@@ -310,6 +310,9 @@ private struct LauncherView: View {
             .animation(.easeInOut(duration: 0.25), value: isControlLayoutEditing)
             .allowsHitTesting(!isControlLayoutEditing)
         }
+        // Keep the entire launcher layout at its pre-keyboard size during a theme rename.
+        // The theme row is scrolled to the top separately so the keyboard does not cover its field.
+        .ignoresSafeArea(.keyboard, edges: themeRenamePath != nil ? .bottom : [])
         // Keep the artwork on the GeometryReader itself, outside the HStack/List
         // that changes when the theme disclosure expands and collapses.
         .background {
