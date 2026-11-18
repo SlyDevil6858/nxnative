@@ -521,6 +521,24 @@ private struct LauncherView: View {
         launcherAppIcon()
     }
 
+    private func animalWellThemeDirectory() -> URL? {
+        Bundle.main.resourceURL?
+            .appendingPathComponent("OVERRIDES", isDirectory: true)
+            .appendingPathComponent("ANIMAL WELL", isDirectory: true)
+    }
+
+    private func bundledThemeFolders() -> [URL] {
+        let bundledRoot = Bundle.main.resourceURL?.appendingPathComponent("TouchControlThemes", isDirectory: true)
+        var folders = bundledRoot.flatMap {
+            try? FileManager.default.contentsOfDirectory(at: $0, includingPropertiesForKeys: [.isDirectoryKey])
+        } ?? []
+        if let animalWell = animalWellThemeDirectory(),
+           FileManager.default.fileExists(atPath: animalWell.appendingPathComponent("theme.json").path) {
+            folders.append(animalWell)
+        }
+        return folders
+    }
+
     private func themesDirectory() -> URL {
         let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let directory = documents.appendingPathComponent("TouchControlThemes", isDirectory: true)
@@ -541,9 +559,8 @@ private struct LauncherView: View {
             try? FileManager.default.copyItem(at: forestSource, to: forestDestination)
         }
         // Remove identical legacy copies of the other bundled themes, but preserve editable FOREST.
-        if let bundledRoot,
-           let bundledFolders = try? FileManager.default.contentsOfDirectory(at: bundledRoot, includingPropertiesForKeys: [.isDirectoryKey]) {
-            for bundled in bundledFolders where (try? bundled.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
+        let bundledFolders = bundledThemeFolders()
+        for bundled in bundledFolders where (try? bundled.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
                 if bundled.lastPathComponent.caseInsensitiveCompare("FOREST") == .orderedSame { continue }
                 let legacy = directory.appendingPathComponent(bundled.lastPathComponent, isDirectory: true)
                 let bundledJSON = try? Data(contentsOf: bundled.appendingPathComponent("theme.json"))
@@ -552,7 +569,6 @@ private struct LauncherView: View {
                     try? FileManager.default.removeItem(at: legacy)
                 }
             }
-        }
         return directory
     }
 
@@ -575,6 +591,11 @@ private struct LauncherView: View {
                     existing.insert(entry.lastPathComponent)
                 }
             }
+        }
+        if let animalWell = animalWellThemeDirectory(),
+           let json = themeJSON(in: animalWell),
+           let name = json["name"] as? String, !name.isEmpty {
+            existing.insert(name)
         }
         var candidate = base
         var suffix = 2
@@ -601,7 +622,9 @@ private struct LauncherView: View {
         }
         let path = URL(fileURLWithPath: theme.path).standardizedFileURL.path
         let root = bundledRoot.standardizedFileURL.path + "/"
-        return path.hasPrefix(root)
+        if path.hasPrefix(root) { return true }
+        guard let animalWell = animalWellThemeDirectory() else { return false }
+        return path == animalWell.standardizedFileURL.path
     }
 
     private func canDeleteTheme(_ theme: LauncherTheme) -> Bool {
@@ -683,8 +706,7 @@ private struct LauncherView: View {
 
     private func refreshThemes() {
         let documentsRoot = themesDirectory()
-        let bundledRoot = Bundle.main.resourceURL?.appendingPathComponent("TouchControlThemes", isDirectory: true)
-        let bundledFolders = bundledRoot.flatMap { try? FileManager.default.contentsOfDirectory(at: $0, includingPropertiesForKeys: [.isDirectoryKey]) } ?? []
+        let bundledFolders = bundledThemeFolders()
         let importedFolders = (try? FileManager.default.contentsOfDirectory(at: documentsRoot, includingPropertiesForKeys: [.isDirectoryKey])) ?? []
         // When a bundled FOREST exists, show only its writable Documents copy.
         let forestDeletionMarker = documentsRoot.appendingPathComponent(".FOREST.deleted")
