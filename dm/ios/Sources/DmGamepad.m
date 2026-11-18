@@ -1609,13 +1609,13 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
                 (void)action;
                 DmGamepad *strongSelf=weakSelf; if (!strongSelf) return;
                 // Preserve the visible selector position while the keyboard closes.
-                CGRect visibleFrame=strongSelf->_themeMenuPanel.frame;
-                strongSelf->_themeMenuPinnedFrame=visibleFrame;
-                strongSelf->_themeMenuRenameOriginFrame=visibleFrame;
-                strongSelf->_themeMenuFramePinned=YES;
+                // Cancel should end the pinned/keyboard-raised rename state just
+                // like Save does, allowing the selector to return to its normal
+                // anchor position instead of preserving the raised frame.
                 [strongSelf->_themeRenameField resignFirstResponder];
                 strongSelf->_themeRenamePath=nil;
                 strongSelf->_themeRenameField=nil;
+                strongSelf->_themeMenuFramePinned=NO;
                 [strongSelf updateThemeMenu];
             }] forControlEvents:UIControlEventTouchUpInside]; [_themeMenuScroll addSubview:cancel];
             dispatch_async(dispatch_get_main_queue(), ^{ DmGamepad *strongSelf=weakSelf; if (strongSelf && strongSelf->_themeRenameField==field) [field becomeFirstResponder]; });
