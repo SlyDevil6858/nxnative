@@ -9,7 +9,7 @@ on:
         type: string
         default: "SWITCH/ROMS"
       rom_file:
-        description: "Exact ROM filename from the list shown in a list-only run; leave blank to list files first"
+        description: "Choose one file belonging to the game (prefer its base game or XCI); matching updates and DLC are included automatically. Leave blank to list files first"
         required: false
         type: string
         default: ""
@@ -261,6 +261,7 @@ jobs:
         env:
           GAME_FOLDER: ${{ inputs.game_folder }}
           ROM_FILE: ${{ steps.verify-input.outputs.rom_file }}
+          DM_SELECTED_ROM_FILE: ${{ steps.verify-input.outputs.rom_file }}
           PROD_KEYS_PATH: ${{ inputs.prod_keys_path }}
           DM_APP_BUILD: ${{ inputs.build_number }}
           DM_ICON: ${{ env.NXNATIVE_CUSTOM_ICON }}
@@ -274,7 +275,27 @@ jobs:
           DATA_ROOT="$GITHUB_WORKSPACE/private-game-data"
           GAME_DIR="$RUNNER_TEMP/selected-rom"
           mkdir -p "$GAME_DIR"
-          cp -- "$DATA_ROOT/$GAME_FOLDER/$ROM_FILE" "$GAME_DIR/"
+          python3 - "$DATA_ROOT/$GAME_FOLDER" "$GAME_DIR" "$ROM_FILE" <<'PY'
+          import os
+          import sys
+          from pathlib import Path
+
+          source_dir, staging_dir, selected_name = map(Path, sys.argv[1:])
+          extensions = {".nsp", ".xci", ".nsz", ".xcz"}
+          selected = source_dir / selected_name
+          if not selected.is_file() or selected.suffix.lower() not in extensions:
+              raise SystemExit(f"Selected package is missing or unsupported: {selected_name}")
+          packages = sorted(
+              (p for p in source_dir.iterdir() if p.is_file() and p.suffix.lower() in extensions and p.stat().st_size > 0),
+              key=lambda p: p.name.lower(),
+          )
+          if selected not in packages:
+              raise SystemExit(f"Selected package is not in the package list: {selected_name}")
+          for package in packages:
+              os.symlink(package.resolve(), staging_dir / package.name)
+          print(f"Staged {len(packages)} package link(s) without duplicating their data.")
+          print(f"Selected game anchor: {selected_name}")
+          PY
           KEYS_FILE="$DATA_ROOT/$PROD_KEYS_PATH"
           BUILD_LOG="$RUNNER_TEMP/nxnative-build.log"
           BASE_IPA="$RUNNER_TEMP/${{ steps.verify-input.outputs.ipa_name }}.ipa"
