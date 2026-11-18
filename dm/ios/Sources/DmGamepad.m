@@ -1375,6 +1375,16 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     NSURL *overrides=[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"OVERRIDES" isDirectory:YES];
     return [overrides URLByAppendingPathComponent:@"ANIMAL WELL" isDirectory:YES];
 }
+- (NSURL *)selectedOverrideThemeDirectory {
+    NSString *folder=[NSBundle.mainBundle objectForInfoDictionaryKey:@"DMOverrideFolder"];
+    if (![folder isKindOfClass:NSString.class] || !folder.length ||
+        [folder isEqualToString:@"."] || [folder isEqualToString:@".."] ||
+        [folder containsString:@"/"] || [folder containsString:@"\\"]) return nil;
+    NSURL *overrides=[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"OVERRIDES" isDirectory:YES];
+    NSURL *selected=[overrides URLByAppendingPathComponent:folder isDirectory:YES];
+    return [NSFileManager.defaultManager fileExistsAtPath:[[selected URLByAppendingPathComponent:@"theme.json"] path]]
+        ? selected : nil;
+}
 - (NSURL *)themesDirectoryCreating:(BOOL)create {
     NSFileManager *fm=NSFileManager.defaultManager;
     NSURL *docs=[fm URLForDirectory:NSDocumentDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:YES error:nil];
@@ -1556,19 +1566,22 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES]
         URLByResolvingSymlinksInPath];
     NSURL *animalWellURL=[[self bundledAnimalWellThemeDirectory] URLByResolvingSymlinksInPath];
+    NSURL *overrideThemeURL=[[self selectedOverrideThemeDirectory] URLByResolvingSymlinksInPath];
     NSString *bundledRoot=bundledRootURL.URLByStandardizingPath.path;
     NSString *animalWellPath=animalWellURL.URLByStandardizingPath.path;
+    NSString *overrideThemePath=overrideThemeURL.URLByStandardizingPath.path;
     NSString *selectedPath=[[[NSURL fileURLWithPath:_themePath isDirectory:YES]
         URLByResolvingSymlinksInPath] URLByStandardizingPath].path;
 
-    if ((!bundledRoot.length && !animalWellPath.length) || !selectedPath.length) return YES;
+    if ((!bundledRoot.length && !animalWellPath.length && !overrideThemePath.length) || !selectedPath.length) return YES;
     if (bundledRoot.length) {
         if ([bundledRoot hasSuffix:@"/"] && bundledRoot.length>1)
             bundledRoot=[bundledRoot substringToIndex:bundledRoot.length-1];
         NSString *prefix=[bundledRoot stringByAppendingString:@"/"];
         if ([selectedPath isEqualToString:bundledRoot] || [selectedPath hasPrefix:prefix]) return YES;
     }
-    return animalWellPath.length && [selectedPath isEqualToString:animalWellPath];
+    return (animalWellPath.length && [selectedPath isEqualToString:animalWellPath]) ||
+        (overrideThemePath.length && [selectedPath isEqualToString:overrideThemePath]);
 }
 - (void)applyThemePath:(NSString *)path name:(NSString *)name {
     if (![self loadThemeAtPath:path]) return;
@@ -1657,6 +1670,9 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     NSURL *animalWell=[self bundledAnimalWellThemeDirectory];
     if ([NSFileManager.defaultManager fileExistsAtPath:[[animalWell URLByAppendingPathComponent:@"theme.json"] path]])
         [bundledFolders addObject:animalWell];
+    NSURL *selectedOverride=[self selectedOverrideThemeDirectory];
+    if (selectedOverride && ![selectedOverride.standardizedURL.path isEqualToString:animalWell.standardizedURL.path])
+        [bundledFolders addObject:selectedOverride];
     NSArray<NSURL *> *importedFolders=[NSFileManager.defaultManager contentsOfDirectoryAtURL:documentsRoot
         includingPropertiesForKeys:nil options:NSDirectoryEnumerationSkipsHiddenFiles error:nil] ?: @[];
     BOOL hasDocumentsForest=NO;
@@ -1680,9 +1696,11 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             NSString *folderName=normalizedName(folder.lastPathComponent);
             NSDictionary *json=[self validThemeJSONAtFolder:folder];
             NSString *themeName=normalizedName([json[@"name"] isKindOfClass:NSString.class] ? json[@"name"] : folder.lastPathComponent);
-            if ([folderName isEqualToString:@"ANIMAL WELL"] || [themeName isEqualToString:@"ANIMAL WELL"]) return 0;
-            if ([folderName isEqualToString:@"CLASSIC"] || [themeName isEqualToString:@"CLASSIC"]) return 1;
-            return 2;
+            NSString *selectedOverridePath=[self selectedOverrideThemeDirectory].standardizedURL.path;
+            if (selectedOverridePath.length && [folder.standardizedURL.path isEqualToString:selectedOverridePath]) return 0;
+            if ([folderName isEqualToString:@"ANIMAL WELL"] || [themeName isEqualToString:@"ANIMAL WELL"]) return 1;
+            if ([folderName isEqualToString:@"CLASSIC"] || [themeName isEqualToString:@"CLASSIC"]) return 2;
+            return 3;
         };
         NSInteger lp=priority(left),rp=priority(right);
         if(lp<rp)return NSOrderedAscending;if(lp>rp)return NSOrderedDescending;
