@@ -1637,9 +1637,10 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             pick.accessibilityLabel=[NSString stringWithFormat:@"Select %@",title];
             [pick addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; [weakSelf applyThemePath:path name:title]; [weakSelf closeThemeMenu]; }] forControlEvents:UIControlEventTouchUpInside]; [_themeMenuScroll addSubview:pick];
             if ([current isEqualToString:title]) {
-                CGFloat markX=protectedTheme ? 258 : 178;
-                UILabel *activeMark=[[UILabel alloc] initWithFrame:CGRectMake(markX,row*rowHeight,26,rowHeight)];
-                activeMark.text=@"✓"; activeMark.textAlignment=NSTextAlignmentRight;
+                CGFloat markX=protectedTheme ? 252 : 178;
+                CGFloat markWidth=protectedTheme ? 32 : 26;
+                UILabel *activeMark=[[UILabel alloc] initWithFrame:CGRectMake(markX,row*rowHeight,markWidth,rowHeight)];
+                activeMark.text=@"✓"; activeMark.textAlignment=protectedTheme ? NSTextAlignmentCenter : NSTextAlignmentRight;
                 activeMark.font=[UIFont systemFontOfSize:18 weight:UIFontWeightBold];
                 activeMark.textColor=[UIColor colorWithRed:0.22 green:0.48 blue:0.28 alpha:1];
                 activeMark.userInteractionEnabled=NO;
