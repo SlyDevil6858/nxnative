@@ -1899,6 +1899,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         NSString *safeName=[safeBuffer stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@" ._"]];
         if (!safeName.length) safeName=@"Imported Theme";
         NSURL *root=[self themesDirectoryCreating:YES];
+        safeName=[self uniqueCustomThemeName:safeName root:root];
         NSURL *destination=[root URLByAppendingPathComponent:safeName isDirectory:YES];
         NSURL *staging=[root URLByAppendingPathComponent:[NSString stringWithFormat:@".import-%@",[NSUUID UUID].UUIDString] isDirectory:YES];
         NSError *copyError=nil;
@@ -1914,6 +1915,16 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             [fm removeItemAtURL:staging error:nil];
             failure=[NSString stringWithFormat:@"The theme manifest could not be normalized. %@",copyError.localizedDescription ?: @""];
             return;
+        }
+        NSMutableDictionary *stagedJSON=[[self validThemeJSONAtFolder:staging] mutableCopy];
+        if (stagedJSON) {
+            stagedJSON[@"name"]=safeName;
+            NSData *normalizedData=[NSJSONSerialization dataWithJSONObject:stagedJSON options:NSJSONWritingPrettyPrinted error:&copyError];
+            if (!normalizedData || ![normalizedData writeToURL:canonical options:NSDataWritingAtomic error:&copyError]) {
+                [fm removeItemAtURL:staging error:nil];
+                failure=[NSString stringWithFormat:@"The imported theme name could not be saved. %@",copyError.localizedDescription ?: @""];
+                return;
+            }
         }
         NSURL *backup=[root URLByAppendingPathComponent:[NSString stringWithFormat:@".backup-%@",[NSUUID UUID].UUIDString] isDirectory:YES];
         BOOL hadExisting=[fm fileExistsAtPath:destination.path];
@@ -2084,6 +2095,35 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [self refresh];
     [self persistCustomTheme];
 }
+- (NSString *)uniqueCustomThemeName:(NSString *)proposed root:(NSURL *)root {
+    NSString *base=[proposed stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+    if (!base.length) base=@"Imported Theme";
+    NSMutableSet<NSString *> *existing=[NSMutableSet set];
+    NSMutableArray<NSURL *> *directories=[NSMutableArray array];
+    if (root) [directories addObject:root];
+    NSURL *bundled=[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES];
+    if (bundled && ![bundled.standardizedURL.path isEqualToString:root.standardizedURL.path]) [directories addObject:bundled];
+    NSFileManager *fm=NSFileManager.defaultManager;
+    for (NSURL *directory in directories) {
+        NSArray<NSURL *> *entries=[fm contentsOfDirectoryAtURL:directory includingPropertiesForKeys:@[NSURLIsDirectoryKey] options:NSDirectoryEnumerationSkipsHiddenFiles error:nil];
+        for (NSURL *entry in entries) {
+            if (![entry.lastPathComponent hasPrefix:@"."] &&
+                [[entry resourceValuesForKeys:@[NSURLIsDirectoryKey] error:nil][NSURLIsDirectoryKey] boolValue]) {
+                [existing addObject:entry.lastPathComponent.lowercaseString];
+                NSDictionary *manifest=[self validThemeJSONAtFolder:entry];
+                NSString *display=[manifest[@"name"] isKindOfClass:NSString.class] ? manifest[@"name"] : nil;
+                if (display.length) [existing addObject:display.lowercaseString];
+            }
+        }
+    }
+    NSString *candidate=base;
+    NSUInteger suffix=2;
+    while ([existing containsObject:candidate.lowercaseString] ||
+           [fm fileExistsAtPath:[root URLByAppendingPathComponent:candidate isDirectory:YES].path]) {
+        candidate=[NSString stringWithFormat:@"%@ %lu",base,(unsigned long)suffix++];
+    }
+    return candidate;
+}
 - (void)createCustomTheme {
     NSURL *root=[self themesDirectoryCreating:YES];
     UIAlertController *prompt=[UIAlertController alertControllerWithTitle:@"Create Custom Theme"
@@ -2102,11 +2142,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         for (NSUInteger i=0;i<name.length;i++) { unichar ch=[name characterAtIndex:i]; [safe appendFormat:@"%C",[allowed characterIsMember:ch]?ch:'_']; }
         NSString *folderName=[safe stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@" ._"]];
         if (!folderName.length) folderName=@"My Custom Theme";
+        folderName=[self uniqueCustomThemeName:folderName root:root];
         NSURL *destination=[root URLByAppendingPathComponent:folderName isDirectory:YES];
-        NSUInteger suffix=2;
-        while ([NSFileManager.defaultManager fileExistsAtPath:destination.path]) {
-            destination=[root URLByAppendingPathComponent:[NSString stringWithFormat:@"%@ %lu",folderName,(unsigned long)suffix++] isDirectory:YES];
-        }
         NSDictionary *source=[self validThemeJSONAtFolder:[NSURL fileURLWithPath:_themePath ?: @""]];
         NSMutableDictionary *json=source?[source mutableCopy]:[NSMutableDictionary dictionary];
         if (!json.count) {
