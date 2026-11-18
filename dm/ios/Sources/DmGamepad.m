@@ -1539,7 +1539,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 }
 - (void)updateThemeMenu {
     NSString *current=[NSUserDefaults.standardUserDefaults stringForKey:k_theme_name_key] ?: @"ANIMAL WELL";
-    [_themeButton setTitle:[NSString stringWithFormat:@"%@ ▾",current] forState:UIControlStateNormal];
+    [self setEditorButton:_themeButton title:[NSString stringWithFormat:@"%@ ▾",current]];
     for (UIView *view in _themeMenuScroll.subviews) [view removeFromSuperview];
 
     NSURL *documentsRoot=[self themesDirectoryCreating:YES];
@@ -2055,6 +2055,13 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     panel.clipsToBounds=YES;
     panel.overrideUserInterfaceStyle=UIUserInterfaceStyleDark;
 }
+- (void)setEditorButton:(UIButton *)button title:(NSString *)title {
+    if (!button || [[button titleForState:UIControlStateNormal] isEqualToString:title]) return;
+    [UIView transitionWithView:button.titleLabel duration:0.14
+        options:UIViewAnimationOptionTransitionCrossDissolve|UIViewAnimationOptionBeginFromCurrentState|UIViewAnimationOptionAllowAnimatedContent
+        animations:^{ [button setTitle:title forState:UIControlStateNormal]; }
+        completion:nil];
+}
 - (UIButton *)editorButton:(NSString *)title action:(SEL)action frame:(CGRect)frame parent:(UIView *)parent {
     UIButton *button=[UIButton buttonWithType:UIButtonTypeSystem]; button.frame=frame;
     [button setTitle:title forState:UIControlStateNormal];
@@ -2347,9 +2354,9 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         }
         _sizeSlider.value=count?scale/count:1;
         _alphaSlider.value=count?alpha/count:1;
-        [_chooseButton setTitle:@"All controls ▾" forState:UIControlStateNormal];
+        [self setEditorButton:_chooseButton title:@"All controls ▾"];
     } else {
-        [_chooseButton setTitle:[NSString stringWithFormat:@"%@ ▾",[self controlID:_selected]] forState:UIControlStateNormal];
+        [self setEditorButton:_chooseButton title:[NSString stringWithFormat:@"%@ ▾",[self controlID:_selected]]];
         _sizeSlider.value=styleOnly?1:[self scale:_selected];
         NSNumber *alpha=_custom[[self controlID:_selected]][@"alpha"];
         _alphaSlider.value=styleOnly?1:(alpha?alpha.floatValue:1);
@@ -2363,7 +2370,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     NSString *colorKey=_selected<0 ? nil : [self themeColorKeyForControl:_selected];
     _colorPickerControl=_selected;
     UIColor *wellColor=[self currentColorForEditorSelection];
-    [_colorTargetButton setTitle:[NSString stringWithFormat:@"%@ ▾",[self colorTargetName]] forState:UIControlStateNormal];
+    [self setEditorButton:_colorTargetButton title:[NSString stringWithFormat:@"%@ ▾",[self colorTargetName]]];
     _editorColor=wellColor;
     [self refreshColorWellAppearance];
     BOOL builtInTheme=[self isBuiltInThemeSelected];
@@ -2432,8 +2439,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     if (presenter) [presenter presentViewController:alert animated:YES completion:nil];
 }
 - (void)updateProfileMenu {
-    [_profileButton setTitle:[NSString stringWithFormat:@"%@ ▾",[_profiles name:_profiles.selected]] forState:UIControlStateNormal];
-    [_saveAsButton setTitle:@"Save as…" forState:UIControlStateNormal];
+    [self setEditorButton:_profileButton title:[NSString stringWithFormat:@"%@ ▾",[_profiles name:_profiles.selected]]];
+    [self setEditorButton:_saveAsButton title:@"Save as…"];
 }
 - (void)beginLauncherEdit {
     // The launcher preview is not a live gamepad session. Keep editing available
