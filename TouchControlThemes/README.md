@@ -6,14 +6,13 @@ Themes can be bundled into the IPA or imported by the user.
 
 - `ANIMAL WELL` — the default touch control theme. Its `theme.json` lives in `OVERRIDES/ANIMAL WELL/` alongside that game's icon and launcher background; it is bundled independently of the optional theme selections.
 - `CLASSIC` — the brighter neutral-gray theme.
-- `FOREST` — the restored forest-green theme with gold accents.
 
-The Run workflow menu controls whether CLASSIC and FOREST are bundled. ANIMAL WELL is always bundled from its game-specific override folder. Other themes can still be imported by the user.
+The Run workflow menu controls whether CLASSIC is bundled. ANIMAL WELL is always bundled from its game-specific override folder. Other themes can still be imported by the user.
 
 ## Installing a theme
 
 1. Open the launcher and choose **Import touch controls theme**, or open the in-game control editor and choose **Import Theme…**.
-2. Select the individual theme folder (for example, `Forest`). You can also select this `TouchControlThemes` parent folder when it contains exactly one valid theme folder.
+2. Select the individual theme folder (for example, `CLASSIC`). You can also select this `TouchControlThemes` parent folder when it contains exactly one valid theme folder.
 3. Choose the installed theme from **Control skin** in the launcher, or from the in-game editor's **Theme** menu.
 
 The selected theme is saved and applied when the game starts.
