@@ -8,6 +8,11 @@ on:
         required: true
         type: string
         default: "SWITCH/ROMS"
+      rom_file:
+        description: "Exact ROM filename from the list shown in the workflow run summary"
+        required: true
+        type: string
+        default: "AnimalWell.xci"
       prod_keys_path:
         description: "Path to prod.keys inside myprivaterepo"
         required: true
@@ -97,10 +102,11 @@ jobs:
           print(f"Using appearance overrides from OVERRIDES/{selected}/")
           PY
 
-      - name: Verify paths and required game files
+      - name: List ROM files and verify selected game file
         id: verify-input
         env:
           GAME_FOLDER: ${{ inputs.game_folder }}
+          ROM_FILE: ${{ inputs.rom_file }}
           PROD_KEYS_PATH: ${{ inputs.prod_keys_path }}
           DM_APP_BUILD: ${{ inputs.build_number }}
         run: |
@@ -111,6 +117,7 @@ jobs:
           root = (Path(os.environ["GITHUB_WORKSPACE"]) / "private-game-data").resolve()
           game = (root / os.environ["GAME_FOLDER"]).resolve()
           keys = (root / os.environ["PROD_KEYS_PATH"]).resolve()
+          selected_name = os.environ["ROM_FILE"]
 
           def inside_root(path):
               return path == root or root in path.parents
@@ -120,38 +127,39 @@ jobs:
           if not inside_root(keys) or not keys.is_file():
               raise SystemExit("prod_keys_path must point to an existing file inside myprivaterepo")
 
+          all_files = sorted((p for p in game.iterdir() if p.is_file()), key=lambda p: p.name.lower())
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as out:
+              out.write("## Available files in " + os.environ["GAME_FOLDER"] + "\n\n")
+              if all_files:
+                  for path in all_files:
+                      out.write(f"- {path.name} ({path.stat().st_size:,} bytes)\n")
+              else:
+                  out.write("No files found.\n")
+              out.write("\nEnter one exact filename in the **ROM file** field when manually starting the workflow.\n")
+
           extensions = {".nsp", ".xci", ".nsz", ".xcz"}
-          packages = [
-              p for p in game.iterdir()
-              if p.is_file() and p.suffix.lower() in extensions and p.stat().st_size > 0
-          ]
-          if not packages:
+          rom_files = [p for p in all_files if p.suffix.lower() in extensions and p.stat().st_size > 0]
+          print("Files found in ROM folder:")
+          for path in all_files:
+              print(f"  {path.name} ({path.stat().st_size:,} bytes)")
+          if not rom_files:
               raise SystemExit("No non-empty .nsp, .xci, .nsz or .xcz files found directly inside game_folder")
 
-          # Choose the base game ROM for the output name. Updates and DLC remain
-          # available to nxnative in the folder, but should not name the app.
-          xci = [p for p in packages if p.suffix.lower() == ".xci"]
-          base_nsp = [
-              p for p in packages
-              if p.suffix.lower() in {".nsp", ".nsz"}
-              and not any(word in p.stem.lower() for word in ("update", "patch", "dlc"))
-          ]
-          candidates = xci if xci else base_nsp
-          if len(candidates) != 1:
-              names = ", ".join(p.name for p in candidates) or "none"
-              raise SystemExit(
-                  "Could not identify one base ROM for the IPA filename. "
-                  f"Candidates: {names}. Keep one base .xci, or one base .nsp/.nsz "
-                  "alongside any update/DLC files."
-              )
-          # Replace dot separators in release-style ROM names with spaces.
-          rom_name = " ".join(candidates[0].stem.replace(".", " ").split())
+          if Path(selected_name).name != selected_name or "/" in selected_name or "\\" in selected_name or selected_name in {"", ".", ".."}:
+              raise SystemExit("rom_file must be the exact filename of a file directly inside game_folder.")
+          selected = game / selected_name
+          if selected not in rom_files:
+              available = ", ".join(p.name for p in rom_files)
+              raise SystemExit(f"Selected ROM '{selected_name}' was not found in {os.environ['GAME_FOLDER']}. Available ROMs: {available or '(none)'}")
+
+          rom_name = " ".join(selected.stem.replace(".", " ").split())
           if not rom_name.strip() or any(c in rom_name for c in "\r\n"):
-              raise SystemExit("The base ROM filename is empty or invalid.")
+              raise SystemExit("The selected ROM filename is empty or invalid.")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
               output.write(f"ipa_name={rom_name}\n")
+              output.write(f"rom_file={selected.name}\n")
 
-          print(f"Found {len(packages)} game package file(s).")
+          print(f"Selected ROM: {selected.name}")
           print(f"Initial IPA filename: {rom_name}.ipa (the build step appends A15 and the metadata version)")
           print("prod.keys file exists; its contents will not be printed or uploaded.")
           PY
@@ -187,6 +195,7 @@ jobs:
         id: build-ipa
         env:
           GAME_FOLDER: ${{ inputs.game_folder }}
+          ROM_FILE: ${{ steps.verify-input.outputs.rom_file }}
           PROD_KEYS_PATH: ${{ inputs.prod_keys_path }}
           DM_APP_BUILD: ${{ inputs.build_number }}
           DM_ICON: ${{ env.NXNATIVE_CUSTOM_ICON }}
@@ -197,7 +206,9 @@ jobs:
         run: |
           set -o pipefail
           DATA_ROOT="$GITHUB_WORKSPACE/private-game-data"
-          GAME_DIR="$DATA_ROOT/$GAME_FOLDER"
+          GAME_DIR="$RUNNER_TEMP/selected-rom"
+          mkdir -p "$GAME_DIR"
+          cp -- "$DATA_ROOT/$GAME_FOLDER/$ROM_FILE" "$GAME_DIR/"
           KEYS_FILE="$DATA_ROOT/$PROD_KEYS_PATH"
           BUILD_LOG="$RUNNER_TEMP/nxnative-build.log"
           BASE_IPA="$RUNNER_TEMP/${{ steps.verify-input.outputs.ipa_name }}.ipa"
