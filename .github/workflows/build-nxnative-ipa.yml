@@ -139,7 +139,7 @@ jobs:
         if: steps.verify-input.outputs.list_only != 'true'
         working-directory: nxnative
         env:
-          ROM_FILE: ${{ steps.verify-input.outputs.rom_file }}
+          OVERRIDE_FOLDER: ${{ steps.verify-input.outputs.override_folder }}
           OVERRIDES_ROOT: ${{ github.workspace }}/nxnative/OVERRIDES
           DOMINANT_COLOR_STYLING: ${{ inputs.dominant_color_styling }}
           CUSTOM_ACCENT_HEX: ${{ inputs.custom_accent_hex }}
@@ -150,8 +150,7 @@ jobs:
           from pathlib import Path
 
           overrides_root = Path(os.environ["OVERRIDES_ROOT"]).resolve()
-          rom_file = os.environ["ROM_FILE"]
-          rom_stem = Path(rom_file).stem
+          rom_stem = os.environ["OVERRIDE_FOLDER"]
           if not rom_stem or rom_stem in {".", ".."} or "/" in rom_stem or "\\" in rom_stem or any(c in rom_stem for c in "\r\n"):
               raise SystemExit("The selected ROM filename cannot be used as an override folder name.")
 
@@ -162,7 +161,7 @@ jobs:
               raise SystemExit("The selected ROM filename produced an invalid override path.")
           if not folder.exists():
               folder.mkdir(parents=True, exist_ok=True)
-              (folder / ".keep").write_text("ROM-matched override folder. Add ICON.png, BACKGROUND.png, and/or theme.json here.\n", encoding="utf-8")
+              (folder / "README.md").write_text("ROM-matched override folder. Add ICON.png, BACKGROUND.png, and/or theme.json here.\n", encoding="utf-8")
               print(f"Created OVERRIDES/{rom_stem}/ for this ROM.")
           elif not folder.is_dir():
               raise SystemExit(f"Override path exists but is not a folder: OVERRIDES/{rom_stem}")
