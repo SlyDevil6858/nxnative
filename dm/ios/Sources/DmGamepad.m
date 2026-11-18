@@ -1679,7 +1679,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         BOOL editingThisTheme=[_themeRenamePath isEqualToString:path];
         if (editingThisTheme) {
             UITextField *field=[[UITextField alloc] initWithFrame:CGRectMake(4,row*rowHeight+7,204,34)];
-            field.text=title; field.placeholder=@"CUSTOM THEME"; field.borderStyle=UITextBorderStyleRoundedRect;
+            field.text=title; field.placeholder=@"Theme name"; field.borderStyle=UITextBorderStyleRoundedRect;
             field.backgroundColor=[UIColor colorWithWhite:1 alpha:0.10]; field.textColor=UIColor.whiteColor; field.tintColor=UIColor.whiteColor;
             field.font=[UIFont systemFontOfSize:13]; field.autocapitalizationType=UITextAutocapitalizationTypeWords; field.clearButtonMode=UITextFieldViewModeWhileEditing;
             field.returnKeyType=UIReturnKeyDone; field.accessibilityLabel=@"New theme name"; _themeRenameField=field; [_themeMenuScroll addSubview:field];
@@ -2162,7 +2162,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         message:@"This creates an editable copy of the current theme in TouchControlThemes."
         preferredStyle:UIAlertControllerStyleAlert];
     [prompt addTextFieldWithConfigurationHandler:^(UITextField *field) {
-        field.placeholder=@"Theme name";
+        field.placeholder=@"CUSTOM THEME";
         field.text=@"CUSTOM THEME";
         field.autocapitalizationType=UITextAutocapitalizationTypeWords;
     }];
