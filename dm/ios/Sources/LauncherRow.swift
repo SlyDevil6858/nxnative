@@ -111,7 +111,7 @@ struct SettingRow: View {
                     } label: {
                         HStack(spacing: 8) {
                             Text(option[1])
-                                .foregroundStyle(locked ? Color(white: 0.58) : accentColor)
+                                .foregroundStyle(locked ? Color(white: 0.58) : .white)
                                 .lineLimit(1)
                             Spacer(minLength: 4)
                             if (m.values[s.env] ?? s.def) == option[0] {
