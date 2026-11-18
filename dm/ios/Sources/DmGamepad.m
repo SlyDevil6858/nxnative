@@ -2176,6 +2176,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     if (root) [directories addObject:root];
     NSURL *bundled=[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES];
     if (bundled && ![bundled.standardizedURL.path isEqualToString:root.standardizedURL.path]) [directories addObject:bundled];
+    NSURL *overrideTheme=[self selectedOverrideThemeDirectory];
+    if (overrideTheme && ![overrideTheme.standardizedURL.path isEqualToString:root.standardizedURL.path]) [directories addObject:overrideTheme];
     NSFileManager *fm=NSFileManager.defaultManager;
     for (NSURL *directory in directories) {
         NSArray<NSURL *> *entries=[fm contentsOfDirectoryAtURL:directory includingPropertiesForKeys:@[NSURLIsDirectoryKey] options:NSDirectoryEnumerationSkipsHiddenFiles error:nil];
