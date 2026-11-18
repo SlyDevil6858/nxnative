@@ -527,6 +527,18 @@ private struct LauncherView: View {
             .appendingPathComponent("ANIMAL WELL", isDirectory: true)
     }
 
+    private func selectedOverrideThemeDirectory() -> URL? {
+        guard let folder = info("DMOverrideFolder") as? String,
+              !folder.isEmpty, folder != ".", folder != "..",
+              !folder.contains("/"), !folder.contains("\\"),
+              let root = Bundle.main.resourceURL?.appendingPathComponent("OVERRIDES", isDirectory: true) else {
+            return nil
+        }
+        let selected = root.appendingPathComponent(folder, isDirectory: true)
+        return FileManager.default.fileExists(atPath: selected.appendingPathComponent("theme.json").path)
+            ? selected : nil
+    }
+
     private func bundledThemeFolders() -> [URL] {
         let bundledRoot = Bundle.main.resourceURL?.appendingPathComponent("TouchControlThemes", isDirectory: true)
         var folders = bundledRoot.flatMap {
@@ -535,6 +547,10 @@ private struct LauncherView: View {
         if let animalWell = animalWellThemeDirectory(),
            FileManager.default.fileExists(atPath: animalWell.appendingPathComponent("theme.json").path) {
             folders.append(animalWell)
+        }
+        if let selectedOverride = selectedOverrideThemeDirectory(),
+           !folders.contains(where: { $0.standardizedFileURL == selectedOverride.standardizedFileURL }) {
+            folders.append(selectedOverride)
         }
         return folders
     }
@@ -597,6 +613,11 @@ private struct LauncherView: View {
            let name = json["name"] as? String, !name.isEmpty {
             existing.insert(name)
         }
+        if let selectedOverride = selectedOverrideThemeDirectory(),
+           let json = themeJSON(in: selectedOverride),
+           let name = json["name"] as? String, !name.isEmpty {
+            existing.insert(name)
+        }
         var candidate = base
         var suffix = 2
         while existing.contains(candidate) {
@@ -623,8 +644,10 @@ private struct LauncherView: View {
         let path = URL(fileURLWithPath: theme.path).standardizedFileURL.path
         let root = bundledRoot.standardizedFileURL.path + "/"
         if path.hasPrefix(root) { return true }
-        guard let animalWell = animalWellThemeDirectory() else { return false }
-        return path == animalWell.standardizedFileURL.path
+        if let animalWell = animalWellThemeDirectory(),
+           path == animalWell.standardizedFileURL.path { return true }
+        guard let selectedOverride = selectedOverrideThemeDirectory() else { return false }
+        return path == selectedOverride.standardizedFileURL.path
     }
 
     private func canDeleteTheme(_ theme: LauncherTheme) -> Bool {
@@ -736,10 +759,12 @@ private struct LauncherView: View {
             func priority(_ theme: LauncherTheme) -> Int {
                 let folder = normalizedThemeName(URL(fileURLWithPath: theme.path).lastPathComponent)
                 let display = normalizedThemeName(theme.name)
-                if folder == "ANIMAL WELL" || display == "ANIMAL WELL" { return 0 }
-                if folder == "CLASSIC" || display == "CLASSIC" { return 1 }
+                let selectedOverridePath = selectedOverrideThemeDirectory()?.standardizedFileURL.path
+                if selectedOverridePath == URL(fileURLWithPath: theme.path).standardizedFileURL.path { return 0 }
+                if folder == "ANIMAL WELL" || display == "ANIMAL WELL" { return 1 }
+                if folder == "CLASSIC" || display == "CLASSIC" { return 2 }
                 // FOREST is intentionally treated like an imported/user-added theme.
-                return 2
+                return 3
             }
             let leftPriority = priority($0), rightPriority = priority($1)
             if leftPriority != rightPriority { return leftPriority < rightPriority }
