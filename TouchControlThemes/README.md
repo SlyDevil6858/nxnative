@@ -1,13 +1,13 @@
 # Touch Control Themes
 
-Themes can be bundled into the IPA or imported by the user.
+Built-in themes are bundled into the IPA; additional themes can be imported by the user.
 
 ## Built-in themes
 
-- `ANIMAL WELL` — the default touch control theme. Its `theme.json` lives in `OVERRIDES/ANIMAL WELL/` alongside that game's icon and launcher background; it is bundled independently of the optional theme selections.
-- `CLASSIC` — the brighter neutral-gray theme.
+- `CLASSIC` — the brighter neutral-gray theme. It is always bundled.
+- The touch control theme in the selected `OVERRIDES/<folder>/` directory is also bundled and appears first in the theme lists. For example, `OVERRIDES/ANIMAL WELL/theme.json` supplies the ANIMAL WELL theme.
 
-The Run workflow menu controls whether CLASSIC is bundled. ANIMAL WELL is always bundled from its game-specific override folder. Other themes can still be imported by the user.
+The selected override theme is listed above CLASSIC; other bundled themes and imported themes follow. The selected override theme remains protected as a built-in theme.
 
 ## Installing a theme
 
