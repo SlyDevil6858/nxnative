@@ -1691,7 +1691,20 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             pick.tintColor=UIColor.whiteColor;
             [pick setTitleColor:UIColor.whiteColor forState:UIControlStateNormal];
             pick.accessibilityLabel=[NSString stringWithFormat:@"Select %@",title];
-            [pick addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; [weakSelf applyThemePath:path name:title]; [weakSelf closeThemeMenu]; }] forControlEvents:UIControlEventTouchUpInside]; [_themeMenuScroll addSubview:pick];
+            [pick addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) {
+                (void)action;
+                DmGamepad *strongSelf=weakSelf;
+                if (!strongSelf) return;
+                // Selecting another theme cancels any in-progress rename and
+                // explicitly dismisses its keyboard before closing the selector.
+                UITextField *renameField=strongSelf->_themeRenameField;
+                strongSelf->_themeRenamePath=nil;
+                strongSelf->_themeRenameField=nil;
+                strongSelf->_themeMenuFramePinned=NO;
+                [renameField resignFirstResponder];
+                [strongSelf applyThemePath:path name:title];
+                [strongSelf closeThemeMenu];
+            }] forControlEvents:UIControlEventTouchUpInside]; [_themeMenuScroll addSubview:pick];
             if ([current isEqualToString:title]) {
                 CGFloat markX=protectedTheme ? 252 : 178;
                 CGFloat markWidth=protectedTheme ? 32 : 26;
