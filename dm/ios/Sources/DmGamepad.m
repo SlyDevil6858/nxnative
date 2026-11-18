@@ -414,6 +414,7 @@ static void pads_start(void);   // Physical controllers, below
     UIView *_themeMenuPanel;
     UIScrollView *_themeMenuScroll;
     CGRect _themeMenuPinnedFrame;
+    CGRect _themeMenuRenameOriginFrame;
     BOOL _themeMenuFramePinned;
     UIButton *_editorPopupOverlay;
     UIView *_editorPopupPanel;
@@ -467,6 +468,7 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
     if ((self = [super initWithFrame:f])) {
         self.multipleTouchEnabled = YES; self.opaque = NO; self.backgroundColor = UIColor.clearColor;
         [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(themeRenameKeyboardWillShow:) name:UIKeyboardWillShowNotification object:nil];
+        [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(themeRenameKeyboardWillHide:) name:UIKeyboardWillHideNotification object:nil];
         _launcherPreview = g_launcher_preview;
         const char *feedback = getenv("DM_TOUCH_HAPTICS");
         if (!feedback || atoi(feedback)) {
@@ -1482,6 +1484,16 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     if (_themeRenameField.isFirstResponder) [_themeRenameField resignFirstResponder];
     _themeMenuFramePinned=NO;
 }
+- (void)handleThemeMenuOutsideTap:(UITapGestureRecognizer *)gesture {
+    (void)gesture;
+    // While renaming, an outside tap is a keyboard-dismiss action, not a
+    // request to dismiss the theme selector itself.
+    if (_themeRenamePath.length && _themeRenameField) {
+        if (_themeRenameField.isFirstResponder) [_themeRenameField resignFirstResponder];
+        return;
+    }
+    [self closeThemeMenu];
+}
 - (void)themeRenameKeyboardWillShow:(NSNotification *)notification {
     if (!_themeMenuFramePinned || !_themeRenameField || _themeMenuOverlay.hidden) return;
     NSDictionary *info=notification.userInfo;
@@ -1491,7 +1503,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     CGRect keyboardFrame=[self convertRect:keyboardScreen fromView:nil];
     CGFloat panelHeight=_themeMenuPanel.frame.size.height;
     CGFloat availableBottom=CGRectGetMinY(keyboardFrame)-8;
-    CGFloat targetY=MIN(_themeMenuPinnedFrame.origin.y,availableBottom-panelHeight);
+    CGFloat originY=_themeMenuRenameOriginFrame.origin.y;
+    CGFloat targetY=MIN(originY,availableBottom-panelHeight);
     targetY=MAX(8,targetY);
     if (fabs(targetY-_themeMenuPinnedFrame.origin.y)<0.5) return;
     _themeMenuPinnedFrame.origin.y=targetY;
@@ -1499,6 +1512,17 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     UIViewAnimationOptions curve=(UIViewAnimationOptions)([info[UIKeyboardAnimationCurveUserInfoKey] integerValue]<<16);
     [UIView animateWithDuration:duration delay:0 options:curve|UIViewAnimationOptionBeginFromCurrentState animations:^{
         self->_themeMenuPanel.frame=CGRectMake(self->_themeMenuPinnedFrame.origin.x,targetY,self->_themeMenuPanel.frame.size.width,self->_themeMenuPanel.frame.size.height);
+    } completion:nil];
+}
+- (void)themeRenameKeyboardWillHide:(NSNotification *)notification {
+    if (!_themeMenuFramePinned || !_themeRenameField || _themeMenuOverlay.hidden) return;
+    NSDictionary *info=notification.userInfo;
+    NSTimeInterval duration=[info[UIKeyboardAnimationDurationUserInfoKey] doubleValue];
+    UIViewAnimationOptions curve=(UIViewAnimationOptions)([info[UIKeyboardAnimationCurveUserInfoKey] integerValue]<<16);
+    CGFloat originY=_themeMenuRenameOriginFrame.origin.y;
+    _themeMenuPinnedFrame.origin.y=originY;
+    [UIView animateWithDuration:duration delay:0 options:curve|UIViewAnimationOptionBeginFromCurrentState animations:^{
+        self->_themeMenuPanel.frame=CGRectMake(self->_themeMenuRenameOriginFrame.origin.x,originY,self->_themeMenuPanel.frame.size.width,self->_themeMenuPanel.frame.size.height);
     } completion:nil];
 }
 - (void)updateThemeMenu {
@@ -1616,7 +1640,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
                 [rename setImage:[[UIImage systemImageNamed:@"pencil" withConfiguration:renameSymbol] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate] forState:UIControlStateNormal];
                 rename.tintColor=[self editorAccentColor]; rename.accessibilityLabel=[NSString stringWithFormat:@"Rename %@",title];
                 NSString *renamePath=[path copy];
-                [rename addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; DmGamepad *strongSelf=weakSelf; if (!strongSelf) return; strongSelf->_themeMenuPinnedFrame=strongSelf->_themeMenuPanel.frame; strongSelf->_themeMenuFramePinned=YES; strongSelf->_themeRenamePath=renamePath; strongSelf->_themeRenameField=nil; [strongSelf updateThemeMenu]; }] forControlEvents:UIControlEventTouchUpInside];
+                [rename addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; DmGamepad *strongSelf=weakSelf; if (!strongSelf) return; strongSelf->_themeMenuRenameOriginFrame=strongSelf->_themeMenuPanel.frame; strongSelf->_themeMenuPinnedFrame=strongSelf->_themeMenuRenameOriginFrame; strongSelf->_themeMenuFramePinned=YES; strongSelf->_themeRenamePath=renamePath; strongSelf->_themeRenameField=nil; [strongSelf updateThemeMenu]; }] forControlEvents:UIControlEventTouchUpInside];
                 [_themeMenuScroll addSubview:rename];
             }
             if (!editingThisTheme) {
@@ -2108,7 +2132,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _themeMenuOverlay=[UIView new];
     _themeMenuOverlay.backgroundColor=UIColor.clearColor;
     _themeMenuOverlay.hidden=YES;
-    UITapGestureRecognizer *themeMenuOutsideTap=[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(closeThemeMenu)];
+    UITapGestureRecognizer *themeMenuOutsideTap=[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleThemeMenuOutsideTap:)];
     themeMenuOutsideTap.delegate=self;
     [_themeMenuOverlay addGestureRecognizer:themeMenuOutsideTap];
     [self addSubview:_themeMenuOverlay];
