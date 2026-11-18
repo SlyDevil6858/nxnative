@@ -23,11 +23,6 @@ on:
         required: false
         type: string
         default: "ANIMAL WELL"
-      include_classic_theme:
-        description: "Bundle the CLASSIC touch controls theme"
-        required: true
-        type: boolean
-        default: true
       dominant_color_styling:
         description: "Use the game's app-icon dominant color for launcher accents (off uses the default blue styling)"
         required: true
@@ -61,32 +56,6 @@ jobs:
           path: nxnative
           persist-credentials: false
 
-      - name: Configure bundled touch control themes
-        working-directory: nxnative
-        env:
-          INCLUDE_CLASSIC: ${{ inputs.include_classic_theme }}
-        run: |
-          python3 - <<'PY'
-          import os
-          from pathlib import Path
-
-          theme_root = Path("TouchControlThemes")
-          selections = {
-              "CLASSIC": os.environ["INCLUDE_CLASSIC"].lower() == "true",
-          }
-          for name, enabled in selections.items():
-              folder = theme_root / name
-              if not folder.is_dir() or not (folder / "theme.json").is_file():
-                  raise SystemExit(f"Required built-in theme folder is missing or incomplete: {folder}")
-              if not enabled:
-                  import shutil
-                  shutil.rmtree(folder)
-
-          bundled = [name for name, enabled in selections.items() if enabled]
-          print("Bundled optional themes in TouchControlThemes/: " + (", ".join(bundled) or "(none)"))
-          print("ANIMAL WELL theme is bundled separately from OVERRIDES/ANIMAL WELL/.")
-          PY
-
       - name: Select launcher appearance override folder
         working-directory: nxnative
         env:
@@ -101,6 +70,8 @@ jobs:
           selected = os.environ.get("OVERRIDE_FOLDER", "").strip()
 
           if not selected:
+              with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
+                  env.write("NXNATIVE_OVERRIDE_FOLDER=\n")
               print("No appearance override folder selected; using the game's original icon and launcher background.")
               raise SystemExit(0)
 
@@ -122,6 +93,7 @@ jobs:
           with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
               env.write(f"NXNATIVE_CUSTOM_ICON={icon}\n")
               env.write(f"NXNATIVE_CUSTOM_BACKGROUND={background}\n")
+              env.write(f"NXNATIVE_OVERRIDE_FOLDER={selected}\n")
           print(f"Using appearance overrides from OVERRIDES/{selected}/")
           PY
 
@@ -219,6 +191,7 @@ jobs:
           DM_APP_BUILD: ${{ inputs.build_number }}
           DM_ICON: ${{ env.NXNATIVE_CUSTOM_ICON }}
           DM_LAUNCHER_BACKGROUND: ${{ env.NXNATIVE_CUSTOM_BACKGROUND }}
+          DM_OVERRIDE_FOLDER: ${{ env.NXNATIVE_OVERRIDE_FOLDER }}
           DM_SHOW_FPS: "0"
           DM_DOMINANT_ACCENT: ${{ inputs.dominant_color_styling }}
         run: |
