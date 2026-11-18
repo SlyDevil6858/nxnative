@@ -2479,6 +2479,72 @@ def main(args=None):
         pkey = split_shaders(py, repo, [rfs.source(dirs[v]) for v in sv], [dirs[v] / 'ExeFS/main' for v in sv], sh / 'pkg', env, logs, g, own, oodle, dlc_roms, derive_dlc, derive_compute)
         ios = build_shaders(py, repo, sh, xlate, env, logs, g, pkey, mac)
     icon = next((d / 'icon.jpg' for d in (game, base) if (d / 'icon.jpg').exists()), None)   # the game icon nx_extract saved from the control data (English, icon.jpg); the packed version's first, then the base game's
+    # Make a ROM-specific touch theme from CLASSIC only when this game has no theme.json yet.
+    # The icon is extracted from the game's control data above, before XcodeGen bundles OVERRIDES.
+    override_folder = os.environ.get('DM_OVERRIDE_FOLDER', '').strip()
+    if override_folder:
+        override_dir = (repo / 'OVERRIDES' / override_folder).resolve()
+        overrides_root = (repo / 'OVERRIDES').resolve()
+        if override_dir.parent != overrides_root:
+            raise BuildError(f'invalid ROM override folder: {override_folder!r}')
+        manifest = override_dir / 'theme.json'
+        if not manifest.is_file():
+            classic_manifest = repo / 'TouchControlThemes' / 'CLASSIC' / 'theme.json'
+            if not classic_manifest.is_file():
+                raise BuildError(f'CLASSIC touch theme is missing: {classic_manifest}')
+            if not icon or not icon.is_file():
+                raise BuildError('cannot generate this ROM touch theme: the extracted game icon is missing')
+            try:
+                from PIL import Image
+                with Image.open(icon) as source_icon:
+                    quantized = source_icon.convert('RGB').resize((96, 96)).quantize(colors=12, method=Image.Quantize.MEDIANCUT)
+                    palette = quantized.getpalette() or []
+                    ranked = sorted(quantized.getcolors(96 * 96) or [], reverse=True)
+                candidates = []
+                for count, index in ranked:
+                    offset = index * 3
+                    if offset + 2 >= len(palette):
+                        continue
+                    rgb = tuple(palette[offset:offset + 3])
+                    if rgb not in candidates:
+                        candidates.append(rgb)
+                if not candidates:
+                    raise ValueError('the game icon did not contain any readable colours')
+                # Maximin selection spreads the palette across distinct icon colors.
+                sampled = [candidates.pop(0)]
+                while candidates and len(sampled) < 4:
+                    def distance(color):
+                        return min(sum((color[i] - chosen[i]) ** 2 for i in range(3)) for chosen in sampled)
+                    next_color = max(candidates, key=distance)
+                    sampled.append(next_color)
+                    candidates.remove(next_color)
+                while len(sampled) < 4:
+                    sampled.append(sampled[-1])
+                def hex_color(rgb):
+                    return ''.join(f'{channel:02X}' for channel in rgb)
+                def luminance(rgb):
+                    channels = [v / 255 for v in rgb]
+                    linear = [v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4 for v in channels]
+                    return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+                def readable_text(rgb):
+                    return 'FFFFFF' if luminance(rgb) < 0.42 else '000000'
+                theme = json.loads(classic_manifest.read_text(encoding='utf-8'))
+                theme['name'] = override_folder
+                theme['palette'] = {
+                    'idle': hex_color(sampled[0]),
+                    'pressed': hex_color(sampled[1]),
+                    'outline': hex_color(sampled[2]),
+                    'ringFill': hex_color(sampled[3]),
+                    'text': readable_text(sampled[0]),
+                    'pressedText': readable_text(sampled[1]),
+                }
+                override_dir.mkdir(parents=True, exist_ok=True)
+                manifest.write_text(json.dumps(theme, indent=2) + '\n', encoding='utf-8')
+                say(f'created ROM-specific touch theme from CLASSIC for {override_folder}; sampled icon colors: {", ".join(hex_color(c) for c in sampled)}')
+            except Exception as error:
+                raise BuildError(f'could not create the ROM-specific touch theme from its game icon: {error}') from error
+        else:
+            say(f'keeping existing ROM-specific touch theme: {manifest}')
     motion = MOTION if args.motion is None else args.motion
     env_file = build_env_file(work, args.env_file or DM_ENV_FILE, motion, older)
     if not motion: say('motion (gyro): off, DM_MOTION=0 is built in (on the iPhone, DM_MOTION=1 in the app\'s Documents/env.txt turns it back on)')
