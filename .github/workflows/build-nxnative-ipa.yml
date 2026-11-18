@@ -23,11 +23,6 @@ on:
         required: false
         type: string
         default: "ANIMAL WELL"
-      include_animal_well_theme:
-        description: "Bundle the ANIMAL WELL touch controls theme"
-        required: true
-        type: boolean
-        default: true
       include_classic_theme:
         description: "Bundle the CLASSIC touch controls theme"
         required: true
@@ -74,7 +69,6 @@ jobs:
       - name: Configure bundled touch control themes
         working-directory: nxnative
         env:
-          INCLUDE_ANIMAL_WELL: ${{ inputs.include_animal_well_theme }}
           INCLUDE_CLASSIC: ${{ inputs.include_classic_theme }}
           INCLUDE_FOREST: ${{ inputs.include_forest_theme }}
         run: |
@@ -84,7 +78,6 @@ jobs:
 
           theme_root = Path("TouchControlThemes")
           selections = {
-              "ANIMAL WELL": os.environ["INCLUDE_ANIMAL_WELL"].lower() == "true",
               "CLASSIC": os.environ["INCLUDE_CLASSIC"].lower() == "true",
               "FOREST": os.environ["INCLUDE_FOREST"].lower() == "true",
           }
