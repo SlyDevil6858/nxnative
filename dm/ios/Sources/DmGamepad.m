@@ -414,12 +414,14 @@ static void pad_watch_select(GCController *c);
     UIButton *_fpsButton, *_hudButton;
     UIView *_themeMenuOverlay;
     UIView *_themeMenuPanel;
+    BOOL _themeMenuClosing;
     UIScrollView *_themeMenuScroll;
     CGRect _themeMenuPinnedFrame;
     CGRect _themeMenuRenameOriginFrame;
     BOOL _themeMenuFramePinned;
     UIButton *_editorPopupOverlay;
     UIView *_editorPopupPanel;
+    BOOL _editorPopupClosing;
     UIScrollView *_editorPopupScroll;
     UILabel *_editorPopupTitle;
     UILabel *_editInfo;
@@ -1586,7 +1588,10 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 - (void)toggleThemeMenu {
     if (_themeMenuOverlay.hidden) {
         [self updateThemeMenu];
+        _themeMenuClosing=NO;
         _themeMenuOverlay.hidden=NO;
+        _themeMenuPanel.alpha=1;
+        _themeMenuPanel.transform=CGAffineTransformIdentity;
         [self setNeedsLayout];
         [self layoutIfNeeded];
         [_themeMenuOverlay bringSubviewToFront:_themeMenuPanel];
@@ -1595,9 +1600,21 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     }
 }
 - (void)closeThemeMenu {
-    _themeMenuOverlay.hidden=YES;
+    if (_themeMenuOverlay.hidden || _themeMenuClosing) return;
+    _themeMenuClosing=YES;
     if (_themeRenameField.isFirstResponder) [_themeRenameField resignFirstResponder];
     _themeMenuFramePinned=NO;
+    [UIView animateWithDuration:0.20 delay:0
+        options:UIViewAnimationOptionCurveEaseIn|UIViewAnimationOptionBeginFromCurrentState
+        animations:^{
+            self->_themeMenuPanel.alpha=0;
+            self->_themeMenuPanel.transform=CGAffineTransformMakeTranslation(0,8);
+        } completion:^(__unused BOOL finished) {
+            self->_themeMenuOverlay.hidden=YES;
+            self->_themeMenuPanel.alpha=1;
+            self->_themeMenuPanel.transform=CGAffineTransformIdentity;
+            self->_themeMenuClosing=NO;
+        }];
 }
 - (void)handleThemeMenuOutsideTap:(UITapGestureRecognizer *)gesture {
     (void)gesture;
@@ -2472,7 +2489,21 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [_touchFeedback impactOccurredWithIntensity:0.6]; [_touchFeedback prepare];
     [self refreshHUDToggleButtons];
 }
-- (void)closeEditorPopup { _editorPopupOverlay.hidden=YES; }
+- (void)closeEditorPopup {
+    if (_editorPopupOverlay.hidden || _editorPopupClosing) return;
+    _editorPopupClosing=YES;
+    [UIView animateWithDuration:0.20 delay:0
+        options:UIViewAnimationOptionCurveEaseIn|UIViewAnimationOptionBeginFromCurrentState
+        animations:^{
+            self->_editorPopupPanel.alpha=0;
+            self->_editorPopupPanel.transform=CGAffineTransformMakeTranslation(0,8);
+        } completion:^(__unused BOOL finished) {
+            self->_editorPopupOverlay.hidden=YES;
+            self->_editorPopupPanel.alpha=1;
+            self->_editorPopupPanel.transform=CGAffineTransformIdentity;
+            self->_editorPopupClosing=NO;
+        }];
+}
 - (void)showEditorPopupWithTitle:(NSString *)title items:(NSArray<NSDictionary *> *)items {
     for (UIView *view in _editorPopupScroll.subviews) [view removeFromSuperview];
     _editorPopupTitle.text=title;
@@ -2505,6 +2536,9 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     }];
     _editorPopupOverlay.frame=self.bounds;
     _editorPopupPanel.center=CGPointMake(CGRectGetMidX(self.bounds),CGRectGetMidY(self.safe));
+    _editorPopupClosing=NO;
+    _editorPopupPanel.alpha=1;
+    _editorPopupPanel.transform=CGAffineTransformIdentity;
     _editorPopupOverlay.hidden=NO;
     [self bringSubviewToFront:_editorPopupOverlay];
     [_editorPopupOverlay bringSubviewToFront:_editorPopupPanel];
