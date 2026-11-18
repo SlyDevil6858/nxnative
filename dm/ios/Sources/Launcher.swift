@@ -319,10 +319,11 @@ private struct LauncherView: View {
         .background {
             if let background = launcherBackground() {
                 Image(uiImage: background).resizable().scaledToFill()
-                    .frame(width: geometry.size.width,
-                           height: geometry.size.height + launcherKeyboardHeight)
                     .clipped()
                     .overlay(.black.opacity(0.48))
+                    // Keep the artwork attached to the full launcher area
+                    // rather than sizing it from the keyboard-shrunk reader.
+                    .ignoresSafeArea(.keyboard, edges: themeRenamePath != nil ? .bottom : [])
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
         }
