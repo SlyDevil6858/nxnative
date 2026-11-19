@@ -1389,24 +1389,10 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     if (![folder isKindOfClass:NSString.class] || !folder.length ||
         [folder isEqualToString:@"."] || [folder isEqualToString:@".."] ||
         [folder containsString:@"/"] || [folder containsString:@"\\"]) return nil;
-    NSURL *bundleRoot=NSBundle.mainBundle.resourceURL;
-    // Current builds place the ROM-matched theme beside CLASSIC under
-    // TouchControlThemes. Resolve that canonical location first so the
-    // gamepad loader uses the same theme directory as the Swift launcher.
-    NSURL *bundledThemes=[bundleRoot URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES];
-    NSURL *selected=[bundledThemes URLByAppendingPathComponent:folder isDirectory:YES];
-    if ([NSFileManager.defaultManager fileExistsAtPath:[[selected URLByAppendingPathComponent:@"theme.json"] path]])
-        return selected;
-
-    // Compatibility with older bundles that stored the manifest directly
-    // under OVERRIDES/<ROM>/, and with bundles retaining the nested layout.
-    NSURL *overrides=[bundleRoot URLByAppendingPathComponent:@"OVERRIDES" isDirectory:YES];
-    NSURL *legacy=[overrides URLByAppendingPathComponent:folder isDirectory:YES];
-    if ([NSFileManager.defaultManager fileExistsAtPath:[[legacy URLByAppendingPathComponent:@"theme.json"] path]])
-        return legacy;
-    NSURL *nested=[legacy URLByAppendingPathComponent:folder isDirectory:YES];
-    return [NSFileManager.defaultManager fileExistsAtPath:[[nested URLByAppendingPathComponent:@"theme.json"] path]]
-        ? nested : nil;
+    NSURL *overrides=[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"OVERRIDES" isDirectory:YES];
+    NSURL *selected=[overrides URLByAppendingPathComponent:folder isDirectory:YES];
+    return [NSFileManager.defaultManager fileExistsAtPath:[[selected URLByAppendingPathComponent:@"theme.json"] path]]
+        ? selected : nil;
 }
 - (NSURL *)themesDirectoryCreating:(BOOL)create {
     NSFileManager *fm=NSFileManager.defaultManager;
