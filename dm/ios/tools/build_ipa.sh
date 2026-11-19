@@ -71,7 +71,10 @@ else [ -n "$V" ] && ls "$MSL_IOS/b-$V" 2> /dev/null | grep -q '_b.metallib$' || 
 
 t "app: $DM_DISPLAY_NAME $DM_APP_VERSION ($DM_BUNDLE_ID), language $DM_LANG$([ $DM_SHOW_FPS = YES ] && echo ', frame-rate counter on')"
 t "generate Gen/ (host sources, embedded modules, tables)"
-rm -rf Gen && mkdir -p Gen/dm || die "mkdir Gen"
+rm -rf Gen && mkdir -p Gen/dm Gen/TouchControlThemes || die "mkdir Gen"
+BUILTIN_THEMES="$DM/../TouchControlThemes"
+[ -d "$BUILTIN_THEMES" ] || die "built-in TouchControlThemes directory is missing: $BUILTIN_THEMES"
+cp -R "$BUILTIN_THEMES/." Gen/TouchControlThemes/ || die "stage built-in TouchControlThemes"
 python3 tools/gen_build.py "$DM/host" Gen > Gen/dm.xcconfig || die "gen_build"
 F=$(python3 tools/gen_embed.py "$PATCHED" Gen/embed.S $MODS) || die "gen_embed"
 echo "OTHER_LDFLAGS = \$(inherited) \$(DM_FRAMEWORKS) $F" >> Gen/dm.xcconfig
@@ -137,35 +140,39 @@ fi
 # DM_COPY_ROMFS=NO also for the prepared project: its Copy game resources phase (stage_resources.sh) then leaves the game files out and writes the image's identity; Gen/dm.xcconfig is made again by every run
 [ "${DM_COPY_ROMFS:-YES}" != NO ] || [ "$PREPARE_XCODE" != YES ] || echo "DM_COPY_ROMFS = NO" >> Gen/dm.xcconfig
 
-# Stage the selected ROM's touch theme as an explicit Xcode folder resource.
-# Do not rely on XcodeGen recursively discovering an arbitrary folder under
-# the repository's OVERRIDES directory.
+# Stage every selected ROM override file, and put its nested theme folder
+# beside CLASSIC in the single TouchControlThemes bundle resource.
 mkdir -p Gen/OVERRIDES || die "mkdir Gen/OVERRIDES"
 : > Gen/OVERRIDES/.keep || die "create OVERRIDES resource root"
 if [ -n "${DM_OVERRIDE_FOLDER:-}" ]; then
   case "$DM_OVERRIDE_FOLDER" in
     .|..|*/*|*\\*) die "invalid DM_OVERRIDE_FOLDER: $DM_OVERRIDE_FOLDER" ;;
   esac
-  SOURCE_THEME="$DM/../OVERRIDES/$DM_OVERRIDE_FOLDER"
-  [ -d "$SOURCE_THEME" ] || die "selected ROM override folder is missing: $SOURCE_THEME"
+  SOURCE_OVERRIDE="$DM/../OVERRIDES/$DM_OVERRIDE_FOLDER"
+  SOURCE_THEME="$SOURCE_OVERRIDE/$DM_OVERRIDE_FOLDER"
+  [ -d "$SOURCE_OVERRIDE" ] || die "selected ROM override folder is missing: $SOURCE_OVERRIDE"
   [ -s "$SOURCE_THEME/theme.json" ] || die "selected ROM theme.json is missing or empty: $SOURCE_THEME/theme.json"
-  python3 - "$SOURCE_THEME" "Gen/OVERRIDES/$DM_OVERRIDE_FOLDER" <<'PYTHEME' || die "stage selected ROM touch theme"
+  python3 - "$SOURCE_OVERRIDE" "Gen/OVERRIDES/$DM_OVERRIDE_FOLDER" "$SOURCE_THEME" "Gen/TouchControlThemes/$DM_OVERRIDE_FOLDER" <<'PYTHEME' || die "stage selected ROM touch theme"
 import json
 import shutil
 import sys
 from pathlib import Path
 
-source, destination = map(Path, sys.argv[1:])
-with (source / "theme.json").open(encoding="utf-8") as stream:
+source, override_destination, theme_source, theme_destination = map(Path, sys.argv[1:])
+with (theme_source / "theme.json").open(encoding="utf-8") as stream:
     theme = json.load(stream)
 if not isinstance(theme, dict) or not isinstance(theme.get("palette"), dict):
-    raise SystemExit("theme.json is not a valid touch theme manifest")
-if destination.exists():
-    shutil.rmtree(destination)
-shutil.copytree(source, destination)
-if (destination / "theme.json").read_bytes() != (source / "theme.json").read_bytes():
-    raise SystemExit("staged theme.json differs from source")
-print(f"staged selected override: {destination}")
+    raise SystemExit("nested theme.json is not a valid touch theme manifest")
+if override_destination.exists():
+    shutil.rmtree(override_destination)
+shutil.copytree(source, override_destination)
+if theme_destination.exists():
+    shutil.rmtree(theme_destination)
+shutil.copytree(theme_source, theme_destination)
+if (theme_destination / "theme.json").read_bytes() != (theme_source / "theme.json").read_bytes():
+    raise SystemExit("bundled TouchControlThemes theme.json differs from source")
+print(f"staged all ROM override files: {override_destination}")
+print(f"staged ROM theme beside built-ins: {theme_destination}")
 PYTHEME
 fi
 
@@ -195,11 +202,12 @@ xcodebuild -project DmIOS.xcodeproj -scheme DmIOS -configuration Release -destin
 APP=$DD/Build/Products/Release-iphoneos/DmIOS.app
 [ -n "$APP" ] && [ -d "$APP" ] || die "no built app"; t "app: $APP"
 if [ -n "${DM_OVERRIDE_FOLDER:-}" ]; then
-  SOURCE_THEME="$DM/../OVERRIDES/$DM_OVERRIDE_FOLDER/theme.json"
-  BUNDLED_THEME="$APP/OVERRIDES/$DM_OVERRIDE_FOLDER/theme.json"
-  [ -s "$BUNDLED_THEME" ] || die "selected ROM theme was not copied into the built app: $BUNDLED_THEME"
-  cmp -s "$SOURCE_THEME" "$BUNDLED_THEME" || die "bundled ROM theme.json differs from OVERRIDES source"
-  t "verified selected ROM theme in app bundle: OVERRIDES/$DM_OVERRIDE_FOLDER/theme.json"
+  SOURCE_THEME="$DM/../OVERRIDES/$DM_OVERRIDE_FOLDER/$DM_OVERRIDE_FOLDER/theme.json"
+  BUNDLED_THEME="$APP/TouchControlThemes/$DM_OVERRIDE_FOLDER/theme.json"
+  [ -s "$BUNDLED_THEME" ] || die "selected ROM theme was not copied into TouchControlThemes in the built app: $BUNDLED_THEME"
+  cmp -s "$SOURCE_THEME" "$BUNDLED_THEME" || die "bundled TouchControlThemes theme.json differs from OVERRIDES source"
+  [ -d "$APP/OVERRIDES/$DM_OVERRIDE_FOLDER" ] || die "selected ROM override files are missing from the built app"
+  t "verified selected ROM theme in app bundle: TouchControlThemes/$DM_OVERRIDE_FOLDER/theme.json"
 fi
 
 # Straight from the sources: the app without its signature, and without the folders an app built before pack_ipa.py still has (DerivedData keeps resources that left the project;
@@ -244,7 +252,7 @@ case "$PULL" in 0|1) ;; *) die "no DM_GAME_PSO_MTL4 in generated game profile";;
 PACK_OPTS=(--store "$(gp zip_store)"); [ -n "${PSO:-}" ] || [ "${IOS_PULL:-$PULL}" = 1 ] || PACK_OPTS+=(--skip-suffix _bp.metallib)
 python3 tools/pack_ipa.py "$OUT_IPA" "${PACK_OPTS[@]}" --skip $P/_CodeSignature --skip $P/embedded.mobileprovision --skip $P/msl --skip $P/aoc --skip $P/romfs --skip $P/romfs.img --skip $P/romfs.id "${MAPS[@]}" || die "pack_ipa"
 if [ -n "${DM_OVERRIDE_FOLDER:-}" ]; then
-  python3 - "$OUT_IPA" "$DM/../OVERRIDES/$DM_OVERRIDE_FOLDER/theme.json" "$P/OVERRIDES/$DM_OVERRIDE_FOLDER/theme.json" <<'PYIPA' || die "verify selected ROM theme in IPA"
+  python3 - "$OUT_IPA" "$DM/../OVERRIDES/$DM_OVERRIDE_FOLDER/$DM_OVERRIDE_FOLDER/theme.json" "$P/TouchControlThemes/$DM_OVERRIDE_FOLDER/theme.json" <<'PYIPA' || die "verify selected ROM theme in IPA"
 import sys
 import zipfile
 from pathlib import Path
