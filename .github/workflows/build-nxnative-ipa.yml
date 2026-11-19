@@ -8,11 +8,14 @@ on:
         required: true
         type: string
         default: "SWITCH/ROMS"
-      rom_file:
-        description: "Choose one file belonging to the game (prefer its base game or XCI); matching updates and DLC are included automatically. Leave blank to list files first"
-        required: false
-        type: string
-        default: ""
+      rom_selection:
+        description: "Select the ROM to build"
+        required: true
+        type: choice
+        options:
+          - ANIMAL WELL
+          - KATANA ZERO
+        default: ANIMAL WELL
       prod_keys_path:
         description: "Path to prod.keys inside myprivaterepo"
         required: true
@@ -65,7 +68,7 @@ jobs:
         id: verify-input
         env:
           GAME_FOLDER: ${{ inputs.game_folder }}
-          ROM_FILE: ${{ inputs.rom_file }}
+          ROM_SELECTION: ${{ inputs.rom_selection }}
           PROD_KEYS_PATH: ${{ inputs.prod_keys_path }}
           DM_APP_BUILD: ${{ inputs.build_number }}
         run: |
@@ -76,7 +79,11 @@ jobs:
           root = (Path(os.environ["GITHUB_WORKSPACE"]) / "private-game-data").resolve()
           game = (root / os.environ["GAME_FOLDER"]).resolve()
           keys = (root / os.environ["PROD_KEYS_PATH"]).resolve()
-          selected_name = os.environ["ROM_FILE"]
+          selection = os.environ["ROM_SELECTION"].strip()
+          expected_stems = {"ANIMAL WELL": "ANIMAL WELL", "KATANA ZERO": "KATANA ZERO"}
+          if selection not in expected_stems:
+              raise SystemExit(f"Unsupported ROM selection: {selection!r}")
+          expected_stem = expected_stems[selection]
 
           def inside_root(path):
               return path == root or root in path.parents
@@ -94,17 +101,32 @@ jobs:
                       out.write(f"- {path.name} ({path.stat().st_size:,} bytes)\n")
               else:
                   out.write("No files found.\n")
-              out.write("\nEnter one exact filename in the **ROM file** field when manually starting the workflow.\n")
+              out.write("\nChoose **ANIMAL WELL** or **KATANA ZERO** from the ROM selection dropdown.\n")
 
           extensions = {".nsp", ".xci", ".nsz", ".xcz"}
           rom_files = [p for p in all_files if p.suffix.lower() in extensions and p.stat().st_size > 0]
           print("Files found in ROM folder:")
           for path in all_files:
               print(f"  {path.name} ({path.stat().st_size:,} bytes)")
-          if not selected_name.strip():
-              with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as out:
-                  out.write("\nNo ROM was selected. This was a list-only run; rerun the workflow and enter one exact filename in the **ROM file** field.\n")
-              with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+          if not rom_files:
+              raise SystemExit("No non-empty .nsp, .xci, .nsz or .xcz files found directly inside game_folder")
+
+          # Match the selected game title to the exact ROM filename in the private repo.
+          matches = [p for p in rom_files if p.stem.casefold() == expected_stem.casefold()]
+          if len(matches) != 1:
+              available = ", ".join(p.name for p in rom_files)
+              raise SystemExit(
+                  f"Could not uniquely find the ROM for '{selection}' in {os.environ['GAME_FOLDER']}. "
+                  f"Expected '{expected_stem}' with a supported ROM extension. "
+                  f"Available ROMs: {available or '(none)'}"
+              )
+          selected = matches[0]
+          rom_name = selection
+          ipa_name = "_".join(rom_name.split())
+          override_folder = selected.stem
+          if not override_folder or any(c in override_folder for c in "\r\n"):
+              raise SystemExit("The selected ROM filename cannot be used as an override folder name.")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
                   output.write("list_only=true\n")
               print("List-only run: no build will be started.")
               raise SystemExit(0)
@@ -125,13 +147,14 @@ jobs:
           if not override_folder or any(c in override_folder for c in "\r\n"):
               raise SystemExit("The selected ROM filename cannot be used as an override folder name.")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"ipa_name={rom_name}\n")
+              output.write(f"ipa_name={ipa_name}\n")
+              output.write(f"rom_name={rom_name}\n")
               output.write(f"rom_file={selected.name}\n")
               output.write(f"override_folder={override_folder}\n")
               output.write("list_only=false\n")
 
           print(f"Selected ROM: {selected.name}")
-          print(f"Initial IPA filename: {rom_name}.ipa (the build step appends A15 and the metadata version)")
+          print(f"Initial IPA filename: {ipa_name}_A15_<version>_<build>.ipa")
           print("prod.keys file exists; its contents will not be printed or uploaded.")
           PY
 
@@ -324,10 +347,16 @@ jobs:
           PY
           )"
 
-          FINAL_IPA="$RUNNER_TEMP/${{ steps.verify-input.outputs.ipa_name }} A15 v${GAME_VERSION} build${{ inputs.build_number }}.ipa"
+          FINAL_STEM="${{ steps.verify-input.outputs.ipa_name }}_A15_${GAME_VERSION}_${{ inputs.build_number }}"
+          FINAL_IPA="$RUNNER_TEMP/$FINAL_STEM.ipa"
+          RELEASE_TITLE="${FINAL_STEM//_/ }"
           mv "$BASE_IPA" "$FINAL_IPA"
-          echo "ipa_path=$FINAL_IPA" >> "$GITHUB_OUTPUT"
+          {
+            echo "ipa_path=$FINAL_IPA"
+            echo "release_title=$RELEASE_TITLE"
+          } >> "$GITHUB_OUTPUT"
           echo "Final IPA filename: $(basename "$FINAL_IPA")"
+          echo "Matching release title: $RELEASE_TITLE"
 
       - name: Commit generated ROM touch theme
         if: always() && steps.verify-input.outputs.list_only != 'true' && steps.verify-input.outputs.override_folder != ''
@@ -355,7 +384,7 @@ jobs:
           repository: SlyDevil6858/myprivaterepo
           token: ${{ secrets.PRIVATE_REPO_TOKEN }}
           tag_name: nxnative-build-${{ github.run_id }}
-          name: nxnative iPhone 13 Pro Max build ${{ inputs.build_number }}
+          name: ${{ steps.build-ipa.outputs.release_title }}
           body: "Unsigned IPA built from the nxnative fork. This release is in the private myprivaterepo repository."
           files: ${{ steps.build-ipa.outputs.ipa_path }}
           fail_on_unmatched_files: true
