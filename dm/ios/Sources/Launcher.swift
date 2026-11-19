@@ -723,8 +723,7 @@ private struct LauncherView: View {
 
     private func isBundledTheme(_ theme: LauncherTheme) -> Bool {
         // Every theme shipped inside the app bundle is built-in and read-only.
-        // This includes ROM-specific themes under OVERRIDES (such as ANIMAL WELL),
-        // not only themes under the shared TouchControlThemes directory.
+        // ROM-specific themes are staged beside CLASSIC under TouchControlThemes.
         guard let resourceRoot = Bundle.main.resourceURL?.standardizedFileURL.path else {
             return false
         }
