@@ -589,12 +589,24 @@ private struct LauncherView: View {
         guard let folder = info("DMOverrideFolder") as? String,
               !folder.isEmpty, folder != ".", folder != "..",
               !folder.contains("/"), !folder.contains("\\"),
-              let root = Bundle.main.resourceURL?.appendingPathComponent("OVERRIDES", isDirectory: true) else {
+              let bundleRoot = Bundle.main.resourceURL else {
             return nil
         }
-        let selected = root.appendingPathComponent(folder, isDirectory: true)
-        return FileManager.default.fileExists(atPath: selected.appendingPathComponent("theme.json").path)
-            ? selected : nil
+
+        // New builds stage the selected ROM theme beside CLASSIC under the
+        // shared TouchControlThemes resource folder.
+        let bundledThemes = bundleRoot.appendingPathComponent("TouchControlThemes", isDirectory: true)
+        let selectedTheme = bundledThemes.appendingPathComponent(folder, isDirectory: true)
+        if FileManager.default.fileExists(atPath: selectedTheme.appendingPathComponent("theme.json").path) {
+            return selectedTheme
+        }
+
+        // Keep compatibility with app bundles produced before ROM themes were
+        // moved into TouchControlThemes.
+        let legacyOverrides = bundleRoot.appendingPathComponent("OVERRIDES", isDirectory: true)
+        let legacyTheme = legacyOverrides.appendingPathComponent(folder, isDirectory: true)
+        return FileManager.default.fileExists(atPath: legacyTheme.appendingPathComponent("theme.json").path)
+            ? legacyTheme : nil
     }
 
     private func bundledThemeFolders() -> [URL] {
@@ -677,30 +689,55 @@ private struct LauncherView: View {
     }
 
     private func uniqueThemeFolderName(_ proposed: String, root: URL, excluding excludedFolder: URL? = nil) -> String {
-        var candidate = proposed
-        var suffix = 2
+        let fileManager = FileManager.default
+        let excludedURL = excludedFolder?.standardizedFileURL
+        let excludedPath = excludedURL?.path
+        let sourceFolderName = excludedURL?.lastPathComponent
+        let existingPaths = Set((try? fileManager.contentsOfDirectory(
+            at: root, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]
+        ))?.compactMap { entry -> String? in
+            guard (try? entry.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else { return nil }
+            return entry.standardizedFileURL.path
+        } ?? [])
+
+        var suffix = 1
         while true {
-            let candidateURL = root.appendingPathComponent(candidate, isDirectory: true).standardizedFileURL
-            if let excludedFolder,
-               candidateURL == excludedFolder.standardizedFileURL {
+            let candidate = suffix == 1 ? proposed : "\(proposed) \(suffix)"
+            let candidatePath = root.appendingPathComponent(candidate, isDirectory: true).standardizedFileURL.path
+
+            if candidatePath == excludedPath {
+                // Keep the current folder only when its name already matches
+                // the requested name. If a duplicate suffix lands on the source
+                // folder (for example, renaming "Theme 2" to "Theme"), keep
+                // searching so the folder itself receives a new name.
+                if candidate == sourceFolderName {
+                    return candidate
+                }
+                suffix += 1
+                continue
+            }
+
+            if !existingPaths.contains(candidatePath) {
                 return candidate
             }
-            if !FileManager.default.fileExists(atPath: candidateURL.path) {
-                return candidate
-            }
-            candidate = "\(proposed) \(suffix)"
             suffix += 1
         }
     }
 
     private func isBundledTheme(_ theme: LauncherTheme) -> Bool {
-        // Every theme shipped inside the app bundle is built-in and read-only.
-        // This includes ROM-specific themes under OVERRIDES (such as ANIMAL WELL),
-        // not only themes under the shared TouchControlThemes directory.
+        // Built-in includes both app-bundled themes and the ROM's selected
+        // override theme. Keep the override read-only even if its resolved
+        // directory is outside the app bundle.
+        let themeURL = URL(fileURLWithPath: theme.path).standardizedFileURL
+        if let overrideURL = selectedOverrideThemeDirectory()?.standardizedFileURL,
+           themeURL == overrideURL {
+            return true
+        }
+
         guard let resourceRoot = Bundle.main.resourceURL?.standardizedFileURL.path else {
             return false
         }
-        let path = URL(fileURLWithPath: theme.path).standardizedFileURL.path
+        let path = themeURL.path
         return path == resourceRoot || path.hasPrefix(resourceRoot + "/")
     }
 
@@ -737,11 +774,18 @@ private struct LauncherView: View {
         let fileManager = FileManager.default
         let sourceFolder = URL(fileURLWithPath: theme.path).standardizedFileURL
         let root = themesDirectory().standardizedFileURL
-        let folderName = sourceFolder.lastPathComponent == proposedFolderName
-            ? proposedFolderName
-            : uniqueThemeFolderName(proposedFolderName, root: root, excluding: sourceFolder)
-        let destinationFolder = root.appendingPathComponent(folderName, isDirectory: true)
-        let shouldMoveFolder = sourceFolder != destinationFolder.standardizedFileURL
+
+        // Resolve the destination against the source folder's actual parent.
+        // This is important for imported folders whose names already have a
+        // numeric duplicate suffix (for example, "My Theme 2").
+        guard sourceFolder.deletingLastPathComponent().standardizedFileURL == root else {
+            NSLog("Touch theme rename skipped: source folder is outside the custom themes directory (%@)", sourceFolder.path)
+            return
+        }
+        let folderName = uniqueThemeFolderName(proposedFolderName, root: root, excluding: sourceFolder)
+        let destinationFolder = sourceFolder.deletingLastPathComponent()
+            .appendingPathComponent(folderName, isDirectory: true).standardizedFileURL
+        let shouldMoveFolder = sourceFolder.path != destinationFolder.path
 
         var updated = json
         updated["name"] = newName
@@ -761,13 +805,15 @@ private struct LauncherView: View {
                 throw error
             }
 
-            if selectedTheme == theme.name {
+            if selectedTheme == theme.name ||
+                UserDefaults.standard.string(forKey: "DmTouchControlThemePath") == sourceFolder.path {
                 UserDefaults.standard.set(newName, forKey: "DmTouchControlThemeName")
                 UserDefaults.standard.set(destinationFolder.path, forKey: "DmTouchControlThemePath")
             }
             refreshThemes()
         } catch {
-            NSLog("Touch theme rename failed: %@", error.localizedDescription)
+            NSLog("Touch theme rename failed for %@ -> %@: %@", sourceFolder.lastPathComponent,
+                  destinationFolder.lastPathComponent, error.localizedDescription)
         }
     }
 
@@ -846,10 +892,15 @@ private struct LauncherView: View {
                 return name.trimmingCharacters(in: .whitespacesAndNewlines)
             }
             func priority(_ theme: LauncherTheme) -> Int {
-                let folder = normalizedThemeName(URL(fileURLWithPath: theme.path).lastPathComponent)
+                let themeURL = URL(fileURLWithPath: theme.path).standardizedFileURL
+                let folder = normalizedThemeName(themeURL.lastPathComponent)
                 let display = normalizedThemeName(theme.name)
-                if let selectedOverridePath = selectedOverrideThemeDirectory()?.standardizedFileURL.path,
-                   selectedOverridePath == URL(fileURLWithPath: theme.path).standardizedFileURL.path { return 0 }
+                let overrideFolder = normalizedThemeName((info("DMOverrideFolder") as? String) ?? "")
+                let isSelectedOverridePath = selectedOverrideThemeDirectory()?.standardizedFileURL == themeURL
+                // Match by the build's ROM override folder as well as its resolved path.
+                // This keeps the ROM-specific theme first even if the bundle path layout changes.
+                if isSelectedOverridePath || (!overrideFolder.isEmpty &&
+                    (folder == overrideFolder || display == overrideFolder)) { return 0 }
                 if folder == "CLASSIC" || display == "CLASSIC" { return 1 }
                 // Other themes remain available after the ROM-matched override and CLASSIC.
                 return 2
