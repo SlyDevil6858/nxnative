@@ -641,14 +641,14 @@ private struct LauncherView: View {
     }
 
     private func isBundledTheme(_ theme: LauncherTheme) -> Bool {
-        guard let bundledRoot = Bundle.main.resourceURL?.appendingPathComponent("TouchControlThemes", isDirectory: true) else {
+        // Every theme shipped inside the app bundle is built-in and read-only.
+        // This includes ROM-specific themes under OVERRIDES (such as ANIMAL WELL),
+        // not only themes under the shared TouchControlThemes directory.
+        guard let resourceRoot = Bundle.main.resourceURL?.standardizedFileURL.path else {
             return false
         }
         let path = URL(fileURLWithPath: theme.path).standardizedFileURL.path
-        let root = bundledRoot.standardizedFileURL.path + "/"
-        if path.hasPrefix(root) { return true }
-        guard let selectedOverride = selectedOverrideThemeDirectory() else { return false }
-        return path == selectedOverride.standardizedFileURL.path
+        return path == resourceRoot || path.hasPrefix(resourceRoot + "/")
     }
 
     private func canDeleteTheme(_ theme: LauncherTheme) -> Bool {
