@@ -299,14 +299,6 @@ private struct LauncherView: View {
                             }
                         }
                     }
-                    if let supportURL = launcherSupportURL() {
-                        Section("Support") {
-                            Button("♥️ Support the author of this port…") {
-                                UIApplication.shared.open(supportURL)
-                            }
-                            .foregroundStyle(accentColor)
-                        }
-                    }
                     Section {
                         Button { m.reset() } label: {
                             Text("Reset to tested defaults")
@@ -324,6 +316,14 @@ private struct LauncherView: View {
                             Text("Memory available")
                             Spacer()
                             Text(ByteCountFormatter.string(fromByteCount: Int64(memory), countStyle: .memory)).monospacedDigit().foregroundStyle(.secondary)
+                        }
+                    }
+                    if let supportURL = launcherSupportURL() {
+                        Section("Support") {
+                            Button("♥️ Support the author of this port…") {
+                                UIApplication.shared.open(supportURL)
+                            }
+                            .foregroundStyle(accentColor)
                         }
                     }
                 }
