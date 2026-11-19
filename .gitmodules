@@ -1,0 +1,8 @@
+[submodule "Tools/NSTool"]
+	path = Tools/NSTool
+	url = https://github.com/jakcron/nstool.git
+	branch = v1.9.2
+[submodule "Tools/Ghidra"]
+	path = Tools/Ghidra
+	url = https://github.com/NationalSecurityAgency/ghidra.git
+	branch = Ghidra_12.2_build
