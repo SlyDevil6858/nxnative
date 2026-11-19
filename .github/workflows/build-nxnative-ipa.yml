@@ -326,7 +326,7 @@ jobs:
           PY
           )"
 
-          FINAL_STEM="${{ steps.verify-input.outputs.ipa_name }}_A15_${GAME_VERSION}_${{ inputs.build_number }}"
+          FINAL_STEM="${{ steps.verify-input.outputs.ipa_name }}_A15_${GAME_VERSION}_Build_${{ inputs.build_number }}"
           FINAL_IPA="$RUNNER_TEMP/$FINAL_STEM.ipa"
           RELEASE_TITLE="${FINAL_STEM//_/ }"
           mv "$BASE_IPA" "$FINAL_IPA"
