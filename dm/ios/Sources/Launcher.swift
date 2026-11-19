@@ -630,14 +630,21 @@ private struct LauncherView: View {
         return candidate
     }
 
-    private func uniqueThemeFolderName(_ proposed: String, root: URL) -> String {
+    private func uniqueThemeFolderName(_ proposed: String, root: URL, excluding excludedFolder: URL? = nil) -> String {
         var candidate = proposed
         var suffix = 2
-        while FileManager.default.fileExists(atPath: root.appendingPathComponent(candidate, isDirectory: true).path) {
+        while true {
+            let candidateURL = root.appendingPathComponent(candidate, isDirectory: true).standardizedFileURL
+            if let excludedFolder,
+               candidateURL == excludedFolder.standardizedFileURL {
+                return candidate
+            }
+            if !FileManager.default.fileExists(atPath: candidateURL.path) {
+                return candidate
+            }
             candidate = "\(proposed) \(suffix)"
             suffix += 1
         }
-        return candidate
     }
 
     private func isBundledTheme(_ theme: LauncherTheme) -> Bool {
@@ -686,7 +693,7 @@ private struct LauncherView: View {
         let root = themesDirectory().standardizedFileURL
         let folderName = sourceFolder.lastPathComponent == proposedFolderName
             ? proposedFolderName
-            : uniqueThemeFolderName(proposedFolderName, root: root)
+            : uniqueThemeFolderName(proposedFolderName, root: root, excluding: sourceFolder)
         let destinationFolder = root.appendingPathComponent(folderName, isDirectory: true)
         let shouldMoveFolder = sourceFolder != destinationFolder.standardizedFileURL
 
