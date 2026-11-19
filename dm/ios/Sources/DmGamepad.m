@@ -353,6 +353,7 @@ int dm_opmode(void);   // hle_oe.c: 0 = handheld
 - (void)beginLauncherEdit;
 - (void)toggleEditor;
 - (void)saveEdit;
+- (void)saveEditWithoutTip;
 - (void)openMenuFromController;
 @end
 static __weak DmGamepad *g_view;
@@ -2809,9 +2810,12 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [self setNeedsLayout];
 }
 - (void)saveEdit {
+    [self saveEditWithoutTip];
+    [self showLauncherEditorFinishTipIfNeeded];
+}
+- (void)saveEditWithoutTip {
     [_profiles save:_custom layout:self.controlsLayout slot:_profiles.selected];
     [self finishEdit];
-    [self showLauncherEditorFinishTipIfNeeded];
 }
 - (void)cancelEdit {
     [self loadControls];
@@ -3146,7 +3150,9 @@ static BOOL pads_slotted(GCController *gone) {
     }];
 }
 - (void)closeEditor {
-    [_pad saveEdit];
+    // Done dismisses the whole launcher editor. Save its changes without
+    // treating this dismissal as the control menu's Save/Cancel action.
+    [_pad saveEditWithoutTip];
     [UIView animateWithDuration:0.26 delay:0 options:UIViewAnimationOptionBeginFromCurrentState|UIViewAnimationOptionCurveEaseInOut animations:^{
         self.view.alpha=0;
         self.backgroundDimmer.alpha=0;
