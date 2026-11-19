@@ -645,18 +645,24 @@ private struct LauncherView: View {
     }
 
     private func uniqueThemeFolderName(_ proposed: String, root: URL, excluding excludedFolder: URL? = nil) -> String {
-        var candidate = proposed
-        var suffix = 2
+        let fileManager = FileManager.default
+        let excludedPath = excludedFolder?.standardizedFileURL.path
+        let existingPaths = Set((try? fileManager.contentsOfDirectory(
+            at: root, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]
+        ))?.compactMap { entry -> String? in
+            guard (try? entry.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else { return nil }
+            return entry.standardizedFileURL.path
+        } ?? [])
+
+        var suffix = 1
         while true {
-            let candidateURL = root.appendingPathComponent(candidate, isDirectory: true).standardizedFileURL
-            if let excludedFolder,
-               candidateURL == excludedFolder.standardizedFileURL {
+            let candidate = suffix == 1 ? proposed : "\(proposed) \(suffix)"
+            let candidatePath = root.appendingPathComponent(candidate, isDirectory: true).standardizedFileURL.path
+
+            // A numbered source folder must not count as a collision with itself.
+            if candidatePath == excludedPath || !existingPaths.contains(candidatePath) {
                 return candidate
             }
-            if !FileManager.default.fileExists(atPath: candidateURL.path) {
-                return candidate
-            }
-            candidate = "\(proposed) \(suffix)"
             suffix += 1
         }
     }
@@ -705,11 +711,18 @@ private struct LauncherView: View {
         let fileManager = FileManager.default
         let sourceFolder = URL(fileURLWithPath: theme.path).standardizedFileURL
         let root = themesDirectory().standardizedFileURL
-        let folderName = sourceFolder.lastPathComponent == proposedFolderName
-            ? proposedFolderName
-            : uniqueThemeFolderName(proposedFolderName, root: root, excluding: sourceFolder)
-        let destinationFolder = root.appendingPathComponent(folderName, isDirectory: true)
-        let shouldMoveFolder = sourceFolder != destinationFolder.standardizedFileURL
+
+        // Resolve the destination against the source folder's actual parent.
+        // This is important for imported folders whose names already have a
+        // numeric duplicate suffix (for example, "My Theme 2").
+        guard sourceFolder.deletingLastPathComponent().standardizedFileURL == root else {
+            NSLog("Touch theme rename skipped: source folder is outside the custom themes directory (%@)", sourceFolder.path)
+            return
+        }
+        let folderName = uniqueThemeFolderName(proposedFolderName, root: root, excluding: sourceFolder)
+        let destinationFolder = sourceFolder.deletingLastPathComponent()
+            .appendingPathComponent(folderName, isDirectory: true).standardizedFileURL
+        let shouldMoveFolder = sourceFolder.path != destinationFolder.path
 
         var updated = json
         updated["name"] = newName
@@ -729,13 +742,15 @@ private struct LauncherView: View {
                 throw error
             }
 
-            if selectedTheme == theme.name {
+            if selectedTheme == theme.name ||
+                UserDefaults.standard.string(forKey: "DmTouchControlThemePath") == sourceFolder.path {
                 UserDefaults.standard.set(newName, forKey: "DmTouchControlThemeName")
                 UserDefaults.standard.set(destinationFolder.path, forKey: "DmTouchControlThemePath")
             }
             refreshThemes()
         } catch {
-            NSLog("Touch theme rename failed: %@", error.localizedDescription)
+            NSLog("Touch theme rename failed for %@ -> %@: %@", sourceFolder.lastPathComponent,
+                  destinationFolder.lastPathComponent, error.localizedDescription)
         }
     }
 
