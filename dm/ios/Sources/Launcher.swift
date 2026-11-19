@@ -463,9 +463,6 @@ private struct LauncherView: View {
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 4)
                                 .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-
                                 .overlay(alignment: .trailing) {
                                     // Bundled themes have no edit/delete action columns.
                                     // Keep their selected indicator at the trailing edge.
