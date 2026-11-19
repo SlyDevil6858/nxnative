@@ -194,6 +194,13 @@ xcodebuild -project DmIOS.xcodeproj -scheme DmIOS -configuration Release -destin
 # SYMROOT and OBJROOT above keep the unsigned build separate from the interactive Xcode app.
 APP=$DD/Build/Products/Release-iphoneos/DmIOS.app
 [ -n "$APP" ] && [ -d "$APP" ] || die "no built app"; t "app: $APP"
+if [ -n "${DM_OVERRIDE_FOLDER:-}" ]; then
+  SOURCE_THEME="$DM/../OVERRIDES/$DM_OVERRIDE_FOLDER/theme.json"
+  BUNDLED_THEME="$APP/OVERRIDES/$DM_OVERRIDE_FOLDER/theme.json"
+  [ -s "$BUNDLED_THEME" ] || die "selected ROM theme was not copied into the built app: $BUNDLED_THEME"
+  cmp -s "$SOURCE_THEME" "$BUNDLED_THEME" || die "bundled ROM theme.json differs from OVERRIDES source"
+  t "verified selected ROM theme in app bundle: OVERRIDES/$DM_OVERRIDE_FOLDER/theme.json"
+fi
 
 # Straight from the sources: the app without its signature, and without the folders an app built before pack_ipa.py still has (DerivedData keeps resources that left the project;
 # msl/ is also deleted there, it took 1.5 GB of the home disk), then the shader libraries, the add-on content (the RomFS extracted from the player's DLC NSPs, one folder per index:
@@ -236,4 +243,22 @@ case "$PULL" in 0|1) ;; *) die "no DM_GAME_PSO_MTL4 in generated game profile";;
 # Keep this array nonempty: macOS Bash 3.2 treats an empty array as unset under set -u.
 PACK_OPTS=(--store "$(gp zip_store)"); [ -n "${PSO:-}" ] || [ "${IOS_PULL:-$PULL}" = 1 ] || PACK_OPTS+=(--skip-suffix _bp.metallib)
 python3 tools/pack_ipa.py "$OUT_IPA" "${PACK_OPTS[@]}" --skip $P/_CodeSignature --skip $P/embedded.mobileprovision --skip $P/msl --skip $P/aoc --skip $P/romfs --skip $P/romfs.img --skip $P/romfs.id "${MAPS[@]}" || die "pack_ipa"
+if [ -n "${DM_OVERRIDE_FOLDER:-}" ]; then
+  python3 - "$OUT_IPA" "$DM/../OVERRIDES/$DM_OVERRIDE_FOLDER/theme.json" "$P/OVERRIDES/$DM_OVERRIDE_FOLDER/theme.json" <<'PYIPA' || die "verify selected ROM theme in IPA"
+import sys
+import zipfile
+from pathlib import Path
+
+ipa, source, member = sys.argv[1:]
+expected = Path(source).read_bytes()
+with zipfile.ZipFile(ipa) as archive:
+    try:
+        actual = archive.read(member)
+    except KeyError:
+        raise SystemExit(f"IPA is missing {member}")
+if actual != expected:
+    raise SystemExit(f"IPA member {member} does not match the selected override theme")
+print(f"verified IPA member: {member}")
+PYIPA
+fi
 t "done: $OUT_IPA ($(du -h "$OUT_IPA" | cut -f1))"
