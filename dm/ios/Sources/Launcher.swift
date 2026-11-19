@@ -431,11 +431,6 @@ private struct LauncherView: View {
     private var themeMenuContent: some View {
         VStack(spacing: 0) {
             ForEach(themes) { theme in
-                // Classify built-in themes before constructing row actions.
-                // Built-in themes must not create edit/delete controls or reserve
-                // any of their trailing layout space.
-                let isBuiltInTheme = isBundledTheme(theme)
-                let canManageTheme = !isBuiltInTheme && canDeleteTheme(theme)
                 HStack(spacing: 0) {
                     if themeRenamePath == theme.path {
                         TextField("Theme name", text: $themeRenameText)
@@ -482,13 +477,7 @@ private struct LauncherView: View {
                                 Text(theme.name)
                                     .foregroundStyle(.white)
                                     .lineLimit(1)
-                                Spacer(minLength: 0)
-                                if !canManageTheme && selectedTheme == theme.name {
-                                    Image(systemName: "checkmark")
-                                        .foregroundStyle(Color(red: 0.22, green: 0.48, blue: 0.28))
-                                        .frame(width: 32, height: 32)
-                                        .accessibilityLabel("Selected theme")
-                                }
+                                Spacer(minLength: 4)
                             }
                             .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
                             .padding(.horizontal, 12)
@@ -497,9 +486,7 @@ private struct LauncherView: View {
                         }
                         .buttonStyle(.plain)
                         .frame(maxWidth: .infinity, alignment: .leading)
-
-                        if !isBuiltInTheme && canManageTheme {
-                            Spacer(minLength: 0)
+                        if canDeleteTheme(theme) {
                             Button {
                                 themeRenameText = theme.name
                                 themeRenamePath = theme.path
@@ -511,32 +498,34 @@ private struct LauncherView: View {
                                     .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
-                            .accessibilityLabel("Rename \(theme.name)")
-
-                            if selectedTheme == theme.name {
-                                Image(systemName: "checkmark")
-                                    .foregroundStyle(Color(red: 0.22, green: 0.48, blue: 0.28))
+                            .accessibilityLabel("Rename \\(theme.name)")
+                        }
+                        if selectedTheme == theme.name {
+                            // Put the active marker in the same trailing slot
+                            // used by the custom-theme trash button.
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(Color(red: 0.22, green: 0.48, blue: 0.28))
+                                .frame(width: 32, height: 32)
+                                .accessibilityLabel("Selected theme")
+                        } else if canDeleteTheme(theme) {
+                            Button(role: .destructive) {
+                                showingThemeList = false
+                                themeToDelete = theme
+                                confirmingThemeDeletion = true
+                            } label: {
+                                Image(systemName: "trash")
+                                    .foregroundStyle(Color(red: 0.55, green: 0.08, blue: 0.08))
                                     .frame(width: 32, height: 32)
-                                    .accessibilityLabel("Selected theme")
-                            } else {
-                                Button(role: .destructive) {
-                                    showingThemeList = false
-                                    themeToDelete = theme
-                                    confirmingThemeDeletion = true
-                                } label: {
-                                    Image(systemName: "trash")
-                                        .foregroundStyle(Color(red: 0.55, green: 0.08, blue: 0.08))
-                                        .frame(width: 32, height: 32)
-                                        .contentShape(Rectangle())
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel("Delete \(theme.name)")
+                                    .contentShape(Rectangle())
                             }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Delete \\(theme.name)")
                         }
                     }
                 }
-                // Only rows with usable edit/delete actions reserve those columns.
-                // Read-only rows keep the selected indicator at the actual trailing edge.
+                // Keep the row full-width even when bundled themes omit their
+                // edit/delete controls, so the checkmark reaches the same
+                // trailing alignment as the trash button on custom themes.
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 4)
                 .id("launcher-theme-\(theme.path)")
@@ -600,24 +589,12 @@ private struct LauncherView: View {
         guard let folder = info("DMOverrideFolder") as? String,
               !folder.isEmpty, folder != ".", folder != "..",
               !folder.contains("/"), !folder.contains("\\"),
-              let bundleRoot = Bundle.main.resourceURL else {
+              let root = Bundle.main.resourceURL?.appendingPathComponent("OVERRIDES", isDirectory: true) else {
             return nil
         }
-
-        // New builds stage the selected ROM theme beside CLASSIC under the
-        // shared TouchControlThemes resource folder.
-        let bundledThemes = bundleRoot.appendingPathComponent("TouchControlThemes", isDirectory: true)
-        let selectedTheme = bundledThemes.appendingPathComponent(folder, isDirectory: true)
-        if FileManager.default.fileExists(atPath: selectedTheme.appendingPathComponent("theme.json").path) {
-            return selectedTheme
-        }
-
-        // Keep compatibility with app bundles produced before ROM themes were
-        // moved into TouchControlThemes.
-        let legacyOverrides = bundleRoot.appendingPathComponent("OVERRIDES", isDirectory: true)
-        let legacyTheme = legacyOverrides.appendingPathComponent(folder, isDirectory: true)
-        return FileManager.default.fileExists(atPath: legacyTheme.appendingPathComponent("theme.json").path)
-            ? legacyTheme : nil
+        let selected = root.appendingPathComponent(folder, isDirectory: true)
+        return FileManager.default.fileExists(atPath: selected.appendingPathComponent("theme.json").path)
+            ? selected : nil
     }
 
     private func bundledThemeFolders() -> [URL] {
@@ -700,55 +677,30 @@ private struct LauncherView: View {
     }
 
     private func uniqueThemeFolderName(_ proposed: String, root: URL, excluding excludedFolder: URL? = nil) -> String {
-        let fileManager = FileManager.default
-        let excludedURL = excludedFolder?.standardizedFileURL
-        let excludedPath = excludedURL?.path
-        let sourceFolderName = excludedURL?.lastPathComponent
-        let existingPaths = Set((try? fileManager.contentsOfDirectory(
-            at: root, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]
-        ))?.compactMap { entry -> String? in
-            guard (try? entry.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else { return nil }
-            return entry.standardizedFileURL.path
-        } ?? [])
-
-        var suffix = 1
+        var candidate = proposed
+        var suffix = 2
         while true {
-            let candidate = suffix == 1 ? proposed : "\(proposed) \(suffix)"
-            let candidatePath = root.appendingPathComponent(candidate, isDirectory: true).standardizedFileURL.path
-
-            if candidatePath == excludedPath {
-                // Keep the current folder only when its name already matches
-                // the requested name. If a duplicate suffix lands on the source
-                // folder (for example, renaming "Theme 2" to "Theme"), keep
-                // searching so the folder itself receives a new name.
-                if candidate == sourceFolderName {
-                    return candidate
-                }
-                suffix += 1
-                continue
-            }
-
-            if !existingPaths.contains(candidatePath) {
+            let candidateURL = root.appendingPathComponent(candidate, isDirectory: true).standardizedFileURL
+            if let excludedFolder,
+               candidateURL == excludedFolder.standardizedFileURL {
                 return candidate
             }
+            if !FileManager.default.fileExists(atPath: candidateURL.path) {
+                return candidate
+            }
+            candidate = "\(proposed) \(suffix)"
             suffix += 1
         }
     }
 
     private func isBundledTheme(_ theme: LauncherTheme) -> Bool {
-        // Built-in includes both app-bundled themes and the ROM's selected
-        // override theme. Keep the override read-only even if its resolved
-        // directory is outside the app bundle.
-        let themeURL = URL(fileURLWithPath: theme.path).standardizedFileURL
-        if let overrideURL = selectedOverrideThemeDirectory()?.standardizedFileURL,
-           themeURL == overrideURL {
-            return true
-        }
-
+        // Every theme shipped inside the app bundle is built-in and read-only.
+        // This includes ROM-specific themes under OVERRIDES (such as ANIMAL WELL),
+        // not only themes under the shared TouchControlThemes directory.
         guard let resourceRoot = Bundle.main.resourceURL?.standardizedFileURL.path else {
             return false
         }
-        let path = themeURL.path
+        let path = URL(fileURLWithPath: theme.path).standardizedFileURL.path
         return path == resourceRoot || path.hasPrefix(resourceRoot + "/")
     }
 
@@ -785,18 +737,11 @@ private struct LauncherView: View {
         let fileManager = FileManager.default
         let sourceFolder = URL(fileURLWithPath: theme.path).standardizedFileURL
         let root = themesDirectory().standardizedFileURL
-
-        // Resolve the destination against the source folder's actual parent.
-        // This is important for imported folders whose names already have a
-        // numeric duplicate suffix (for example, "My Theme 2").
-        guard sourceFolder.deletingLastPathComponent().standardizedFileURL == root else {
-            NSLog("Touch theme rename skipped: source folder is outside the custom themes directory (%@)", sourceFolder.path)
-            return
-        }
-        let folderName = uniqueThemeFolderName(proposedFolderName, root: root, excluding: sourceFolder)
-        let destinationFolder = sourceFolder.deletingLastPathComponent()
-            .appendingPathComponent(folderName, isDirectory: true).standardizedFileURL
-        let shouldMoveFolder = sourceFolder.path != destinationFolder.path
+        let folderName = sourceFolder.lastPathComponent == proposedFolderName
+            ? proposedFolderName
+            : uniqueThemeFolderName(proposedFolderName, root: root, excluding: sourceFolder)
+        let destinationFolder = root.appendingPathComponent(folderName, isDirectory: true)
+        let shouldMoveFolder = sourceFolder != destinationFolder.standardizedFileURL
 
         var updated = json
         updated["name"] = newName
@@ -816,15 +761,13 @@ private struct LauncherView: View {
                 throw error
             }
 
-            if selectedTheme == theme.name ||
-                UserDefaults.standard.string(forKey: "DmTouchControlThemePath") == sourceFolder.path {
+            if selectedTheme == theme.name {
                 UserDefaults.standard.set(newName, forKey: "DmTouchControlThemeName")
                 UserDefaults.standard.set(destinationFolder.path, forKey: "DmTouchControlThemePath")
             }
             refreshThemes()
         } catch {
-            NSLog("Touch theme rename failed for %@ -> %@: %@", sourceFolder.lastPathComponent,
-                  destinationFolder.lastPathComponent, error.localizedDescription)
+            NSLog("Touch theme rename failed: %@", error.localizedDescription)
         }
     }
 
@@ -903,15 +846,10 @@ private struct LauncherView: View {
                 return name.trimmingCharacters(in: .whitespacesAndNewlines)
             }
             func priority(_ theme: LauncherTheme) -> Int {
-                let themeURL = URL(fileURLWithPath: theme.path).standardizedFileURL
-                let folder = normalizedThemeName(themeURL.lastPathComponent)
+                let folder = normalizedThemeName(URL(fileURLWithPath: theme.path).lastPathComponent)
                 let display = normalizedThemeName(theme.name)
-                let overrideFolder = normalizedThemeName((info("DMOverrideFolder") as? String) ?? "")
-                let isSelectedOverridePath = selectedOverrideThemeDirectory()?.standardizedFileURL == themeURL
-                // Match by the build's ROM override folder as well as its resolved path.
-                // This keeps the ROM-specific theme first even if the bundle path layout changes.
-                if isSelectedOverridePath || (!overrideFolder.isEmpty &&
-                    (folder == overrideFolder || display == overrideFolder)) { return 0 }
+                if let selectedOverridePath = selectedOverrideThemeDirectory()?.standardizedFileURL.path,
+                   selectedOverridePath == URL(fileURLWithPath: theme.path).standardizedFileURL.path { return 0 }
                 if folder == "CLASSIC" || display == "CLASSIC" { return 1 }
                 // Other themes remain available after the ROM-matched override and CLASSIC.
                 return 2
