@@ -181,6 +181,28 @@ PYTHEME
 fi
 
 xcodegen generate -q > /dev/null || die "xcodegen"
+
+# Write the optional Support URL explicitly after XcodeGen creates the plist.
+# This avoids relying on XcodeGen's environment-variable interpolation for this value.
+python3 - "Gen/Info.plist" <<'PY_SUPPORT'
+import os
+import plistlib
+import sys
+from urllib.parse import urlsplit
+
+plist_path = sys.argv[1]
+support_url = os.environ.get("DM_SUPPORT_URL", "").strip()
+if support_url:
+    parsed = urlsplit(support_url)
+    if parsed.scheme.lower() not in {"http", "https"} or not parsed.hostname:
+        raise SystemExit("DM_SUPPORT_URL must be a complete HTTP or HTTPS URL.")
+with open(plist_path, "rb") as source:
+    info = plistlib.load(source)
+info["DMSupportURL"] = support_url
+with open(plist_path, "wb") as destination:
+    plistlib.dump(info, destination, sort_keys=False)
+print("Support button URL configured." if support_url else "Support button URL is blank; button hidden.")
+PY_SUPPORT
 # DMCommit / DMChain: the checkout that built the app (+dirty with uncommitted changes to tracked files) and the shader chain it carries, which the host logs at start (main.c)
 COMMIT=$(git -C "$DM" rev-parse --short=12 HEAD 2> /dev/null) && { [ -z "$(git -C "$DM" status --porcelain --untracked-files=no 2> /dev/null)" ] || COMMIT=$COMMIT+dirty
   /usr/libexec/PlistBuddy -c "Add :DMCommit string $COMMIT" Gen/Info.plist > /dev/null || die "DMCommit"; t "source: $COMMIT"; }
