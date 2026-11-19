@@ -304,13 +304,13 @@ private struct LauncherView: View {
                                 }
                             }
                         }
-                        if section == "Performance", let supportURL = launcherSupportURL() {
-                            Section("Support") {
-                                Button("Support the author of this port…") {
-                                    UIApplication.shared.open(supportURL)
-                                }
-                                .foregroundStyle(accentColor)
+                    }
+                    if let supportURL = launcherSupportURL() {
+                        Section("Support") {
+                            Button("Support the author of this port…") {
+                                UIApplication.shared.open(supportURL)
                             }
+                            .foregroundStyle(accentColor)
                         }
                     }
                     Section {
