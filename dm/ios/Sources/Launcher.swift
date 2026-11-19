@@ -423,74 +423,49 @@ private struct LauncherView: View {
     private var themeMenuContent: some View {
         VStack(spacing: 0) {
             ForEach(themes) { theme in
-                // Classify built-in themes before constructing row actions.
-                // Built-in themes must not create edit/delete controls or reserve
-                // any of their trailing layout space.
                 let isBuiltInTheme = isBundledTheme(theme)
                 let canManageTheme = !isBuiltInTheme && canDeleteTheme(theme)
-                HStack(spacing: 0) {
-                    if themeRenamePath == theme.path {
-                        TextField("Theme name", text: $themeRenameText)
-                            .focused($themeRenameFocused)
-                            .submitLabel(.done)
-                            .textInputAutocapitalization(.words)
-                            .autocorrectionDisabled()
-                            .padding(.horizontal, 10)
-                            .frame(height: 36)
-                            .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
-                            .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.white.opacity(0.18), lineWidth: 1))
-                            .onSubmit { saveLauncherThemeRename(theme) }
-                            .padding(.leading, 8)
-                        Button {
-                            saveLauncherThemeRename(theme)
-                        } label: {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 17, weight: .semibold))
-                                .foregroundStyle(Color(red: 0.25, green: 0.78, blue: 0.38))
-                                .frame(width: 36, height: 36)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Save theme name")
-                        Button {
-                            cancelLauncherThemeRename()
-                        } label: {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(Color.white.opacity(0.78))
-                                .frame(width: 32, height: 36)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Cancel theme rename")
-                    } else {
-                        Button {
-                            selectTheme(theme.path, name: theme.name)
-                            withAnimation(.easeInOut(duration: 0.24)) {
-                                showingThemeList = false
-                            }
-                        } label: {
-                            HStack(spacing: 8) {
-                                Text(theme.name)
-                                    .foregroundStyle(.white)
-                                    .lineLimit(1)
-                                Spacer(minLength: 0)
-                                if !canManageTheme && selectedTheme == theme.name {
-                                    Image(systemName: "checkmark")
-                                        .foregroundStyle(Color(red: 0.22, green: 0.48, blue: 0.28))
-                                        .frame(width: 32, height: 32)
-                                        .accessibilityLabel("Selected theme")
-                                }
-                            }
-                            .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 4)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .frame(maxWidth: .infinity, alignment: .leading)
 
-                        if !isBuiltInTheme && canManageTheme {
+                Group {
+                    if themeRenamePath == theme.path {
+                        HStack(spacing: 0) {
+                            TextField("Theme name", text: $themeRenameText)
+                                .focused($themeRenameFocused)
+                                .submitLabel(.done)
+                                .textInputAutocapitalization(.words)
+                                .autocorrectionDisabled()
+                                .padding(.horizontal, 10)
+                                .frame(height: 36)
+                                .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
+                                .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.white.opacity(0.18), lineWidth: 1))
+                                .onSubmit { saveLauncherThemeRename(theme) }
+                                .padding(.leading, 8)
+                            Button {
+                                saveLauncherThemeRename(theme)
+                            } label: {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 17, weight: .semibold))
+                                    .foregroundStyle(Color(red: 0.25, green: 0.78, blue: 0.38))
+                                    .frame(width: 36, height: 36)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Save theme name")
+                            Button {
+                                cancelLauncherThemeRename()
+                            } label: {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundStyle(Color.white.opacity(0.78))
+                                    .frame(width: 32, height: 36)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Cancel theme rename")
+                        }
+                    } else if canManageTheme {
+                        HStack(spacing: 0) {
+                            themeSelectionButton(theme, showsSelectedMark: false)
                             Spacer(minLength: 0)
                             Button {
                                 themeRenameText = theme.name
@@ -503,7 +478,7 @@ private struct LauncherView: View {
                                     .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
-                            .accessibilityLabel("Rename \(theme.name)")
+                            .accessibilityLabel("Rename \\(theme.name)")
 
                             if selectedTheme == theme.name {
                                 Image(systemName: "checkmark")
@@ -522,23 +497,56 @@ private struct LauncherView: View {
                                         .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
-                                .accessibilityLabel("Delete \(theme.name)")
+                                .accessibilityLabel("Delete \\(theme.name)")
                             }
                         }
+                    } else {
+                        // Read-only themes get one full-width selection button.
+                        // No edit/delete controls, spacers, or sibling hit regions
+                        // are created in this branch.
+                        themeSelectionButton(theme, showsSelectedMark: true)
                     }
                 }
-                // Only rows with usable edit/delete actions reserve those columns.
-                // Read-only rows keep the selected indicator at the actual trailing edge.
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 4)
-                .id("launcher-theme-\(theme.path)")
+                .id("launcher-theme-\\(theme.path)")
                 Rectangle()
                     .fill(Color.white.opacity(0.12))
                     .frame(height: 0.5)
+                    .allowsHitTesting(false)
             }
         }
         .padding(.top, 4)
         .background(Color.black)
+    }
+
+    @ViewBuilder
+    private func themeSelectionButton(_ theme: LauncherTheme, showsSelectedMark: Bool) -> some View {
+        Button {
+            selectTheme(theme.path, name: theme.name)
+            withAnimation(.easeInOut(duration: 0.24)) {
+                showingThemeList = false
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Text(theme.name)
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                if showsSelectedMark && selectedTheme == theme.name {
+                    Image(systemName: "checkmark")
+                        .foregroundStyle(Color(red: 0.22, green: 0.48, blue: 0.28))
+                        .frame(width: 32, height: 32)
+                        .accessibilityLabel("Selected theme")
+                }
+            }
+            .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func saveLauncherThemeRename(_ theme: LauncherTheme) {
