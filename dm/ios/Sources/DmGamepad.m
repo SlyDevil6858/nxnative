@@ -2817,8 +2817,10 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 }
 - (void)saveEdit {
     [_profiles save:_custom layout:self.controlsLayout slot:_profiles.selected];
+    // Pressing Done exits the entire launcher editor, so don't show the
+    // one-time reopen hint during the dismissal transition. Leave the hint
+    // eligible for the user to see when they close only the settings panel.
     [self finishEdit];
-    [self showLauncherEditorFinishTipIfNeeded];
 }
 - (void)cancelEdit {
     [self loadControls];
