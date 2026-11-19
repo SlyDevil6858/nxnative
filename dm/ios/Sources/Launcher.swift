@@ -586,12 +586,24 @@ private struct LauncherView: View {
         guard let folder = info("DMOverrideFolder") as? String,
               !folder.isEmpty, folder != ".", folder != "..",
               !folder.contains("/"), !folder.contains("\\"),
-              let root = Bundle.main.resourceURL?.appendingPathComponent("OVERRIDES", isDirectory: true) else {
+              let bundleRoot = Bundle.main.resourceURL else {
             return nil
         }
-        let selected = root.appendingPathComponent(folder, isDirectory: true)
-        return FileManager.default.fileExists(atPath: selected.appendingPathComponent("theme.json").path)
-            ? selected : nil
+
+        // New builds stage the selected ROM theme beside CLASSIC under the
+        // shared TouchControlThemes resource folder.
+        let bundledThemes = bundleRoot.appendingPathComponent("TouchControlThemes", isDirectory: true)
+        let selectedTheme = bundledThemes.appendingPathComponent(folder, isDirectory: true)
+        if FileManager.default.fileExists(atPath: selectedTheme.appendingPathComponent("theme.json").path) {
+            return selectedTheme
+        }
+
+        // Keep compatibility with app bundles produced before ROM themes were
+        // moved into TouchControlThemes.
+        let legacyOverrides = bundleRoot.appendingPathComponent("OVERRIDES", isDirectory: true)
+        let legacyTheme = legacyOverrides.appendingPathComponent(folder, isDirectory: true)
+        return FileManager.default.fileExists(atPath: legacyTheme.appendingPathComponent("theme.json").path)
+            ? legacyTheme : nil
     }
 
     private func bundledThemeFolders() -> [URL] {
