@@ -652,6 +652,9 @@ private struct LauncherView: View {
     }
 
     private func canDeleteTheme(_ theme: LauncherTheme) -> Bool {
+        // ROM-matched override themes are bundled with the app and must use
+        // the same read-only row layout as themes inside the app bundle.
+        guard !isBundledTheme(theme) else { return false }
         let folderName = URL(fileURLWithPath: theme.path).lastPathComponent
         guard folderName.caseInsensitiveCompare("CLASSIC") != .orderedSame,
               theme.name.caseInsensitiveCompare("CLASSIC") != .orderedSame else { return false }
