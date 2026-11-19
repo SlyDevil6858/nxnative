@@ -127,26 +127,6 @@ jobs:
           if not override_folder or any(c in override_folder for c in "\r\n"):
               raise SystemExit("The selected ROM filename cannot be used as an override folder name.")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-                  output.write("list_only=true\n")
-              print("List-only run: no build will be started.")
-              raise SystemExit(0)
-          if not rom_files:
-              raise SystemExit("No non-empty .nsp, .xci, .nsz or .xcz files found directly inside game_folder")
-
-          if Path(selected_name).name != selected_name or "/" in selected_name or "\\" in selected_name or selected_name in {"", ".", ".."}:
-              raise SystemExit("rom_file must be the exact filename of a file directly inside game_folder.")
-          selected = game / selected_name
-          if selected not in rom_files:
-              available = ", ".join(p.name for p in rom_files)
-              raise SystemExit(f"Selected ROM '{selected_name}' was not found in {os.environ['GAME_FOLDER']}. Available ROMs: {available or '(none)'}")
-
-          rom_name = " ".join(selected.stem.replace(".", " ").split())
-          if not rom_name.strip() or any(c in rom_name for c in "\r\n"):
-              raise SystemExit("The selected ROM filename is empty or invalid.")
-          override_folder = selected.stem
-          if not override_folder or any(c in override_folder for c in "\r\n"):
-              raise SystemExit("The selected ROM filename cannot be used as an override folder name.")
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
               output.write(f"ipa_name={ipa_name}\n")
               output.write(f"rom_name={rom_name}\n")
               output.write(f"rom_file={selected.name}\n")
@@ -156,7 +136,6 @@ jobs:
           print(f"Selected ROM: {selected.name}")
           print(f"Initial IPA filename: {ipa_name}_A15_<version>_<build>.ipa")
           print("prod.keys file exists; its contents will not be printed or uploaded.")
-          PY
 
       - name: Select ROM-matched launcher appearance and accent color
         if: steps.verify-input.outputs.list_only != 'true'
