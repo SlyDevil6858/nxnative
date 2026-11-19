@@ -206,7 +206,24 @@ if [ -n "${DM_OVERRIDE_FOLDER:-}" ]; then
   BUNDLED_THEME="$APP/TouchControlThemes/$DM_OVERRIDE_FOLDER/theme.json"
   [ -s "$BUNDLED_THEME" ] || die "selected ROM theme was not copied into TouchControlThemes in the built app: $BUNDLED_THEME"
   cmp -s "$SOURCE_THEME" "$BUNDLED_THEME" || die "bundled TouchControlThemes theme.json differs from OVERRIDES source"
-  [ -d "$APP/OVERRIDES/$DM_OVERRIDE_FOLDER" ] || die "selected ROM override files are missing from the built app"
+  BUNDLED_OVERRIDE="$APP/OVERRIDES/$DM_OVERRIDE_FOLDER"
+  [ -d "$BUNDLED_OVERRIDE" ] || die "selected ROM override files are missing from the built app"
+  python3 - "$DM/../OVERRIDES/$DM_OVERRIDE_FOLDER" "$BUNDLED_OVERRIDE" <<'PYOVERRIDE' || die "verify all selected ROM override files in app bundle"
+import sys
+from pathlib import Path
+
+source, bundled = map(Path, sys.argv[1:])
+source_files = {p.relative_to(source) for p in source.rglob("*") if p.is_file()}
+bundled_files = {p.relative_to(bundled) for p in bundled.rglob("*") if p.is_file()}
+if source_files != bundled_files:
+    missing = sorted(str(p) for p in source_files - bundled_files)
+    extra = sorted(str(p) for p in bundled_files - source_files)
+    raise SystemExit(f"override bundle file list differs; missing={missing}, extra={extra}")
+for relative in source_files:
+    if (source / relative).read_bytes() != (bundled / relative).read_bytes():
+        raise SystemExit(f"bundled override file differs from source: {relative}")
+print(f"verified all {len(source_files)} selected ROM override file(s)")
+PYOVERRIDE
   t "verified selected ROM theme in app bundle: TouchControlThemes/$DM_OVERRIDE_FOLDER/theme.json"
 fi
 
