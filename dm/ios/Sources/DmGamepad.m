@@ -118,7 +118,7 @@ static const CGFloat
     K_CORNER_IN = 0.5,                              // how far the bottom-corner controls reach into the side safe-area inset (in landscape there is only the rounded screen corner there; the Dynamic Island is mid-edge)
     K_FACE_X = 81, K_PAD_Y = 82,                    // diamond centre from the outer edge; diamond and stick centre from the bottom (B's lower edge about 5 above it)
     K_FACE_GAP = 50, K_FACE_R = 27,                 // diamond: key distance from the centre, key radius
-    K_PILL_DX = 50, K_PILL_Y = 22, K_PILL_W = 50, K_PILL_H = 28,   // − / +: symmetric 50-unit offsets from the fixed layout button centre, plus top offset and size
+    K_PILL_DX = 52, K_PILL_Y = 22, K_PILL_W = 50, K_PILL_H = 28,   // − / +: centre from the screen's midline (the middle goes to the layout button) and from the top, size
     K_SWAP_R = 15,                                  // layout button: top centre, level with − / +
     K_STICK_X = 81, K_STICK_R = 77, K_KNOB_R = 30,  // left stick: mirrors the diamond, the ring as large as the whole diamond (key distance + key radius), the knob a little larger than a diamond key
     K_STICK_GRAB = 1.0,                             // how near the ring centre a touch-down grabs a stick (times the ring radius)
