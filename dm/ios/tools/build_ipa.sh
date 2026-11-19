@@ -120,8 +120,12 @@ mkdir -p Gen/dm/font && cp "${STD_FONT:-/System/Library/Fonts/Supplemental/Arial
 # It is scaled to a 1024x1024 PNG in the asset catalog Gen/Assets.xcassets (a single-size app icon; actool generates the other sizes); with neither, no icon is set and the home-screen icon is blank.
 # The catalog is always created (the project always lists it, see project.yml); without an icon it stays empty and DM_APPICON is not set
 ICON=${DM_ICON:-$(dirname "$ROMFS")/icon.jpg}
-mkdir -p Gen/Assets.xcassets && printf '{"info":{"author":"xcode","version":1}}\n' > Gen/Assets.xcassets/Contents.json || die "asset catalog"
+mkdir -p Gen/dm Gen/Assets.xcassets && printf '{"info":{"author":"xcode","version":1}}\n' > Gen/Assets.xcassets/Contents.json || die "asset catalog"
 if [ -f "$ICON" ]; then
+  # Bundle the exact source image used for the app icon so Launcher.swift can
+  # sample its dominant colour directly, without relying on UIImage(named:)
+  # resolving the compiled AppIcon asset (which is not consistently exposed).
+  sips -s format png "$ICON" --out Gen/dm/launcher-custom-icon.png > /dev/null || die "sips: cannot prepare launcher accent icon $ICON"
   AI=Gen/Assets.xcassets/AppIcon.appiconset; mkdir -p "$AI" || die "mkdir $AI"
   sips -s format png -z 1024 1024 "$ICON" --out "$AI/icon.png" > /dev/null || die "sips: cannot convert the icon $ICON"
   printf '{"images":[{"filename":"icon.png","idiom":"universal","platform":"ios","size":"1024x1024"}],"info":{"author":"xcode","version":1}}\n' > "$AI/Contents.json"
