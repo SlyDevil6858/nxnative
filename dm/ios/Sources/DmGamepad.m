@@ -411,7 +411,8 @@ static void pad_watch_select(GCController *c);
     UIView *_tools;
     UIButton *_toolsVisibilityButton;
     UISlider *_sizeSlider, *_alphaSlider;
-    UIButton *_fpsButton, *_hudButton;
+    UIButton *_hapticsButton, *_fpsButton, *_hudButton;
+    BOOL _hapticsEnabled;
     UIView *_themeMenuOverlay;
     UIView *_themeMenuPanel;
     BOOL _themeMenuClosing;
@@ -494,7 +495,10 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
         [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(themeRenameKeyboardWillHide:) name:UIKeyboardWillHideNotification object:nil];
         _launcherPreview = g_launcher_preview;
         const char *feedback = getenv("DM_TOUCH_HAPTICS");
-        if (!feedback || atoi(feedback)) {
+        BOOL defaultHapticsEnabled = (!feedback || atoi(feedback) != 0);
+        id savedHapticsSetting = [NSUserDefaults.standardUserDefaults objectForKey:@"DMTouchHapticsEnabled"];
+        _hapticsEnabled = savedHapticsSetting ? [savedHapticsSetting boolValue] : defaultHapticsEnabled;
+        if (_hapticsEnabled) {
             _touchFeedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
             [_touchFeedback prepare];
         }
@@ -2436,13 +2440,26 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     UIButton *importThemeButton=[self editorButton:@"Import…" action:@selector(importThemeFolder) frame:CGRectMake(180,220,80,32) parent:_tools];
     importThemeButton.titleLabel.font=[UIFont systemFontOfSize:11 weight:UIFontWeightMedium];
     UIButton *createThemeButton=[self editorButton:@"Create theme" action:@selector(createCustomTheme)
-        frame:CGRectMake(8,258,_launcherPreview ? 344 : 248,32) parent:_tools];
+        frame:CGRectMake(8,258,_launcherPreview ? 344 : 200,32) parent:_tools];
     createThemeButton.titleLabel.adjustsFontSizeToFitWidth=YES;
     importThemeButton.titleLabel.adjustsFontSizeToFitWidth=YES;
     importThemeButton.titleLabel.minimumScaleFactor=0.8;
     importThemeButton.titleLabel.lineBreakMode=NSLineBreakByClipping;
 
-    // Runtime HUD toggles are only available in the live control editor.
+    // Runtime toggles are only available in the live control editor.
+    _hapticsButton=[UIButton buttonWithType:UIButtonTypeSystem];
+    _hapticsButton.hidden=_launcherPreview;
+    _hapticsButton.frame=CGRectMake(216,258,40,32);
+    _hapticsButton.backgroundColor=[UIColor colorWithWhite:0.12 alpha:0.96];
+    _hapticsButton.layer.cornerRadius=6;
+    _hapticsButton.accessibilityLabel=@"Haptic feedback";
+    _hapticsButton.accessibilityHint=@"Toggle touch-control haptic feedback";
+    [_hapticsButton setImage:[UIImage systemImageNamed:@"hand.tap"] forState:UIControlStateNormal];
+    _hapticsButton.imageView.contentMode=UIViewContentModeScaleAspectFit;
+    _hapticsButton.tintColor=UIColor.whiteColor;
+    [_hapticsButton addTarget:self action:@selector(toggleHapticFeedback) forControlEvents:UIControlEventTouchUpInside];
+    [_tools addSubview:_hapticsButton];
+
     _fpsButton=[UIButton buttonWithType:UIButtonTypeSystem];
     _fpsButton.hidden=_launcherPreview;
     _fpsButton.frame=CGRectMake(264,258,40,32);
@@ -2475,12 +2492,28 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     BOOL hud=front_ios_runtime_metal_hud_enabled();
     UIColor *normal=[UIColor colorWithWhite:0.12 alpha:0.96];
     UIColor *enabled=[UIColor colorWithRed:0.16 green:0.34 blue:0.20 alpha:1];
+    _hapticsButton.backgroundColor=_hapticsEnabled ? enabled : normal;
     _fpsButton.backgroundColor=fps ? enabled : normal;
     _hudButton.backgroundColor=hud ? enabled : normal;
+    _hapticsButton.tintColor=UIColor.whiteColor;
     _fpsButton.tintColor=UIColor.whiteColor;
     _hudButton.tintColor=UIColor.whiteColor;
+    _hapticsButton.accessibilityValue=_hapticsEnabled?@"On":@"Off";
     _fpsButton.accessibilityValue=fps?@"On":@"Off";
     _hudButton.accessibilityValue=hud?@"On":@"Off";
+}
+- (void)toggleHapticFeedback {
+    _hapticsEnabled=!_hapticsEnabled;
+    [NSUserDefaults.standardUserDefaults setBool:_hapticsEnabled forKey:@"DMTouchHapticsEnabled"];
+    if (_hapticsEnabled) {
+        _touchFeedback=[[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
+        [_touchFeedback prepare];
+        [_touchFeedback impactOccurredWithIntensity:0.6];
+        [_touchFeedback prepare];
+    } else {
+        _touchFeedback=nil;
+    }
+    [self refreshHUDToggleButtons];
 }
 - (void)toggleFPSCounter {
     BOOL fps=!front_ios_runtime_fps_enabled();
