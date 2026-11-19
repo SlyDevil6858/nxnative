@@ -266,6 +266,14 @@ private struct LauncherView: View {
                 ScrollViewReader { themeScrollProxy in
                 List {
                     ForEach(m.sections, id: \.self) { section in
+                        if section == "Performance", let supportURL = launcherSupportURL() {
+                            Section("Support") {
+                                Button("Support the author of this port…") {
+                                    UIApplication.shared.open(supportURL)
+                                }
+                                .foregroundStyle(accentColor)
+                            }
+                        }
                         let rows = m.rows(in: section)
                         if !rows.isEmpty {
                             Section(section == "Controls" ? "Touch controls" : section) {
@@ -305,7 +313,7 @@ private struct LauncherView: View {
                             }
                         }
                     }
-                    if let supportURL = launcherSupportURL() {
+                    if !m.sections.contains("Performance"), let supportURL = launcherSupportURL() {
                         Section("Support") {
                             Button("Support the author of this port…") {
                                 UIApplication.shared.open(supportURL)
