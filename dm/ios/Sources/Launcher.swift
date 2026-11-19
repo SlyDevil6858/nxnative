@@ -466,45 +466,60 @@ private struct LauncherView: View {
                         }
                         .buttonStyle(.plain)
 
-                        // This spacer is required for every row. Without it, a
-                        // bundled row has no flexible sibling, so SwiftUI sizes
-                        // the button to its text and its trailing content appears
-                        // left of the actual row edge.
-                        Spacer(minLength: 0)
-
-                        if !isBundledTheme(theme), canDeleteTheme(theme) {
-                            Button {
-                                themeRenameText = theme.name
-                                themeRenamePath = theme.path
-                            } label: {
-                                Image(systemName: "pencil")
-                                    .font(.system(size: 17, weight: .bold))
-                                    .foregroundStyle(accentColor)
-                                    .frame(width: 32, height: 32)
-                                    .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("Rename \\(theme.name)")
+                                .overlay(alignment: .trailing) {
+                                    // Bundled themes have no edit/delete action columns.
+                                    // Keep their selected indicator at the trailing edge.
+                                    if isBundledTheme(theme), selectedTheme == theme.name {
+                                        Image(systemName: "checkmark")
+                                            .foregroundStyle(Color(red: 0.22, green: 0.48, blue: 0.28))
+                                            .frame(width: 32, height: 32)
+                                            .padding(.trailing, 0)
+                                            .accessibilityLabel("Selected theme")
+                                    }
+                                }
                         }
+                        .buttonStyle(.plain)
 
-                        if selectedTheme == theme.name {
-                            Image(systemName: "checkmark")
-                                .foregroundStyle(Color(red: 0.22, green: 0.48, blue: 0.28))
-                                .frame(width: 32, height: 32)
-                                .accessibilityLabel("Selected theme")
-                        } else if !isBundledTheme(theme), canDeleteTheme(theme) {
-                            Button(role: .destructive) {
-                                showingThemeList = false
-                                themeToDelete = theme
-                                confirmingThemeDeletion = true
-                            } label: {
-                                Image(systemName: "trash")
-                                    .foregroundStyle(Color(red: 0.55, green: 0.08, blue: 0.08))
-                                    .frame(width: 32, height: 32)
-                                    .contentShape(Rectangle())
+                        if !isBundledTheme(theme) {
+                            Spacer(minLength: 0)
+                            if canDeleteTheme(theme) {
+                                Button {
+                                    themeRenameText = theme.name
+                                    themeRenamePath = theme.path
+                                } label: {
+                                    Image(systemName: "pencil")
+                                        .font(.system(size: 17, weight: .bold))
+                                        .foregroundStyle(accentColor)
+                                        .frame(width: 32, height: 32)
+                                        .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("Rename \\(theme.name)")
+                            } else {
+                                Color.clear.frame(width: 32, height: 32)
                             }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("Delete \\(theme.name)")
+
+                            if selectedTheme == theme.name {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(Color(red: 0.22, green: 0.48, blue: 0.28))
+                                    .frame(width: 32, height: 32)
+                                    .accessibilityLabel("Selected theme")
+                            } else if canDeleteTheme(theme) {
+                                Button(role: .destructive) {
+                                    showingThemeList = false
+                                    themeToDelete = theme
+                                    confirmingThemeDeletion = true
+                                } label: {
+                                    Image(systemName: "trash")
+                                        .foregroundStyle(Color(red: 0.55, green: 0.08, blue: 0.08))
+                                        .frame(width: 32, height: 32)
+                                        .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("Delete \\(theme.name)")
+                            } else {
+                                Color.clear.frame(width: 32, height: 32)
+                            }
                         }
                     }
                 }
