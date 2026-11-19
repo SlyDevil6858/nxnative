@@ -427,7 +427,7 @@ private struct LauncherView: View {
                 let canManageTheme = !isBuiltInTheme && canDeleteTheme(theme)
 
                 Group {
-                    if themeRenamePath == theme.path {
+                    if canManageTheme && themeRenamePath == theme.path {
                         HStack(spacing: 0) {
                             TextField("Theme name", text: $themeRenameText)
                                 .focused($themeRenameFocused)
