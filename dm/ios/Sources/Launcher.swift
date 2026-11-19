@@ -414,6 +414,7 @@ private struct LauncherView: View {
     private var themeMenuContent: some View {
         VStack(spacing: 0) {
             ForEach(themes) { theme in
+                let canManageTheme = canDeleteTheme(theme)
                 HStack(spacing: 0) {
                     if themeRenamePath == theme.path {
                         TextField("Theme name", text: $themeRenameText)
@@ -464,44 +465,39 @@ private struct LauncherView: View {
                                 .padding(.vertical, 4)
                                 .contentShape(Rectangle())
                                 .overlay(alignment: .trailing) {
-                                    // Bundled themes have no edit/delete action columns.
-                                    // Keep their selected indicator at the trailing edge.
-                                    if isBundledTheme(theme), selectedTheme == theme.name {
+                                    // Rows without usable edit/delete actions have no action columns.
+                                    // Keep their selected indicator at the actual trailing edge.
+                                    if !canManageTheme && selectedTheme == theme.name {
                                         Image(systemName: "checkmark")
                                             .foregroundStyle(Color(red: 0.22, green: 0.48, blue: 0.28))
                                             .frame(width: 32, height: 32)
-                                            .padding(.trailing, 0)
                                             .accessibilityLabel("Selected theme")
                                     }
                                 }
                         }
                         .buttonStyle(.plain)
 
-                        if !isBundledTheme(theme) {
+                        if canManageTheme {
                             Spacer(minLength: 0)
-                            if canDeleteTheme(theme) {
-                                Button {
-                                    themeRenameText = theme.name
-                                    themeRenamePath = theme.path
-                                } label: {
-                                    Image(systemName: "pencil")
-                                        .font(.system(size: 17, weight: .bold))
-                                        .foregroundStyle(accentColor)
-                                        .frame(width: 32, height: 32)
-                                        .contentShape(Rectangle())
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel("Rename \\(theme.name)")
-                            } else {
-                                Color.clear.frame(width: 32, height: 32)
+                            Button {
+                                themeRenameText = theme.name
+                                themeRenamePath = theme.path
+                            } label: {
+                                Image(systemName: "pencil")
+                                    .font(.system(size: 17, weight: .bold))
+                                    .foregroundStyle(accentColor)
+                                    .frame(width: 32, height: 32)
+                                    .contentShape(Rectangle())
                             }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Rename \(theme.name)")
 
                             if selectedTheme == theme.name {
                                 Image(systemName: "checkmark")
                                     .foregroundStyle(Color(red: 0.22, green: 0.48, blue: 0.28))
                                     .frame(width: 32, height: 32)
                                     .accessibilityLabel("Selected theme")
-                            } else if canDeleteTheme(theme) {
+                            } else {
                                 Button(role: .destructive) {
                                     showingThemeList = false
                                     themeToDelete = theme
@@ -513,11 +509,10 @@ private struct LauncherView: View {
                                         .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
-                                .accessibilityLabel("Delete \\(theme.name)")
-                            } else {
-                                Color.clear.frame(width: 32, height: 32)
+                                .accessibilityLabel("Delete \(theme.name)")
                             }
                         }
+                    }
                     }
                 }
                 // Keep the row full-width even when bundled themes omit their
