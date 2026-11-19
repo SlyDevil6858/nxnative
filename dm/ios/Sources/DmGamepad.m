@@ -2452,7 +2452,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [_editorPopupPanel addSubview:_editorPopupScroll];
 
     UIButton *importThemeButton=[self editorButton:@"Import…" action:@selector(importThemeFolder) frame:CGRectMake(172,220,80,32) parent:_tools];
-    importThemeButton.titleLabel.font=[UIFont systemFontOfSize:11 weight:UIFontWeightMedium];
+    importThemeButton.titleLabel.font=[UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
     UIButton *createThemeButton=[self editorButton:@"Create theme" action:@selector(createCustomTheme)
         frame:CGRectMake(8,258,_launcherPreview ? 344 : 200,32) parent:_tools];
     createThemeButton.titleLabel.adjustsFontSizeToFitWidth=YES;
