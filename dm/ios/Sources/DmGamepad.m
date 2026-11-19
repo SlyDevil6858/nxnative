@@ -561,8 +561,8 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
             CGFloat borderGreen=green+(1.0-green)*0.22;
             CGFloat borderBlue=blue+(1.0-blue)*0.22;
             UIColor *tipBorder=[UIColor colorWithRed:borderRed green:borderGreen blue:borderBlue alpha:alpha];
-            CGFloat fillLuminance=0.2126*red*0.72+0.7152*green*0.72+0.0722*blue*0.72;
-            _menuTip.textColor=fillLuminance>0.58?UIColor.blackColor:UIColor.whiteColor;
+            CGFloat accentLuminance=0.2126*red+0.7152*green+0.0722*blue;
+            _menuTip.textColor=accentLuminance>0.58?UIColor.blackColor:UIColor.whiteColor;
             _menuTip.backgroundColor=UIColor.clearColor;
             _menuTip.layer.cornerRadius=0;
             _menuTip.layer.borderWidth=0;
@@ -940,8 +940,8 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
     UIColor *tipBorder=[UIColor colorWithRed:red+(1.0-red)*0.22
                                       green:green+(1.0-green)*0.22
                                        blue:blue+(1.0-blue)*0.22 alpha:alpha];
-    CGFloat fillLuminance=0.2126*red*0.72+0.7152*green*0.72+0.0722*blue*0.72;
-    _menuTip.textColor=fillLuminance>0.58?UIColor.blackColor:UIColor.whiteColor;
+    CGFloat accentLuminance=0.2126*red+0.7152*green+0.0722*blue;
+    _menuTip.textColor=accentLuminance>0.58?UIColor.blackColor:UIColor.whiteColor;
     _menuTip.backgroundColor=UIColor.clearColor;
     _menuTip.layer.cornerRadius=0;
     _menuTip.layer.borderWidth=0;
