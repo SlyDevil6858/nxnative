@@ -1740,6 +1740,18 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         NSString *folderName=folder.lastPathComponent;
         BOOL protectedTheme=[folderName caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame ||
             [title caseInsensitiveCompare:@"CLASSIC"]==NSOrderedSame;
+        // The checkmark must use the same classification as the management
+        // buttons: only imported custom themes with a manifest have action slots.
+        BOOL isImportedTheme=NO;
+        for (NSURL *importedFolder in importedFolders) {
+            if ([importedFolder.standardizedURL.path isEqualToString:folder.standardizedURL.path]) {
+                isImportedTheme=YES;
+                break;
+            }
+        }
+        NSURL *manifestURL=[self themeJSONURLInFolder:folder];
+        BOOL manifestExists=manifestURL && [NSFileManager.defaultManager fileExistsAtPath:manifestURL.path];
+        BOOL hasManagementActions=isImportedTheme && manifestExists && !protectedTheme;
         __weak typeof(self) weakSelf=self;
         BOOL editingThisTheme=[_themeRenamePath isEqualToString:path];
         if (editingThisTheme) {
@@ -1794,8 +1806,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
                 [strongSelf closeThemeMenu];
             }] forControlEvents:UIControlEventTouchUpInside]; [_themeMenuScroll addSubview:pick];
             if ([current isEqualToString:title]) {
-                CGFloat markX=protectedTheme ? 252 : 178;
-                CGFloat markWidth=protectedTheme ? 32 : 26;
+                CGFloat markX=hasManagementActions ? 178 : 252;
+                CGFloat markWidth=hasManagementActions ? 26 : 32;
                 UILabel *activeMark=[[UILabel alloc] initWithFrame:CGRectMake(markX,row*rowHeight,markWidth,rowHeight)];
                 activeMark.text=@"✓"; activeMark.textAlignment=protectedTheme ? NSTextAlignmentCenter : NSTextAlignmentRight;
                 activeMark.font=[UIFont systemFontOfSize:18 weight:UIFontWeightBold];
@@ -1807,16 +1819,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         // Only direct child folders in the app's imported-themes directory are custom themes.
         // Do not gate the actions on isWritableFileAtPath: that check can incorrectly return
         // false for app-managed/document-provider files even when the app can edit them.
-        BOOL isImportedTheme=NO;
-        for (NSURL *importedFolder in importedFolders) {
-            if ([importedFolder.standardizedURL.path isEqualToString:folder.standardizedURL.path]) {
-                isImportedTheme=YES;
-                break;
-            }
-        }
-        NSURL *manifestURL=[self themeJSONURLInFolder:folder];
-        BOOL manifestExists=manifestURL && [NSFileManager.defaultManager fileExistsAtPath:manifestURL.path];
-        if (isImportedTheme && manifestExists && !protectedTheme) {
+        if (hasManagementActions) {
             UIImageSymbolConfiguration *actionSymbol=[UIImageSymbolConfiguration configurationWithPointSize:17 weight:UIImageSymbolWeightSemibold];
             UIImageSymbolConfiguration *renameSymbol=[UIImageSymbolConfiguration configurationWithPointSize:18 weight:UIImageSymbolWeightBold];
             if (!editingThisTheme) {
