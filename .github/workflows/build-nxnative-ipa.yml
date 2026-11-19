@@ -40,7 +40,7 @@ on:
         description: "Webpage opened by the launcher's Support button (blank hides the button)"
         required: false
         type: string
-        default: ""
+        default: "https://ko-fi.com/slydevil6858"
 
 permissions:
   contents: write
