@@ -18,14 +18,14 @@ targets:
       - path: Gen/dm          # Rewriter tables (*.fixups.tsv / gates / cuts / obs) + shader map / c1 list / warm-up list
         type: folder
         buildPhase: resources
-      # Bundle built-in themes separately from game-specific overrides.
-      # CLASSIC is always included; the selected override theme is discovered at runtime.
-      - path: ../../TouchControlThemes
+      # build_ipa.sh copies all built-in themes here, then stages the selected
+      # ROM's nested <ROM>/<ROM>/ theme folder beside CLASSIC before XcodeGen.
+      # Every built-in and ROM-specific theme therefore shares one bundle root.
+      - path: Gen/TouchControlThemes
         type: folder
         buildPhase: resources
-      # build_ipa.sh stages the selected ROM's override folder here before
-      # XcodeGen runs. This makes the selected theme an explicit folder resource,
-      # alongside TouchControlThemes/CLASSIC, at Bundle/OVERRIDES/<ROM>/.
+      # Keep every file from the selected ROM override folder (ICON.png,
+      # BACKGROUND.png, and any other assets) in its own bundle resource folder.
       - path: Gen/OVERRIDES
         type: folder
         buildPhase: resources
