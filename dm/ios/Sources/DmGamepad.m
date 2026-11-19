@@ -370,7 +370,7 @@ static void pad_watch_select(GCController *c);
     CAShapeLayer *_key[B_N]; CATextLayer *_label[B_N];   // one layer per key
     CAShapeLayer *_ring, *_knob;                   // the left stick (the right one is not drawn)
     CAShapeLayer *_swap; CATextLayer *_swapLabel; BOOL _swapHeld;
-    UIImpactFeedbackGenerator *_touchFeedback;       // one short feedback per touch-control press edge
+    UISelectionFeedbackGenerator *_touchFeedback;   // subtle keyboard-like tick on each touch-control press edge
     unsigned _hapticSticks;
     BOOL _stickShown;                              // the left stick was held at the last refresh
     BOOL _full, _tap;                              // the 3D layout / the Tap layout is current
@@ -500,7 +500,7 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
         id savedHapticsSetting = [NSUserDefaults.standardUserDefaults objectForKey:@"DMTouchHapticsEnabled"];
         _hapticsEnabled = savedHapticsSetting ? [savedHapticsSetting boolValue] : defaultHapticsEnabled;
         if (_hapticsEnabled) {
-            _touchFeedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
+            _touchFeedback = [[UISelectionFeedbackGenerator alloc] init];
             [_touchFeedback prepare];
         }
         _owner = [NSMapTable strongToStrongObjectsMapTable]; _faceOf = [NSMapTable strongToStrongObjectsMapTable];
@@ -879,7 +879,7 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
     uint64_t pressed = (face | dpad | btn) & ~(_faceBits | _dpadBits | _btnBits);
     unsigned gripping = (_stick[0] ? 1u : 0) | (_stick[1] ? 2u : 0);
     if (pressed || (swap && !_swapHeld) || (gripping & ~_hapticSticks)) {
-        [_touchFeedback impactOccurredWithIntensity:0.6]; [_touchFeedback prepare];
+        [_touchFeedback selectionChanged]; [_touchFeedback prepare];
     }
     _hapticSticks = gripping;
     _faceBits = face; _dpadBits = dpad; _btnBits = btn; _swapHeld = swap;
@@ -2520,9 +2520,9 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _hapticsEnabled=!_hapticsEnabled;
     [NSUserDefaults.standardUserDefaults setBool:_hapticsEnabled forKey:@"DMTouchHapticsEnabled"];
     if (_hapticsEnabled) {
-        _touchFeedback=[[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
+        _touchFeedback=[[UISelectionFeedbackGenerator alloc] init];
         [_touchFeedback prepare];
-        [_touchFeedback impactOccurredWithIntensity:0.6];
+        [_touchFeedback selectionChanged];
         [_touchFeedback prepare];
     } else {
         _touchFeedback=nil;
@@ -2532,13 +2532,13 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 - (void)toggleFPSCounter {
     BOOL fps=!front_ios_runtime_fps_enabled();
     front_ios_set_runtime_hud(fps,front_ios_runtime_metal_hud_enabled());
-    [_touchFeedback impactOccurredWithIntensity:0.6]; [_touchFeedback prepare];
+    [_touchFeedback selectionChanged]; [_touchFeedback prepare];
     [self refreshHUDToggleButtons];
 }
 - (void)togglePerformanceHUD {
     BOOL hud=!front_ios_runtime_metal_hud_enabled();
     front_ios_set_runtime_hud(front_ios_runtime_fps_enabled(),hud);
-    [_touchFeedback impactOccurredWithIntensity:0.6]; [_touchFeedback prepare];
+    [_touchFeedback selectionChanged]; [_touchFeedback prepare];
     [self refreshHUDToggleButtons];
 }
 - (void)closeEditorPopup {
@@ -2759,7 +2759,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 - (void)toggleToolsVisibility {
     if (!_editing) return;
     _tools.hidden=!_tools.hidden;
-    [_touchFeedback impactOccurredWithIntensity:0.6]; [_touchFeedback prepare];
+    [_touchFeedback selectionChanged]; [_touchFeedback prepare];
     [self updateToolsVisibilityButtonAppearance];
     [self setNeedsLayout];
 }
