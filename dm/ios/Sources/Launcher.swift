@@ -71,6 +71,12 @@ private extension UIImage {
 
 /// Resolve the app icon the same way the launcher header does, including its Info.plist fallback.
 private func launcherAppIcon() -> UIImage? {
+    // Sample the exact source image used to generate this build's app icon.
+    // App-icon catalog images are not reliably available through UIImage(named:).
+    if let iconURL = Bundle.main.url(forResource: "launcher-custom-icon", withExtension: "png", subdirectory: "dm"),
+       let icon = UIImage(contentsOfFile: iconURL.path) {
+        return icon
+    }
     if let icon = UIImage(named: "AppIcon") { return icon }
     guard let icons = info("CFBundleIcons") as? [String: Any],
           let primary = icons["CFBundlePrimaryIcon"] as? [String: Any],
