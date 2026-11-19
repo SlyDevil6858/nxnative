@@ -673,13 +673,44 @@ private struct LauncherView: View {
         guard !newName.isEmpty,
               newName.caseInsensitiveCompare("CLASSIC") != .orderedSame,
               let json = themeJSON(in: URL(fileURLWithPath: theme.path)) else { return }
+
+        // Keep the on-disk folder name in sync with the theme's display name.
+        // Strip path/control characters so a rename cannot escape the themes directory.
+        let proposedFolderName = String(newName.map {
+            $0.isLetter || $0.isNumber || $0 == " " || $0 == "_" || $0 == "-" ? $0 : "_"
+        }).trimmingCharacters(in: CharacterSet(charactersIn: " ._"))
+        guard !proposedFolderName.isEmpty else { return }
+
+        let fileManager = FileManager.default
+        let sourceFolder = URL(fileURLWithPath: theme.path).standardizedFileURL
+        let root = themesDirectory().standardizedFileURL
+        let folderName = sourceFolder.lastPathComponent == proposedFolderName
+            ? proposedFolderName
+            : uniqueThemeFolderName(proposedFolderName, root: root)
+        let destinationFolder = root.appendingPathComponent(folderName, isDirectory: true)
+        let shouldMoveFolder = sourceFolder != destinationFolder.standardizedFileURL
+
         var updated = json
         updated["name"] = newName
         do {
-            let data = try JSONSerialization.data(withJSONObject: updated, options: [.prettyPrinted])
-            try data.write(to: URL(fileURLWithPath: theme.path).appendingPathComponent("theme.json"), options: .atomic)
+            if shouldMoveFolder {
+                try fileManager.moveItem(at: sourceFolder, to: destinationFolder)
+            }
+
+            do {
+                let data = try JSONSerialization.data(withJSONObject: updated, options: [.prettyPrinted])
+                try data.write(to: destinationFolder.appendingPathComponent("theme.json"), options: .atomic)
+            } catch {
+                // Roll the folder move back if updating its manifest fails.
+                if shouldMoveFolder {
+                    try? fileManager.moveItem(at: destinationFolder, to: sourceFolder)
+                }
+                throw error
+            }
+
             if selectedTheme == theme.name {
                 UserDefaults.standard.set(newName, forKey: "DmTouchControlThemeName")
+                UserDefaults.standard.set(destinationFolder.path, forKey: "DmTouchControlThemePath")
             }
             refreshThemes()
         } catch {
