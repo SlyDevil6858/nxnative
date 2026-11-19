@@ -170,7 +170,7 @@ jobs:
               raise SystemExit("The selected ROM filename produced an invalid override path.")
           if not folder.exists():
               folder.mkdir(parents=True, exist_ok=True)
-              (folder / "README.md").write_text("ROM-matched override folder. Add ICON.png, BACKGROUND.png, and/or theme.json here.\n", encoding="utf-8")
+              (folder / "README.md").write_text("ROM-matched override folder. Add ICON.png and BACKGROUND.png here. Put the touch theme in a nested folder named exactly like this ROM folder, e.g. ANIMAL WELL/theme.json.\n", encoding="utf-8")
               print(f"Created OVERRIDES/{rom_stem}/ for this ROM.")
           elif not folder.is_dir():
               raise SystemExit(f"Override path exists but is not a folder: OVERRIDES/{rom_stem}")
