@@ -1840,8 +1840,19 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             NSString *deletePath=[path copy],*deleteName=[title copy];
             [remove addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) {
                 (void)action;
-                [weakSelf closeThemeMenu];
-                [weakSelf confirmDeleteThemeAtPath:deletePath name:deleteName];
+                DmGamepad *strongSelf=weakSelf;
+                if (!strongSelf) return;
+                // Deleting another theme can happen while a different theme's
+                // rename field still owns the keyboard. End that rename session
+                // explicitly before dismissing the selector and showing confirmation.
+                UITextField *renameField=strongSelf->_themeRenameField;
+                strongSelf->_themeRenamePath=nil;
+                strongSelf->_themeRenameField=nil;
+                strongSelf->_themeMenuFramePinned=NO;
+                [renameField resignFirstResponder];
+                [strongSelf endEditing:YES];
+                [strongSelf closeThemeMenu];
+                [strongSelf confirmDeleteThemeAtPath:deletePath name:deleteName];
             }] forControlEvents:UIControlEventTouchUpInside];
             [_themeMenuScroll addSubview:remove];
             }
