@@ -14,7 +14,7 @@ on:
         type: choice
         options:
           - ANIMAL WELL
-          - KATANA ZERO
+          - katana ZERO
         default: ANIMAL WELL
       prod_keys_path:
         description: "Path to prod.keys inside myprivaterepo"
@@ -80,7 +80,7 @@ jobs:
           game = (root / os.environ["GAME_FOLDER"]).resolve()
           keys = (root / os.environ["PROD_KEYS_PATH"]).resolve()
           selection = os.environ["ROM_SELECTION"].strip()
-          expected_stems = {"ANIMAL WELL": "ANIMAL WELL", "KATANA ZERO": "KATANA ZERO"}
+          expected_stems = {"ANIMAL WELL": "ANIMAL WELL", "katana ZERO": "katana ZERO"}
           if selection not in expected_stems:
               raise SystemExit(f"Unsupported ROM selection: {selection!r}")
           expected_stem = expected_stems[selection]
@@ -101,7 +101,7 @@ jobs:
                       out.write(f"- {path.name} ({path.stat().st_size:,} bytes)\n")
               else:
                   out.write("No files found.\n")
-              out.write("\nChoose **ANIMAL WELL** or **KATANA ZERO** from the ROM selection dropdown.\n")
+              out.write("\nChoose **ANIMAL WELL** or **katana ZERO** from the ROM selection dropdown.\n")
 
           extensions = {".nsp", ".xci", ".nsz", ".xcz"}
           rom_files = [p for p in all_files if p.suffix.lower() in extensions and p.stat().st_size > 0]
@@ -112,7 +112,7 @@ jobs:
               raise SystemExit("No non-empty .nsp, .xci, .nsz or .xcz files found directly inside game_folder")
 
           # Match the selected game title to the exact ROM filename in the private repo.
-          matches = [p for p in rom_files if p.stem.casefold() == expected_stem.casefold()]
+          matches = [p for p in rom_files if p.stem == expected_stem]
           if len(matches) != 1:
               available = ", ".join(p.name for p in rom_files)
               raise SystemExit(
