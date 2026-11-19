@@ -457,25 +457,25 @@ private struct LauncherView: View {
                                 showingThemeList = false
                             }
                         } label: {
-                            Text(theme.name)
-                                .foregroundStyle(.white)
-                                .lineLimit(1)
-                                .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 4)
-                                .contentShape(Rectangle())
-                                .overlay(alignment: .trailing) {
-                                    // Rows without usable edit/delete actions have no action columns.
-                                    // Keep their selected indicator at the actual trailing edge.
-                                    if !canManageTheme && selectedTheme == theme.name {
-                                        Image(systemName: "checkmark")
-                                            .foregroundStyle(Color(red: 0.22, green: 0.48, blue: 0.28))
-                                            .frame(width: 32, height: 32)
-                                            .accessibilityLabel("Selected theme")
-                                    }
+                            HStack(spacing: 8) {
+                                Text(theme.name)
+                                    .foregroundStyle(.white)
+                                    .lineLimit(1)
+                                Spacer(minLength: 0)
+                                if !canManageTheme && selectedTheme == theme.name {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(Color(red: 0.22, green: 0.48, blue: 0.28))
+                                        .frame(width: 32, height: 32)
+                                        .accessibilityLabel("Selected theme")
                                 }
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 4)
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
                         if canManageTheme {
                             Spacer(minLength: 0)
@@ -875,10 +875,15 @@ private struct LauncherView: View {
                 return name.trimmingCharacters(in: .whitespacesAndNewlines)
             }
             func priority(_ theme: LauncherTheme) -> Int {
-                let folder = normalizedThemeName(URL(fileURLWithPath: theme.path).lastPathComponent)
+                let themeURL = URL(fileURLWithPath: theme.path).standardizedFileURL
+                let folder = normalizedThemeName(themeURL.lastPathComponent)
                 let display = normalizedThemeName(theme.name)
-                if let selectedOverridePath = selectedOverrideThemeDirectory()?.standardizedFileURL.path,
-                   selectedOverridePath == URL(fileURLWithPath: theme.path).standardizedFileURL.path { return 0 }
+                let overrideFolder = normalizedThemeName((info("DMOverrideFolder") as? String) ?? "")
+                let isSelectedOverridePath = selectedOverrideThemeDirectory()?.standardizedFileURL == themeURL
+                // Match by the build's ROM override folder as well as its resolved path.
+                // This keeps the ROM-specific theme first even if the bundle path layout changes.
+                if isSelectedOverridePath || (!overrideFolder.isEmpty &&
+                    (folder == overrideFolder || display == overrideFolder)) { return 0 }
                 if folder == "CLASSIC" || display == "CLASSIC" { return 1 }
                 // Other themes remain available after the ROM-matched override and CLASSIC.
                 return 2
