@@ -423,7 +423,11 @@ private struct LauncherView: View {
     private var themeMenuContent: some View {
         VStack(spacing: 0) {
             ForEach(themes) { theme in
-                let canManageTheme = canDeleteTheme(theme)
+                // Classify built-in themes before constructing row actions.
+                // Built-in themes must not create edit/delete controls or reserve
+                // any of their trailing layout space.
+                let isBuiltInTheme = isBundledTheme(theme)
+                let canManageTheme = !isBuiltInTheme && canDeleteTheme(theme)
                 HStack(spacing: 0) {
                     if themeRenamePath == theme.path {
                         TextField("Theme name", text: $themeRenameText)
@@ -486,7 +490,7 @@ private struct LauncherView: View {
                         .buttonStyle(.plain)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                        if canManageTheme {
+                        if !isBuiltInTheme && canManageTheme {
                             Spacer(minLength: 0)
                             Button {
                                 themeRenameText = theme.name
