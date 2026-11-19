@@ -36,6 +36,11 @@ on:
         required: false
         type: string
         default: ""
+      support_url:
+        description: "Webpage opened by the launcher's Support button (blank hides the button)"
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: write
@@ -145,11 +150,13 @@ jobs:
           OVERRIDES_ROOT: ${{ github.workspace }}/nxnative/OVERRIDES
           DOMINANT_COLOR_STYLING: ${{ inputs.dominant_color_styling }}
           CUSTOM_ACCENT_HEX: ${{ inputs.custom_accent_hex }}
+          SUPPORT_URL: ${{ inputs.support_url }}
         run: |
           python3 - <<'PY'
           import os
           import re
           from pathlib import Path
+          from urllib.parse import urlsplit
 
           overrides_root = Path(os.environ["OVERRIDES_ROOT"]).resolve()
           rom_stem = os.environ["OVERRIDE_FOLDER"]
@@ -168,6 +175,14 @@ jobs:
           elif not folder.is_dir():
               raise SystemExit(f"Override path exists but is not a folder: OVERRIDES/{rom_stem}")
 
+          support_url = os.environ.get("SUPPORT_URL", "").strip()
+          if support_url:
+              if any(c in support_url for c in "\r\n"):
+                  raise SystemExit("support_url must be a single-line HTTP or HTTPS URL.")
+              parsed_support_url = urlsplit(support_url)
+              if parsed_support_url.scheme.lower() not in {"http", "https"} or not parsed_support_url.hostname:
+                  raise SystemExit("support_url must be a complete HTTP or HTTPS webpage URL.")
+
           dominant_enabled = os.environ.get("DOMINANT_COLOR_STYLING", "true").lower() == "true"
           custom_hex = os.environ.get("CUSTOM_ACCENT_HEX", "").strip()
           normalized_hex = ""
@@ -180,6 +195,7 @@ jobs:
           with open(env_path, "a", encoding="utf-8") as env:
               env.write(f"NXNATIVE_CUSTOM_ACCENT_HEX={normalized_hex}\n")
               env.write(f"NXNATIVE_OVERRIDE_FOLDER={rom_stem}\n")
+              env.write(f"NXNATIVE_SUPPORT_URL={support_url}\n")
 
           if dominant_enabled:
               print("Dominant-colour styling is enabled; custom accent input will be ignored.")
@@ -272,6 +288,7 @@ jobs:
           DM_SHOW_FPS: "0"
           DM_DOMINANT_ACCENT: ${{ inputs.dominant_color_styling }}
           DM_CUSTOM_ACCENT_HEX: ${{ env.NXNATIVE_CUSTOM_ACCENT_HEX }}
+          DM_SUPPORT_URL: ${{ env.NXNATIVE_SUPPORT_URL }}
         run: |
           set -o pipefail
           DATA_ROOT="$GITHUB_WORKSPACE/private-game-data"
