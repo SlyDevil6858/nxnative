@@ -1311,8 +1311,9 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
             setPath(_key[b], CGPathCreateWithRoundedRect(rc, rc.size.height / 2, rc.size.height / 2, NULL));
             CGPoint labelCenter = CGPointMake(CGRectGetMidX(rc), CGRectGetMidY(rc));
             // The + / − glyphs sit optically low inside the pill outline; nudge
-            // only those two labels upward without moving their touch targets.
-            if (b == B_MINUS || b == B_PLUS) labelCenter.y -= 2 * u;
+            // only those two labels without moving their touch targets.
+            if (b == B_MINUS) labelCenter.y -= 2 * u;
+            else if (b == B_PLUS) labelCenter.y -= 1 * u;
             placeLabel(_label[b], labelCenter, 18 * u * [self scale:b]);
         }
     }
