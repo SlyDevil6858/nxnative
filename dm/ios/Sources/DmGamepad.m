@@ -2766,13 +2766,6 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         BOOL wasVisible=!_tools.hidden;
         _tools.hidden=!_tools.hidden;
         [self updateToolsVisibilityButtonAppearance];
-        // In the pre-launch editor, show this hint the first time its settings
-        // panel is dismissed. The layout-mode switcher is the way to reopen it.
-        if (_launcherPreview && wasVisible && _tools.hidden &&
-            ![NSUserDefaults.standardUserDefaults boolForKey:@"DmPadLauncherConfigMenuReopenTipShown"]) {
-            [NSUserDefaults.standardUserDefaults setBool:YES forKey:@"DmPadLauncherReopenTipShown"];
-            [self showLauncherReopenTip];
-        }
         return;
     }
     _editWasTap=_tap;
@@ -2817,10 +2810,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 }
 - (void)saveEdit {
     [_profiles save:_custom layout:self.controlsLayout slot:_profiles.selected];
-    // Pressing Done exits the entire launcher editor, so don't show the
-    // one-time reopen hint during the dismissal transition. Leave the hint
-    // eligible for the user to see when they close only the settings panel.
     [self finishEdit];
+    [self showLauncherEditorFinishTipIfNeeded];
 }
 - (void)cancelEdit {
     [self loadControls];
