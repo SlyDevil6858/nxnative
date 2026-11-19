@@ -271,7 +271,7 @@ private struct LauncherView: View {
                                 Button("Support the author of this port…") {
                                     UIApplication.shared.open(supportURL)
                                 }
-                                .foregroundStyle(accentColor)
+                                .foregroundStyle(Color(red: 245.0 / 255.0, green: 176.0 / 255.0, blue: 15.0 / 255.0))
                             }
                         }
                         let rows = m.rows(in: section)
@@ -318,7 +318,7 @@ private struct LauncherView: View {
                             Button("Support the author of this port…") {
                                 UIApplication.shared.open(supportURL)
                             }
-                            .foregroundStyle(accentColor)
+                            .foregroundStyle(Color(red: 245.0 / 255.0, green: 176.0 / 255.0, blue: 15.0 / 255.0))
                         }
                     }
                     Section {
