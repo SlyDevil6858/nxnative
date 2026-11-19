@@ -453,6 +453,10 @@ private struct LauncherView: View {
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        // Make the selection row itself consume all remaining
+                        // width when a bundled theme has no edit/delete actions.
+                        // This keeps its active checkmark anchored to the far right.
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         if canDeleteTheme(theme) {
                             Button {
                                 themeRenameText = theme.name
