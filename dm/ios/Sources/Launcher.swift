@@ -9,6 +9,17 @@ import os
 
 private func info(_ key: String) -> Any? { Bundle.main.object(forInfoDictionaryKey: key) }
 
+/// Optional support webpage configured by the build workflow.
+private func launcherSupportURL() -> URL? {
+    guard let raw = info("DMSupportURL") as? String else { return nil }
+    let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard let url = URL(string: value),
+          let scheme = url.scheme?.lowercased(),
+          scheme == "https" || scheme == "http",
+          url.host != nil else { return nil }
+    return url
+}
+
 /// A lightweight dominant-colour estimate for tinting the launcher from the game's app icon.
 private extension UIImage {
     func dominantColor() -> UIColor? {
@@ -286,6 +297,14 @@ private struct LauncherView: View {
                                     .listRowBackground(Color.black)
                                 }
                             }
+                        }
+                    }
+                    if let supportURL = launcherSupportURL() {
+                        Section("Support") {
+                            Button("♥️ Support the author of this port…") {
+                                UIApplication.shared.open(supportURL)
+                            }
+                            .foregroundStyle(accentColor)
                         }
                     }
                     Section {
