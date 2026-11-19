@@ -371,6 +371,9 @@ private struct LauncherView: View {
         // This keeps the artwork anchored while the settings List handles the keyboard.
         .ignoresSafeArea(.keyboard, edges: themeRenamePath != nil ? .bottom : [])
         .preferredColorScheme(.dark)
+        // Propagate the selected game-icon accent to native SwiftUI buttons and
+        // controls too, not only the launcher elements that set their own tint.
+        .tint(accentColor)
         // Keep the launcher underneath the pre-launch control editor fixed
         // when its theme rename field brings up the keyboard. The editor's
         // own menu handles keyboard positioning independently.
