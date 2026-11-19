@@ -437,19 +437,20 @@ private struct LauncherView: View {
                                 showingThemeList = false
                             }
                         } label: {
-                            HStack(spacing: 8) {
-                                Text(theme.name)
-                                    .foregroundStyle(.white)
-                                    .lineLimit(1)
-                                Spacer(minLength: 4)
-                            }
-                            .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 4)
-                            .contentShape(Rectangle())
+                            Text(theme.name)
+                                .foregroundStyle(.white)
+                                .lineLimit(1)
+                                .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 4)
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                        // Keep both trailing action columns present in every row.
+                        // Bundled themes get empty placeholders, never hidden controls,
+                        // so their checkmark occupies exactly the custom-theme trash slot.
+                        Spacer(minLength: 0)
                         if canDeleteTheme(theme) {
                             Button {
                                 themeRenameText = theme.name
@@ -463,10 +464,11 @@ private struct LauncherView: View {
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel("Rename \\(theme.name)")
+                        } else {
+                            Color.clear.frame(width: 32, height: 32)
                         }
+
                         if selectedTheme == theme.name {
-                            // Put the active marker in the same trailing slot
-                            // used by the custom-theme trash button.
                             Image(systemName: "checkmark")
                                 .foregroundStyle(Color(red: 0.22, green: 0.48, blue: 0.28))
                                 .frame(width: 32, height: 32)
@@ -484,6 +486,8 @@ private struct LauncherView: View {
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel("Delete \\(theme.name)")
+                        } else {
+                            Color.clear.frame(width: 32, height: 32)
                         }
                     }
                 }
