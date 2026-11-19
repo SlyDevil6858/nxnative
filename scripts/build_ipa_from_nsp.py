@@ -2497,15 +2497,19 @@ def main(args=None):
         pkey = split_shaders(py, repo, [rfs.source(dirs[v]) for v in sv], [dirs[v] / 'ExeFS/main' for v in sv], sh / 'pkg', env, logs, g, own, oodle, dlc_roms, derive_dlc, derive_compute)
         ios = build_shaders(py, repo, sh, xlate, env, logs, g, pkey, mac)
     icon = next((d / 'icon.jpg' for d in (game, base) if (d / 'icon.jpg').exists()), None)   # the game icon nx_extract saved from the control data (English, icon.jpg); the packed version's first, then the base game's
-    # Make a ROM-specific touch theme from CLASSIC only when this game has no theme.json yet.
-    # The icon is extracted from the game's control data above, before XcodeGen bundles OVERRIDES.
+    # Make a ROM-specific touch theme from CLASSIC only when this game's
+    # nested <ROM>/<ROM>/theme.json is not already present.
+    # The icon is extracted before XcodeGen bundles the generated TouchControlThemes folder.
     override_folder = os.environ.get('DM_OVERRIDE_FOLDER', '').strip()
     if override_folder:
         override_dir = (repo / 'OVERRIDES' / override_folder).resolve()
         overrides_root = (repo / 'OVERRIDES').resolve()
         if override_dir.parent != overrides_root:
             raise BuildError(f'invalid ROM override folder: {override_folder!r}')
-        manifest = override_dir / 'theme.json'
+        theme_folder = (override_dir / override_folder).resolve()
+        if theme_folder.parent != override_dir:
+            raise BuildError(f'invalid ROM theme folder: {override_folder!r}')
+        manifest = theme_folder / 'theme.json'
         if not manifest.is_file():
             classic_manifest = repo / 'TouchControlThemes' / 'CLASSIC' / 'theme.json'
             if not classic_manifest.is_file():
@@ -2546,7 +2550,7 @@ def main(args=None):
                     return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
                 def readable_text(rgb):
                     return 'FFFFFF' if luminance(rgb) < 0.42 else '000000'
-                override_dir.mkdir(parents=True, exist_ok=True)
+                theme_folder.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(classic_manifest, manifest)
                 theme = json.loads(manifest.read_text(encoding='utf-8'))
                 theme['name'] = override_folder
