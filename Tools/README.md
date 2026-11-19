@@ -1,43 +1,73 @@
 # Nintendo Switch reverse-engineering tools
 
-These are kept as **Git submodules**, not copied into nxnative's iOS app target. They are standalone desktop/development tools and do not become part of the iOS build.
+These tools are kept outside nxnative's iOS app target. They are desktop utilities for files you are authorized to analyze and do not become part of the iOS build.
 
-## Included tools
+## Included projects
 
-- **NSTool** — pinned to `v1.9.2` (`jakcron/nstool`). Reads and extracts XCI, NSP, NCA, RomFS, ExeFS, NSO, NRO and related Switch formats. Encrypted content requires legally obtained keys supplied by the user. NSTool's own dependencies are Git submodules.
-- **Ghidra** — pinned to `Ghidra_12.2_build` (`NationalSecurityAgency/ghidra`). Disassembles and decompiles extracted executable binaries into assembly and C-like pseudocode. It does not recover original source code.
+- **NSTool** — pinned to v1.9.2 (jakcron/nstool). Reads and extracts XCI, NSP, NCA, RomFS, ExeFS, NSO, NRO and related Switch formats. Its third-party libraries are nested Git submodules.
+- **Ghidra source** — pinned to Ghidra_12.2_build (NationalSecurityAgency/ghidra). Disassembles and decompiles compiled binaries into assembly and C-like pseudocode; it does not restore original source code.
+- **Ghidra desktop distribution** — downloaded by the Windows setup script into the ignored Tools/Ghidra-Distribution/ folder. The large official application ZIP is deliberately not committed to Git.
 
-## Clone / initialize
+## Windows quick setup
 
-Clone nxnative with submodules:
+Requirements:
+- Git for Windows.
+- 64-bit JDK 25 or newer for Ghidra 12.2.
+- To compile NSTool: Visual Studio 2019/2022 or Build Tools with the Desktop development with C++ workload, MSVC, and a Windows SDK.
 
-```sh
+From the repository root, initialize the projects and NSTool's nested dependencies, then download the official Ghidra release:
+
+~~~powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\Tools\setup-windows.ps1
+~~~
+
+If JDK 25 is missing and Windows Package Manager (winget) is available, the script can install Eclipse Temurin JDK 25:
+
+~~~powershell
+.\Tools\setup-windows.ps1 -InstallJdk
+~~~
+
+After Java installation, open a new PowerShell window and run the setup script again.
+
+Build NSTool after installing the Visual Studio C++ workload:
+
+~~~powershell
+.\Tools\build-nstool-windows.ps1
+~~~
+
+The build script uses the upstream Visual Studio solution and builds Release | x64 by default. Use -Configuration Debug or -Platform Win32 to change that.
+
+Launch Ghidra using the ghidraRun.bat found inside Tools/Ghidra-Distribution. The setup script prints the exact launcher path.
+
+## Manual / cross-platform initialization
+
+Clone with all nested submodules:
+
+~~~sh
 git clone --recurse-submodules https://github.com/SlyDevil6858/nxnative.git
-```
+~~~
 
-If nxnative is already cloned:
+Or, in an existing clone:
 
-```sh
+~~~sh
 git submodule update --init --recursive
-```
+~~~
 
-The recursive option is important for NSTool's dependencies.
+NSTool's Windows build instructions are in [BUILDING.md](https://github.com/jakcron/nstool/blob/v1.9.2/BUILDING.md). Ghidra's official installation/build instructions are in its [README](https://github.com/NationalSecurityAgency/ghidra/blob/Ghidra_12.2_build/README.md).
 
-## Typical workflow
+## Typical XCI-to-analysis workflow
 
-1. Use NSTool to inspect an XCI and extract its filesystem / content archives.
-2. Identify the game's executable content (typically the Program NCA, then its ExeFS and executable modules).
-3. Import the extracted executable into Ghidra and select the appropriate processor/language settings for analysis.
-4. Analyze the disassembly and decompiler output. Results depend on symbols, compiler settings, and binary format; expect pseudocode, not the original project/source.
+1. Use NSTool to inspect an XCI and extract its filesystem/content archives.
+2. Identify the Program NCA, then extract its ExeFS and executable modules.
+3. Import an extracted executable into Ghidra and select the correct processor/language.
+4. Analyze the disassembly and decompiler output. Results are pseudocode, not the game's original project or source.
 
-## Build / runtime notes
+Encrypted content may require keys that are not included here. This repository does not include game files, title keys, or firmware.
 
-- NSTool is a native C++ project. Follow its upstream [BUILDING.md](https://github.com/jakcron/nstool/blob/v1.9.2/BUILDING.md) and initialize its nested submodules.
-- Ghidra is a separate desktop application. The pinned source checkout is not a ready-to-run application bundle; follow the [official installation/build instructions](https://github.com/NationalSecurityAgency/ghidra#install). The official prebuilt release is available from [Ghidra 12.2](https://github.com/NationalSecurityAgency/ghidra/releases/tag/Ghidra_12.2_build).
+## Upstream licenses
 
-## Upstream projects and licenses
+- [NSTool](https://github.com/jakcron/nstool) — MIT.
+- [Ghidra](https://github.com/NationalSecurityAgency/ghidra) — Apache-2.0.
 
-- [NSTool](https://github.com/jakcron/nstool) — MIT License; see the upstream repository for its license and dependency notices.
-- [Ghidra](https://github.com/NationalSecurityAgency/ghidra) — Apache License 2.0; see the upstream repository for its license and third-party notices.
-
-These tools are provided for analyzing files you are authorized to access. This addition does not add XCI decryption keys, copyrighted game content, or an automatic decompilation feature to nxnative.
+See each upstream project for full licenses and third-party notices.
