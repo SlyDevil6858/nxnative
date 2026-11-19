@@ -1809,7 +1809,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
                 CGFloat markX=hasManagementActions ? 178 : 252;
                 CGFloat markWidth=hasManagementActions ? 26 : 32;
                 UILabel *activeMark=[[UILabel alloc] initWithFrame:CGRectMake(markX,row*rowHeight,markWidth,rowHeight)];
-                activeMark.text=@"✓"; activeMark.textAlignment=protectedTheme ? NSTextAlignmentCenter : NSTextAlignmentRight;
+                activeMark.text=@"✓"; activeMark.textAlignment=hasManagementActions ? NSTextAlignmentRight : NSTextAlignmentCenter;
                 activeMark.font=[UIFont systemFontOfSize:18 weight:UIFontWeightBold];
                 activeMark.textColor=[UIColor colorWithRed:0.22 green:0.48 blue:0.28 alpha:1];
                 activeMark.userInteractionEnabled=NO;
