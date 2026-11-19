@@ -136,6 +136,39 @@ if [ "$PREPARE_XCODE" = YES ] && [ -n "${DM_ENTITLEMENTS-default}" ]; then
 fi
 # DM_COPY_ROMFS=NO also for the prepared project: its Copy game resources phase (stage_resources.sh) then leaves the game files out and writes the image's identity; Gen/dm.xcconfig is made again by every run
 [ "${DM_COPY_ROMFS:-YES}" != NO ] || [ "$PREPARE_XCODE" != YES ] || echo "DM_COPY_ROMFS = NO" >> Gen/dm.xcconfig
+
+# Stage the selected ROM's touch theme as an explicit Xcode folder resource.
+# Do not rely on XcodeGen recursively discovering an arbitrary folder under
+# the repository's OVERRIDES directory.
+mkdir -p Gen/OVERRIDES || die "mkdir Gen/OVERRIDES"
+: > Gen/OVERRIDES/.keep || die "create OVERRIDES resource root"
+if [ -n "${DM_OVERRIDE_FOLDER:-}" ]; then
+  case "$DM_OVERRIDE_FOLDER" in
+    .|..|*/*|*\\*) die "invalid DM_OVERRIDE_FOLDER: $DM_OVERRIDE_FOLDER" ;;
+  esac
+  SOURCE_THEME="$DM/../OVERRIDES/$DM_OVERRIDE_FOLDER"
+  [ -d "$SOURCE_THEME" ] || die "selected ROM override folder is missing: $SOURCE_THEME"
+  [ -s "$SOURCE_THEME/theme.json" ] || die "selected ROM theme.json is missing or empty: $SOURCE_THEME/theme.json"
+  python3 - "$SOURCE_THEME" "Gen/OVERRIDES/$DM_OVERRIDE_FOLDER" <<'PYTHEME' || die "stage selected ROM touch theme"
+import json
+import shutil
+import sys
+from pathlib import Path
+
+source, destination = map(Path, sys.argv[1:])
+with (source / "theme.json").open(encoding="utf-8") as stream:
+    theme = json.load(stream)
+if not isinstance(theme, dict) or not isinstance(theme.get("palette"), dict):
+    raise SystemExit("theme.json is not a valid touch theme manifest")
+if destination.exists():
+    shutil.rmtree(destination)
+shutil.copytree(source, destination)
+if (destination / "theme.json").read_bytes() != (source / "theme.json").read_bytes():
+    raise SystemExit("staged theme.json differs from source")
+print(f"staged selected override: {destination}")
+PYTHEME
+fi
+
 xcodegen generate -q > /dev/null || die "xcodegen"
 # DMCommit / DMChain: the checkout that built the app (+dirty with uncommitted changes to tracked files) and the shader chain it carries, which the host logs at start (main.c)
 COMMIT=$(git -C "$DM" rev-parse --short=12 HEAD 2> /dev/null) && { [ -z "$(git -C "$DM" status --porcelain --untracked-files=no 2> /dev/null)" ] || COMMIT=$COMMIT+dirty
