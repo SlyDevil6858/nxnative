@@ -440,7 +440,7 @@ private struct LauncherView: View {
                             Text(theme.name)
                                 .foregroundStyle(.white)
                                 .lineLimit(1)
-                                .frame(minHeight: 48, alignment: .leading)
+                                .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 4)
                                 .contentShape(Rectangle())
