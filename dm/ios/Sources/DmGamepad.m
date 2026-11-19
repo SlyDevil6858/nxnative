@@ -1619,11 +1619,9 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         options:UIViewAnimationOptionCurveEaseIn|UIViewAnimationOptionBeginFromCurrentState
         animations:^{
             self->_themeMenuPanel.alpha=0;
-            self->_themeMenuPanel.transform=CGAffineTransformMakeTranslation(0,8);
         } completion:^(__unused BOOL finished) {
             self->_themeMenuOverlay.hidden=YES;
             self->_themeMenuPanel.alpha=1;
-            self->_themeMenuPanel.transform=CGAffineTransformIdentity;
             self->_themeMenuClosing=NO;
         }];
 }
