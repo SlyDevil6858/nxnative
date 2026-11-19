@@ -876,7 +876,7 @@ private struct LauncherView: View {
             !((hasDocumentsForest || forestWasDeleted) && $0.lastPathComponent.caseInsensitiveCompare("FOREST") == .orderedSame)
         }
         let folders = visibleBundled + importedFolders
-        themes = folders.compactMap { folder in
+        let sortedThemes = folders.compactMap { folder in
             guard (try? folder.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true,
                   let json = themeJSON(in: folder) else { return nil }
             return LauncherTheme(name: (json["name"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? folder.lastPathComponent,
@@ -911,6 +911,17 @@ private struct LauncherView: View {
             if byName != .orderedSame { return byName == .orderedAscending }
             return $0.path.localizedCaseInsensitiveCompare($1.path) == .orderedAscending
         }
+        // Mirror the control editor: force this ROM's override to index zero
+        // after sorting, with CLASSIC retaining its next-highest priority.
+        var orderedThemes = sortedThemes
+        if let selectedOverride = selectedOverrideThemeDirectory()?.standardizedFileURL,
+           let overrideIndex = orderedThemes.firstIndex(where: {
+               URL(fileURLWithPath: $0.path).standardizedFileURL == selectedOverride
+           }), overrideIndex != 0 {
+            let romOverride = orderedThemes.remove(at: overrideIndex)
+            orderedThemes.insert(romOverride, at: 0)
+        }
+        themes = orderedThemes
         let defaults = UserDefaults.standard
         let path = defaults.string(forKey: "DmTouchControlThemePath")
         if let selected = themes.first(where: { $0.path == path }) {
