@@ -1,5 +1,8 @@
 [CmdletBinding()]
-param([switch]$InstallJdk)
+param(
+    [switch]$InstallJdk,
+    [switch]$InstallBuildTools
+)
 $ErrorActionPreference = "Stop"
 $toolsDir = $PSScriptRoot
 $repoRoot = Split-Path -Parent $toolsDir
@@ -20,6 +23,15 @@ if (Get-Command java -ErrorAction SilentlyContinue) {
     $versionText = (& java -version 2>&1 | Out-String)
     if ($versionText -match 'version "(\d+)') { $javaMajor = [int]$Matches[1] }
 }
+if ($InstallBuildTools) {
+    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) { throw "winget is unavailable. Install Visual Studio Build Tools 2022 manually from https://visualstudio.microsoft.com/visual-cpp-build-tools/." }
+    Write-Host "Installing Visual Studio 2022 C++ Build Tools (this is a large download)..."
+    & winget install --id Microsoft.VisualStudio.2022.BuildTools --exact --accept-package-agreements --accept-source-agreements --override "--wait --quiet --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --add Microsoft.VisualStudio.Component.VC.ATL"
+    if ($LASTEXITCODE -ne 0) { throw "Visual Studio C++ Build Tools installation failed. Install the Desktop development with C++ workload manually." }
+    Write-Warning "After Visual Studio Build Tools finishes installing, rerun this script."
+    exit 0
+}
+
 if ($javaMajor -lt 25) {
     if (-not $InstallJdk) {
         throw "Ghidra 12.2 requires a 64-bit JDK 25+. Install Eclipse Temurin 25 from https://adoptium.net/temurin/releases/ or rerun with -InstallJdk."
