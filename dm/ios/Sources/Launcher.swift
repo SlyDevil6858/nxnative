@@ -652,7 +652,9 @@ private struct LauncherView: View {
 
     private func uniqueThemeFolderName(_ proposed: String, root: URL, excluding excludedFolder: URL? = nil) -> String {
         let fileManager = FileManager.default
-        let excludedPath = excludedFolder?.standardizedFileURL.path
+        let excludedURL = excludedFolder?.standardizedFileURL
+        let excludedPath = excludedURL?.path
+        let sourceFolderName = excludedURL?.lastPathComponent
         let existingPaths = Set((try? fileManager.contentsOfDirectory(
             at: root, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]
         ))?.compactMap { entry -> String? in
@@ -665,8 +667,19 @@ private struct LauncherView: View {
             let candidate = suffix == 1 ? proposed : "\(proposed) \(suffix)"
             let candidatePath = root.appendingPathComponent(candidate, isDirectory: true).standardizedFileURL.path
 
-            // A numbered source folder must not count as a collision with itself.
-            if candidatePath == excludedPath || !existingPaths.contains(candidatePath) {
+            if candidatePath == excludedPath {
+                // Keep the current folder only when its name already matches
+                // the requested name. If a duplicate suffix lands on the source
+                // folder (for example, renaming "Theme 2" to "Theme"), keep
+                // searching so the folder itself receives a new name.
+                if candidate == sourceFolderName {
+                    return candidate
+                }
+                suffix += 1
+                continue
+            }
+
+            if !existingPaths.contains(candidatePath) {
                 return candidate
             }
             suffix += 1
