@@ -2854,6 +2854,31 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     }
 }
 - (UIColor *)editorAccentColor {
+    // Match the launcher Play button: use the app-icon accent only when the
+    // build workflow enabled dominant-colour styling. With it disabled, use
+    // the optional custom hex colour, or nxnative's standard system blue.
+    id dominantSetting=[NSBundle.mainBundle objectForInfoDictionaryKey:@"DMDominantAccent"];
+    BOOL useDominant=YES;
+    if ([dominantSetting isKindOfClass:NSString.class]) {
+        NSString *value=[(NSString *)dominantSetting lowercaseString];
+        useDominant=[@[@"true",@"yes",@"1"] containsObject:value];
+    } else if ([dominantSetting isKindOfClass:NSNumber.class]) {
+        useDominant=[(NSNumber *)dominantSetting boolValue];
+    }
+    if (!useDominant) {
+        NSString *hex=[NSBundle.mainBundle objectForInfoDictionaryKey:@"DMLauncherAccentHex"];
+        hex=[[hex stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet]
+             stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"#"]];
+        unsigned int rgb=0;
+        NSScanner *scanner=[NSScanner scannerWithString:hex ?: @""];
+        if (hex.length==6 && [scanner scanHexInt:&rgb] && scanner.isAtEnd) {
+            return [UIColor colorWithRed:((rgb>>16)&0xFF)/255.0
+                                   green:((rgb>>8)&0xFF)/255.0
+                                    blue:(rgb&0xFF)/255.0 alpha:1];
+        }
+        return UIColor.systemBlueColor;
+    }
+
     UIImage *icon=[UIImage imageNamed:@"AppIcon"];
     if (!icon) {
         NSDictionary *icons=[NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleIcons"];
