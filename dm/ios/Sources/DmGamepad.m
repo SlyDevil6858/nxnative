@@ -26,6 +26,7 @@
 #include "haptics_apple.h"
 #include "motion_apple.h"
 #include "motion_fusion.h"
+#include "dm_motion.h"
 #include "pad_apple.h"
 #include "pad_slots.h"
 #include <stdatomic.h>
@@ -77,36 +78,60 @@ static void motion_start(void) {
 }
 
 // ---- The phone's gyro ----
-// A controller mounted on the phone (Backbone One, Razer Kishi, GameSir G8) has no motion sensors of its own: the phone in the middle is the console, as a Switch in handheld.
-// So the phone's device motion (gyro + accelerometer, CoreMotion's fused gravity and user acceleration, 100 Hz, no permission prompt) drives player 1's six-axis sensor, turned
-// into the Switch frame for the screen's orientation (motion_phone_to_switch, motion_fusion.h): x to the right of the picture, y to its top, z toward the player.
-// The host keeps phone and controller orientations separately, choosing fresh controller data in auto mode and the phone alone in forced mode.
-// DM_PHONE_MOTION: auto (default) while no controller supplies fresh gyro data (a DualSense held apart from the phone uses its own, motion_apple.h), 1 always, 0 never.
-// DM_MOTION=0 (all live motion off; the NSP script's --no-motion builds it in) never starts device motion.
-// Which frame the samples come in: on iOS 27 and later the pad view (full screen, over the picture) is the motion body (CMMotionManager.deviceMotionBody), so Core Motion delivers
-// them in that view's frame for whichever display shows it and however it is turned: x to the right of the picture, y to its top, z toward the player, the Switch frame as it is.
-// Before that they come in the hardware frame, turned here by the interface orientation, which holds only where the hardware frame is the screen's portrait frame: not on iPhone
-// Duo's inner display, whose picture is a quarter turn from it (up / down and left / right swapped, GitHub issue #569). Open: while the scene is not full screen (Split View on the
-// inner display) Core Motion falls back to the hardware frame without saying so, and the samples are then taken as the view's frame
+// CoreMotion supplies fused gravity, user acceleration, rotation rate and attitude. Publish the phone's
+// complete six-axis state in the Switch controller frame, rather than integrating its gyro a second time
+// in the host. This also gives the game a stable world direction and a heading chosen at startup.
 static _Atomic int g_iface_orient = 3;      // UIInterfaceOrientation, updated on layout
-static BOOL g_motion_body;                  // samples in the body's frame (iOS 27+)
+static BOOL g_motion_body;                  // samples in the pad view's frame (iOS 27+)
 static void phone_motion_start(UIView *body) {
     const char *e = getenv("DM_MOTION");
     if (e && !atoi(e)) { LOG("front end: motion is off (DM_MOTION=0), the phone's gyro is not used"); return; }
     e = getenv("DM_PHONE_MOTION"); int mode = !e || !strcmp(e, "auto") ? -1 : atoi(e);
     if (!mode) { LOG("front end: the phone's gyro is off (DM_PHONE_MOTION=0)"); return; }
     if (!g_motion.deviceMotionAvailable) { LOG("front end: no device motion, the phone's gyro is not used"); return; }
-    LOG("front end: the phone's gyro drives the controller's six-axis sensor %s", mode < 0 ? "while no controller supplies fresh motion" : "always (DM_PHONE_MOTION=1)");
-    g_motion.deviceMotionUpdateInterval = 1.0 / 100;
-    if (@available(iOS 27.0, *)) { g_motion.deviceMotionBody = body; g_motion_body = YES; LOG("front end: the phone's motion comes in the pad view's frame (deviceMotionBody)"); }
-    NSOperationQueue *q = [NSOperationQueue new]; q.maxConcurrentOperationCount = 1;
-    [g_motion startDeviceMotionUpdatesToQueue:q withHandler:^(CMDeviceMotion *d, NSError *err) {
-        (void)err; if (!d) return;
-        float a[3] = {(float)(d.gravity.x + d.userAcceleration.x), (float)(d.gravity.y + d.userAcceleration.y), (float)(d.gravity.z + d.userAcceleration.z)};
-        float w[3] = {(float)d.rotationRate.x, (float)d.rotationRate.y, (float)d.rotationRate.z}, as[3], ws[3];
-        int o = g_motion_body ? 1 : atomic_load(&g_iface_orient);   // the body's frame is already the picture's: the portrait map, which leaves it as it is
-        motion_phone_to_switch(o, a, as); motion_phone_to_switch(o, w, ws);
-        dm_motion_set_switch(0, as, ws);
+    int flip = dm_motion_flip_parse(getenv("DM_MOTION_FLIP"));
+    CMAttitudeReferenceFrame frame = ([CMMotionManager availableAttitudeReferenceFrames] & CMAttitudeReferenceFrameXArbitraryCorrectedZVertical)
+        ? CMAttitudeReferenceFrameXArbitraryCorrectedZVertical : CMAttitudeReferenceFrameXArbitraryZVertical;
+    LOG("front end: the phone's gyro drives the controller's six-axis sensor %s (axis flip %s)",
+        mode < 0 ? "while no controller supplies fresh motion" : "always (DM_PHONE_MOTION=1)", dm_motion_flip_name(flip));
+    g_motion.deviceMotionUpdateInterval = 1.0 / 120;
+    if (@available(iOS 27.0, *)) {
+        g_motion.deviceMotionBody = body;
+        g_motion_body = YES;
+        LOG("front end: phone motion is delivered in the gamepad view's frame");
+    }
+    double *angle = calloc(3, sizeof *angle);   // integrated rotation, in revolutions, for the app's lifetime
+    if (!angle) { LOG("[RED] front end: could not allocate phone gyro angle state"); return; }
+    NSOperationQueue *q = [NSOperationQueue new];
+    q.maxConcurrentOperationCount = 1;
+    q.qualityOfService = NSQualityOfServiceUserInteractive;
+    __block double prev = -1, yaw0 = 0;
+    __block BOOL haveYaw = NO;
+    [g_motion startDeviceMotionUpdatesUsingReferenceFrame:frame toQueue:q withHandler:^(CMDeviceMotion *d, NSError *err) {
+        if (err) { LOG("[RED] front end: CoreMotion device motion: %s", err.localizedDescription.UTF8String); return; }
+        if (!d) return;
+        int hr = g_motion_body ? 1 : atomic_load(&g_iface_orient);
+        CMRotationMatrix r = d.attitude.rotationMatrix;
+        double m[9] = {r.m11, r.m12, r.m13, r.m21, r.m22, r.m23, r.m31, r.m32, r.m33};
+        if (!haveYaw) { yaw0 = dm_motion_yaw(hr, m); haveYaw = YES; }
+        CMAcceleration u = d.userAcceleration;
+        double ga[3] = {d.gravity.x + u.x, d.gravity.y + u.y, d.gravity.z + u.z};
+        double ro[3] = {d.rotationRate.x, d.rotationRate.y, d.rotationRate.z};
+        double a[3], w[3];
+        dm_motion_vec(hr, flip, ga, a);
+        dm_motion_vec(hr, flip, ro, w);
+        double dt = prev >= 0 ? fmin(d.timestamp - prev, 0.1) : 0;
+        prev = d.timestamp;
+        dm_motion sample;
+        sample.home_right = hr;
+        for (int k = 0; k < 3; k++) {
+            sample.acc[k] = (float)a[k];
+            sample.gyro[k] = (float)(w[k] / (2 * M_PI));
+            angle[k] += w[k] / (2 * M_PI) * dt;
+            sample.angle[k] = (float)angle[k];
+        }
+        dm_motion_dir(hr, flip, m, yaw0, sample.dir);
+        dm_phone_motion_set(&sample);
     }];
 }
 
