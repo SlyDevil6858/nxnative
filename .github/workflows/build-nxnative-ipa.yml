@@ -210,6 +210,65 @@ jobs:
           else:
               print("No custom launcher accent colour supplied; nxnative's default styling will be used.")
 
+          # Download the highest-rated SteamGridDB hero for the selected ROM.
+          # The API key is supplied as a GitHub Actions secret; no key is committed.
+          import json
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          sgdb_key = os.environ.get("STEAMGRIDDB_API_KEY", "").strip()
+          if sgdb_key:
+              api_headers = {"Authorization": f"Bearer {sgdb_key}", "User-Agent": "nxnative-build/1.0"}
+
+              def sgdb_get(path):
+                  request = urllib.request.Request(
+                      "https://www.steamgriddb.com/api/v2/" + path,
+                      headers=api_headers,
+                  )
+                  with urllib.request.urlopen(request, timeout=30) as response:
+                      payload = json.loads(response.read().decode("utf-8"))
+                  if not payload.get("success"):
+                      raise RuntimeError("SteamGridDB returned an unsuccessful response")
+                  return payload.get("data") or []
+
+              try:
+                  query = urllib.parse.quote(rom_stem, safe="")
+                  games = sgdb_get(f"search/autocomplete/{query}")
+                  normalized_title = " ".join(rom_stem.casefold().split())
+                  exact_games = [
+                      game for game in games
+                      if " ".join(game.get("name", "").casefold().split()) == normalized_title
+                  ]
+                  if not exact_games:
+                      raise RuntimeError(f"No exact SteamGridDB game match for {rom_stem!r}")
+
+                  game_id = exact_games[0]["id"]
+                  heroes = sgdb_get(f"heroes/game/{game_id}?types=static&nsfw=false&humor=false")
+                  if not heroes:
+                      print(f"SteamGridDB has no eligible hero artwork for {rom_stem}; keeping any existing BACKGROUND image.")
+                  else:
+                      # Highest score wins; use the first API result as a stable tie-breaker.
+                      hero = max(enumerate(heroes), key=lambda item: (int(item[1].get("score", 0)), -item[0]))[1]
+                      hero_url = hero.get("url")
+                      if not hero_url:
+                          raise RuntimeError("Top-rated SteamGridDB hero did not include an image URL")
+                      image_request = urllib.request.Request(hero_url, headers={"User-Agent": "nxnative-build/1.0"})
+                      with urllib.request.urlopen(image_request, timeout=60) as response:
+                          image_bytes = response.read()
+                      if not image_bytes:
+                          raise RuntimeError("SteamGridDB hero download was empty")
+                      background_path = folder / "BACKGROUND.png"
+                      background_path.write_bytes(image_bytes)
+                      print(
+                          f"Downloaded highest-rated SteamGridDB hero for {rom_stem} "
+                          f"(score {hero.get('score', 'unknown')}) to {background_path}."
+                      )
+              except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ValueError, KeyError, RuntimeError) as error:
+                  raise SystemExit(f"SteamGridDB hero download failed: {error}")
+          else:
+              print("STEAMGRIDDB_API_KEY is not configured; skipping automatic hero download.")
+
           # Accept common raster formats for override artwork. Convert selected
           # files to PNG in runner temp storage so the existing iOS asset bundler
           # receives a predictable format without modifying OVERRIDES.
