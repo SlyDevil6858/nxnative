@@ -157,6 +157,7 @@ jobs:
           DOMINANT_COLOR_STYLING: ${{ inputs.dominant_color_styling }}
           CUSTOM_ACCENT_HEX: ${{ inputs.custom_accent_hex }}
           SUPPORT_URL: ${{ inputs.support_url }}
+          STEAMGRIDDB_API_KEY: ${{ secrets.STEAMGRIDDB_API_KEY }}
         run: |
           python3 - <<'PY'
           import os
@@ -258,7 +259,12 @@ jobs:
                           image_bytes = response.read()
                       if not image_bytes:
                           raise RuntimeError("SteamGridDB hero download was empty")
-                      background_path = folder / "BACKGROUND.png"
+                      content_type = response.headers.get("Content-Type", "").split(";", 1)[0].lower()
+                      extension = {"image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp"}.get(content_type)
+                      if extension is None:
+                          url_suffix = Path(urllib.parse.urlsplit(hero_url).path).suffix.lower()
+                          extension = url_suffix if url_suffix in {".png", ".jpg", ".jpeg", ".webp"} else ".png"
+                      background_path = folder / f"BACKGROUND{extension}"
                       background_path.write_bytes(image_bytes)
                       print(
                           f"Downloaded highest-rated SteamGridDB hero for {rom_stem} "
