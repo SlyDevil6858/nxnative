@@ -22,10 +22,10 @@ on:
         type: string
         default: "SWITCH/KEYS/prod.keys"
       build_number:
-        description: "App build number"
+        description: "App build number (supports numeric values with an optional letter suffix, e.g. 23a or 23.1b)"
         required: true
-        type: number
-        default: 0
+        type: string
+        default: "0"
       dominant_color_styling:
         description: "Use the game's app-icon dominant color for launcher accents"
         required: true
@@ -79,12 +79,16 @@ jobs:
         run: |
           python3 - <<'PY'
           import os
+          import re
           from pathlib import Path
 
           root = (Path(os.environ["GITHUB_WORKSPACE"]) / "private-game-data").resolve()
           game = (root / os.environ["GAME_FOLDER"]).resolve()
           keys = (root / os.environ["PROD_KEYS_PATH"]).resolve()
           selection = os.environ["ROM_SELECTION"].strip()
+          build_number = os.environ["DM_APP_BUILD"].strip()
+          if not re.fullmatch(r"[0-9]+(?:\.[0-9]+)*[A-Za-z]?", build_number):
+              raise SystemExit("build_number must be numeric with an optional trailing letter, e.g. 23, 23a or 23.1b")
           expected_stems = {"ANIMAL WELL": "ANIMAL WELL", "katana ZERO": "katana ZERO"}
           if selection not in expected_stems:
               raise SystemExit(f"Unsupported ROM selection: {selection!r}")
