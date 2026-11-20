@@ -17,7 +17,7 @@ on:
           - katana ZERO
           - ENTER THE GUNGEON
           - EXIT THE GUNGEON
-        default: ANIMAL WELL
+        default: EXIT THE GUNGEON
       prod_keys_path:
         description: "Path to prod.keys inside myprivaterepo"
         required: true
