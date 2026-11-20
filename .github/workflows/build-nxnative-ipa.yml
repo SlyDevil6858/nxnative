@@ -209,15 +209,44 @@ jobs:
           else:
               print("No custom launcher accent colour supplied; nxnative's default styling will be used.")
 
-          icon = folder / "ICON.png"
-          background = folder / "BACKGROUND.png"
-          if icon.is_file():
+          # Accept common raster formats for override artwork. Convert selected
+          # files to PNG in runner temp storage so the existing iOS asset bundler
+          # receives a predictable format without modifying OVERRIDES.
+          import subprocess
+          import tempfile
+
+          image_extensions = (".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff", ".heic", ".heif")
+          converted_dir = Path(tempfile.mkdtemp(prefix="nxnative-override-images-"))
+
+          def find_override_image(stem):
+              for extension in image_extensions:
+                  candidate = folder / f"{stem}{extension}"
+                  if candidate.is_file():
+                      return candidate
+              return None
+
+          def export_png(stem, env_name):
+              source = find_override_image(stem)
+              if source is None:
+                  return
+              destination = converted_dir / f"{stem}.png"
+              result = subprocess.run(
+                  ["sips", "-s", "format", "png", str(source), "--out", str(destination)],
+                  capture_output=True, text=True
+              )
+              if result.returncode != 0 or not destination.is_file():
+                  raise SystemExit(
+                      f"Could not convert override image {source.name} to PNG: "
+                      f"{result.stderr.strip() or result.stdout.strip()}"
+                  )
               with open(env_path, "a", encoding="utf-8") as env:
-                  env.write(f"NXNATIVE_CUSTOM_ICON={icon}\n")
-          if background.is_file():
-              with open(env_path, "a", encoding="utf-8") as env:
-                  env.write(f"NXNATIVE_CUSTOM_BACKGROUND={background}\n")
+                  env.write(f"{env_name}={destination}\n")
+              print(f"Using override image {source.name} (converted to PNG for bundling).")
+
+          export_png("ICON", "NXNATIVE_CUSTOM_ICON")
+          export_png("BACKGROUND", "NXNATIVE_CUSTOM_BACKGROUND")
           print(f"Using ROM-matched override directory OVERRIDES/{rom_stem}/")
+          print("Supported override image formats: PNG, JPG/JPEG, WebP, GIF, BMP, TIFF and HEIC/HEIF.")
           print("Missing override images are optional; nxnative will use its built-in defaults for those assets.")
           PY
 
