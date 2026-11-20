@@ -15,6 +15,7 @@ on:
         options:
           - ANIMAL WELL
           - katana ZERO
+          - ENTER THE GUNGEON
         default: ANIMAL WELL
       prod_keys_path:
         description: "Path to prod.keys inside myprivaterepo"
@@ -89,7 +90,7 @@ jobs:
           build_number = os.environ["DM_APP_BUILD"].strip()
           if not re.fullmatch(r"[0-9]+(?:\.[0-9]+)*[A-Za-z]?", build_number):
               raise SystemExit("build_number must be numeric with an optional trailing letter, e.g. 23, 23a or 23.1b")
-          expected_stems = {"ANIMAL WELL": "ANIMAL WELL", "katana ZERO": "katana ZERO"}
+          expected_stems = {"ANIMAL WELL": "ANIMAL WELL", "katana ZERO": "katana ZERO", "ENTER THE GUNGEON": "ENTER THE GUNGEON"}
           if selection not in expected_stems:
               raise SystemExit(f"Unsupported ROM selection: {selection!r}")
           expected_stem = expected_stems[selection]
@@ -110,7 +111,7 @@ jobs:
                       out.write(f"- {path.name} ({path.stat().st_size:,} bytes)\n")
               else:
                   out.write("No files found.\n")
-              out.write("\nChoose **ANIMAL WELL** or **katana ZERO** from the ROM selection dropdown.\n")
+              out.write("\nChoose **ANIMAL WELL**, **katana ZERO** or **ENTER THE GUNGEON** from the ROM selection dropdown.\n")
 
           extensions = {".nsp", ".xci", ".nsz", ".xcz"}
           rom_files = [p for p in all_files if p.suffix.lower() in extensions and p.stat().st_size > 0]
