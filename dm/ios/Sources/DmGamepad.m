@@ -42,8 +42,14 @@ enum { C_NONE = 0, C_STICK, C_DPAD, C_FACE, C_BTN, C_SWAP, C_GAME };   // which 
 static pthread_mutex_t g_mu = PTHREAD_MUTEX_INITIALIZER;
 static uint64_t g_touch_btn, g_shake_btn;
 static int32_t g_touch_lx, g_touch_ly, g_touch_rx, g_touch_ry;
+static double g_sticks_since;   // Core Motion and CACurrentMediaTime share the monotonic clock
+static void recenter_buttons_locked(void) {
+    if ((g_touch_btn & (DM_BTN_LS | DM_BTN_RS)) != (DM_BTN_LS | DM_BTN_RS)) g_sticks_since = 0;
+    else if (!g_sticks_since) g_sticks_since = CACurrentMediaTime();
+}
 static void publish(void) {   // the touch gamepad and the shake; the host ORs them with player 1's controller and takes whichever stick is deflected more (hle_hid.c)
     pthread_mutex_lock(&g_mu);
+    recenter_buttons_locked();
     dm_input_set(g_touch_btn | g_shake_btn, g_touch_lx, g_touch_ly, g_touch_rx, g_touch_ry);
     pthread_mutex_unlock(&g_mu);
 }
@@ -106,14 +112,23 @@ static void phone_motion_start(UIView *body) {
     q.maxConcurrentOperationCount = 1;
     q.qualityOfService = NSQualityOfServiceUserInteractive;
     __block double prev = -1, yaw0 = 0;
-    __block BOOL haveYaw = NO;
+    __block BOOL haveYaw = NO, recentred = NO;
     [g_motion startDeviceMotionUpdatesUsingReferenceFrame:frame toQueue:q withHandler:^(CMDeviceMotion *d, NSError *err) {
         if (err) { LOG("[RED] front end: CoreMotion device motion: %s", err.localizedDescription.UTF8String); return; }
         if (!d) return;
         int hr = g_motion_body ? 1 : atomic_load(&g_iface_orient);
         CMRotationMatrix r = d.attitude.rotationMatrix;
         double m[9] = {r.m11, r.m12, r.m13, r.m21, r.m22, r.m23, r.m31, r.m32, r.m33};
-        if (!haveYaw) { yaw0 = dm_motion_yaw(hr, m); haveYaw = YES; }
+        pthread_mutex_lock(&g_mu); double since = g_sticks_since; pthread_mutex_unlock(&g_mu);
+        BOOL held = since > 0 && d.timestamp - since >= 1.0;
+        if (!held) recentred = NO;
+        if (!haveYaw || (held && !recentred)) {
+            yaw0 = dm_motion_yaw(hr, m);
+            angle[0] = angle[1] = angle[2] = 0;
+            haveYaw = YES;
+            recentred = held;
+            if (held) LOG("front end: phone gyro recentered (hold L3 + R3 for one second)");
+        }
         CMAcceleration u = d.userAcceleration;
         double ga[3] = {d.gravity.x + u.x, d.gravity.y + u.y, d.gravity.z + u.z};
         double ro[3] = {d.rotationRate.x, d.rotationRate.y, d.rotationRate.z};
