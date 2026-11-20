@@ -1389,8 +1389,10 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     if (![folder isKindOfClass:NSString.class] || !folder.length ||
         [folder isEqualToString:@"."] || [folder isEqualToString:@".."] ||
         [folder containsString:@"/"] || [folder containsString:@"\\"]) return nil;
-    NSURL *overrides=[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"OVERRIDES" isDirectory:YES];
-    NSURL *selected=[overrides URLByAppendingPathComponent:folder isDirectory:YES];
+    // build_ipa.sh stages the selected ROM's nested override theme at this
+    // top-level bundle path, alongside CLASSIC and the other built-in themes.
+    NSURL *themes=[NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"TouchControlThemes" isDirectory:YES];
+    NSURL *selected=[themes URLByAppendingPathComponent:folder isDirectory:YES];
     return [NSFileManager.defaultManager fileExistsAtPath:[[selected URLByAppendingPathComponent:@"theme.json"] path]]
         ? selected : nil;
 }
@@ -1688,7 +1690,6 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     NSMutableArray<NSURL *> *bundledFolders=[[NSFileManager.defaultManager contentsOfDirectoryAtURL:bundledRoot
         includingPropertiesForKeys:nil options:NSDirectoryEnumerationSkipsHiddenFiles error:nil] mutableCopy] ?: [NSMutableArray array];
     NSURL *selectedOverride=[self selectedOverrideThemeDirectory];
-    if (selectedOverride) [bundledFolders addObject:selectedOverride];
     NSArray<NSURL *> *importedFolders=[NSFileManager.defaultManager contentsOfDirectoryAtURL:documentsRoot
         includingPropertiesForKeys:nil options:NSDirectoryEnumerationSkipsHiddenFiles error:nil] ?: @[];
     BOOL hasDocumentsForest=NO;
