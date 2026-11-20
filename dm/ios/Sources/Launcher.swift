@@ -876,12 +876,12 @@ private struct LauncherView: View {
             !((hasDocumentsForest || forestWasDeleted) && $0.lastPathComponent.caseInsensitiveCompare("FOREST") == .orderedSame)
         }
         let folders = visibleBundled + importedFolders
-        let sortedThemes = folders.compactMap { folder in
+        let sortedThemes: [LauncherTheme] = folders.compactMap { folder -> LauncherTheme? in
             guard (try? folder.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true,
                   let json = themeJSON(in: folder) else { return nil }
             return LauncherTheme(name: (json["name"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? folder.lastPathComponent,
                                  path: folder.path)
-        }.sorted {
+        }.sorted { (left: LauncherTheme, right: LauncherTheme) -> Bool in
             func normalizedThemeName(_ value: String) -> String {
                 var name = value.uppercased()
                     .replacingOccurrences(of: "_", with: " ")
@@ -905,11 +905,11 @@ private struct LauncherView: View {
                 // Other themes remain available after the ROM-matched override and CLASSIC.
                 return 2
             }
-            let leftPriority = priority($0), rightPriority = priority($1)
+            let leftPriority = priority(left), rightPriority = priority(right)
             if leftPriority != rightPriority { return leftPriority < rightPriority }
-            let byName = $0.name.localizedCaseInsensitiveCompare($1.name)
+            let byName = left.name.localizedCaseInsensitiveCompare(right.name)
             if byName != .orderedSame { return byName == .orderedAscending }
-            return $0.path.localizedCaseInsensitiveCompare($1.path) == .orderedAscending
+            return left.path.localizedCaseInsensitiveCompare(right.path) == .orderedAscending
         }
         // Mirror the control editor: force this ROM's override to index zero
         // after sorting, with CLASSIC retaining its next-highest priority.
