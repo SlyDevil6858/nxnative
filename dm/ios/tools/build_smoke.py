@@ -32,6 +32,10 @@ def main():
     gen = project / 'Gen'
     tables = gen / 'dm'
     tables.mkdir(parents=True)
+    # XcodeGen validates every declared folder source even when the CI fixture has no
+    # touch themes or game overrides to stage.
+    (gen / 'TouchControlThemes').mkdir()
+    (gen / 'OVERRIDES').mkdir()
     for name in ('Sources', 'tools'):
         (project / name).symlink_to(ios / name, target_is_directory=True)
     shutil.copyfile(ios / 'project.yml', project / 'project.yml')
