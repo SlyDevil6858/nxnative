@@ -235,6 +235,7 @@ jobs:
               if existing_background is not None:
                   print(f"Found existing background {existing_background.name}; skipping SteamGridDB download and keeping it unchanged.")
               else:
+                  api_headers = {"Authorization": f"Bearer {sgdb_key}", "User-Agent": "nxnative-build/1.0"}
 
                   def sgdb_get(path):
                       request = urllib.request.Request(
