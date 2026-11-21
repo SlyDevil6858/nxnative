@@ -232,10 +232,30 @@ private struct LauncherTheme: Identifiable {
     var id: String { path }
 }
 
+/// Refreshes the memory readout independently so its timer does not invalidate LauncherView.
+private struct AvailableMemoryRow: View {
+    @State private var memory = os_proc_available_memory()
+
+    var body: some View {
+        HStack {
+            Text("Memory available")
+            Spacer()
+            Text(ByteCountFormatter.string(fromByteCount: Int64(memory), countStyle: .memory))
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+        }
+        .task {
+            while !Task.isCancelled {
+                memory = os_proc_available_memory()
+                try? await Task.sleep(for: .seconds(2))
+            }
+        }
+    }
+}
+
 private struct LauncherView: View {
     @ObservedObject var m: LauncherModel
     let play: () -> Void
-    @State private var memory = os_proc_available_memory()
     @State private var isControlLayoutEditing = false
     @State private var themes: [LauncherTheme] = []
     @State private var selectedTheme = UserDefaults.standard.string(forKey: "DmTouchControlThemeName") ?? "CLASSIC"
@@ -350,11 +370,7 @@ private struct LauncherView: View {
                     }
                     CloudSavesSection()
                     Section {
-                        HStack {
-                            Text("Memory available")
-                            Spacer()
-                            Text(ByteCountFormatter.string(fromByteCount: Int64(memory), countStyle: .memory)).monospacedDigit().foregroundStyle(.secondary)
-                        }
+                        AvailableMemoryRow()
                     }
                 }
                 .listStyle(.plain)
@@ -436,12 +452,6 @@ private struct LauncherView: View {
             }
         }
         .onAppear(perform: refreshThemes)
-        .task {
-            while !Task.isCancelled {
-                memory = os_proc_available_memory()
-                try? await Task.sleep(for: .seconds(2))
-            }
-        }
     }
 
     private var themeMenuContent: some View {
