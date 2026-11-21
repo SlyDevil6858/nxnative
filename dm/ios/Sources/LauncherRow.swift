@@ -101,7 +101,7 @@ struct SettingRow: View {
 
     private var choiceListContent: some View {
         VStack(spacing: 0) {
-            ForEach(offeredOptions(s, current: m.values[s.env]), id: \.self) { option in
+            ForEach(s.options ?? [], id: \.self) { option in
                 if option.count >= 2 {
                     Button {
                         m.values[s.env] = option[0]
