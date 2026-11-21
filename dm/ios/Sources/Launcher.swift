@@ -306,12 +306,12 @@ private struct LauncherView: View {
                             let rows = m.rows(in: section)
                             if !rows.isEmpty {
                                 Text(section == "Controls" ? "Touch controls" : section)
-                                    .font(.system(size: 17, weight: .bold, design: .rounded))
-                                    .foregroundStyle(accentColor)
+                                    .font(.headline)
+                                    .foregroundStyle(.white)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(.horizontal, 16)
-                                    .padding(.top, 18)
-                                    .padding(.bottom, 9)
+                                    .padding(.top, 17)
+                                    .padding(.bottom, 17)
                                 ForEach(rows) {
                                     SettingRow(s: $0, m: m, accentColor: accentColor)
                                         // Toggle switches reach the panel edge; keep the label inset.
