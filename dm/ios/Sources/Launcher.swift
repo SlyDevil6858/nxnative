@@ -265,7 +265,8 @@ private struct LauncherView: View {
                     playButton
                 }
                 .padding(16)
-                .frame(width: geometry.size.width * 0.30, height: geometry.size.height)
+                .frame(width: geometry.size.width * 0.30, height: geometry.size.height, alignment: .center)
+                .offset(x: -8)
                 // Keep the left panel anchored to its normal top position while
                 // allowing it to extend behind the keyboard without resizing it.
                 .ignoresSafeArea(.keyboard, edges: themeRenamePath != nil ? .bottom : [])
@@ -297,12 +298,7 @@ private struct LauncherView: View {
                         }
                         let rows = m.rows(in: section)
                         if !rows.isEmpty {
-                            Section {
-                                Text(section == "Controls" ? "Touch controls" : section)
-                                    .font(.headline)
-                                    .foregroundStyle(.white)
-                                    .listRowBackground(Color.black)
-                                    .listRowSeparator(.hidden)
+                            Section(section == "Controls" ? "Touch controls" : section) {
                                 ForEach(rows) {
                                     SettingRow(s: $0, m: m, accentColor: accentColor)
                                         .listRowBackground(Color.black)
