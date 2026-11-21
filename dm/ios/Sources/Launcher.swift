@@ -298,6 +298,10 @@ private struct LauncherView: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 10)
+                                Rectangle()
+                                    .fill(Color.white.opacity(0.12))
+                                    .frame(height: 0.5)
+                                    .padding(.horizontal, 16)
                             }
                             let rows = m.rows(in: section)
                             if !rows.isEmpty {
@@ -375,6 +379,10 @@ private struct LauncherView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 10)
+                            Rectangle()
+                                .fill(Color.white.opacity(0.12))
+                                .frame(height: 0.5)
+                                .padding(.horizontal, 16)
                         }
                         Button { m.reset() } label: {
                             Text("Reset to tested defaults")
