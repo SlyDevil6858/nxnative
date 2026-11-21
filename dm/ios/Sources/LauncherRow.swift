@@ -132,7 +132,6 @@ struct SettingRow: View {
             }
         }
         .padding(.top, 4)
-        .background(Color.black)
     }
     #endif
 
@@ -171,7 +170,6 @@ struct SettingRow: View {
                     }
                 }
                 .disclosureGroupStyle(LauncherDisclosureGroupStyle(accentColor: accentColor))
-                .background(Color.black)
                 #else
                 Picker(selection: m.binding(s)) {
                     ForEach(s.options ?? [], id: \.self) { Text($0[1]).tag($0[0]) }
