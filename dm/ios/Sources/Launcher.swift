@@ -303,7 +303,6 @@ private struct LauncherView: View {
                             ForEach(rows) {
                                 SettingRow(s: $0, m: m, accentColor: accentColor)
                                     .listRowBackground(Color.black)
-                                    .listRowSeparator(.hidden)
                             }
                             if section == "Controls" {
                                 DisclosureGroup(isExpanded: $showingThemeList) {
