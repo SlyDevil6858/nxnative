@@ -39,6 +39,8 @@ private extension UIImage {
     }
 }
 private func launcherIconForAccent() -> UIImage? {
+    if let path = Bundle.main.url(forResource: "launcher-custom-icon", withExtension: "png", subdirectory: "dm"),
+       let image = UIImage(contentsOfFile: path.path) { return image }
     if let image = UIImage(named: "AppIcon") { return image }
     guard let icons = info("CFBundleIcons") as? [String: Any],
           let primary = icons["CFBundlePrimaryIcon"] as? [String: Any],
