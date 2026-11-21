@@ -335,10 +335,10 @@ private struct LauncherView: View {
                                                 .foregroundStyle(accentColor)
                                                 .lineLimit(1)
                                         }
-                                        .padding(.horizontal, 16)
                                     }
                                     .disclosureGroupStyle(LauncherDisclosureGroupStyle(accentColor: accentColor))
                                     .background(Color.black)
+                                    .padding(.horizontal, 16)
                                     .padding(.vertical, 9)
                                     .onChange(of: showingThemeList, perform: themeListVisibilityChanged)
                                     Button("Edit touch controls layout…") {
@@ -606,9 +606,6 @@ private struct LauncherView: View {
             }
         }
         .padding(.top, 4)
-        // Keep the drawer's leading inset, but let its trailing edge reach the
-        // settings panel boundary instead of stopping 16 points short.
-        .padding(.leading, 16)
         .background(Color.black)
     }
 
