@@ -218,8 +218,20 @@ jobs:
           import urllib.parse
           import urllib.request
 
+          # Never replace artwork already supplied for this ROM. Check the
+          # override folder before making any SteamGridDB request or download.
+          background_extensions = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff", ".heic", ".heif"}
+          existing_background = next(
+              (path for path in folder.iterdir()
+               if path.is_file() and path.stem.casefold() == "background"
+               and path.suffix.casefold() in background_extensions),
+              None,
+          )
+
           sgdb_key = os.environ.get("STEAMGRIDDB_API_KEY", "").strip()
-          if sgdb_key:
+          if existing_background is not None:
+              print(f"Existing launcher background found ({existing_background.name}); skipping SteamGridDB and keeping it unchanged.")
+          elif sgdb_key:
               api_headers = {"Authorization": f"Bearer {sgdb_key}", "User-Agent": "nxnative-build/1.0"}
 
               def sgdb_get(path):
