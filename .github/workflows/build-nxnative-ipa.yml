@@ -237,7 +237,6 @@ jobs:
               else:
                   api_headers = {"Authorization": f"Bearer {sgdb_key}", "User-Agent": "nxnative-build/1.0"}
 
-
                   def sgdb_get(path):
                       request = urllib.request.Request(
                           "https://www.steamgriddb.com/api/v2/" + path,
