@@ -283,7 +283,12 @@ private struct LauncherView: View {
                 List {
                     ForEach(m.sections, id: \.self) { section in
                         if section == "Performance", let supportURL = launcherSupportURL() {
-                            Section("Support") {
+                            Section {
+                                Text("Support")
+                                    .font(.headline)
+                                    .foregroundStyle(.white)
+                                    .listRowBackground(Color.black)
+                                    .listRowSeparator(.hidden)
                                 Button("Support the author of this port…") {
                                     UIApplication.shared.open(supportURL)
                                 }
@@ -292,8 +297,16 @@ private struct LauncherView: View {
                         }
                         let rows = m.rows(in: section)
                         if !rows.isEmpty {
-                            Section(section == "Controls" ? "Touch controls" : section) {
-                                ForEach(rows) { SettingRow(s: $0, m: m, accentColor: accentColor) }
+                            Section {
+                                Text(section == "Controls" ? "Touch controls" : section)
+                                    .font(.headline)
+                                    .foregroundStyle(.white)
+                                    .listRowBackground(Color.black)
+                                    .listRowSeparator(.hidden)
+                                ForEach(rows) {
+                                    SettingRow(s: $0, m: m, accentColor: accentColor)
+                                        .listRowBackground(Color.black)
+                                }
                                 if section == "Controls" {
                                     DisclosureGroup(isExpanded: $showingThemeList) {
                                         themeMenuContent
@@ -330,7 +343,12 @@ private struct LauncherView: View {
                         }
                     }
                     if !m.sections.contains("Performance"), let supportURL = launcherSupportURL() {
-                        Section("Support") {
+                        Section {
+                            Text("Support")
+                                .font(.headline)
+                                .foregroundStyle(.white)
+                                .listRowBackground(Color.black)
+                                .listRowSeparator(.hidden)
                             Button("Support the author of this port…") {
                                 UIApplication.shared.open(supportURL)
                             }
@@ -485,9 +503,7 @@ private struct LauncherView: View {
                     } else {
                         Button {
                             selectTheme(theme.path, name: theme.name)
-                            withAnimation(.easeInOut(duration: 0.24)) {
-                                showingThemeList = false
-                            }
+                            showingThemeList = false
                         } label: {
                             HStack(spacing: 8) {
                                 Text(theme.name)
