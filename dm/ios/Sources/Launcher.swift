@@ -4,10 +4,26 @@
 // in UserDefaults; Reset to tested defaults shows the defaults, and Play then forgets them. DM_LAUNCHER=0 in Documents/env.txt starts the game at once with the saved choices; DM_SAVED_CHOICES=0 ignores them (and keeps them)
 import SwiftUI
 import UIKit
+import ImageIO
 import UniformTypeIdentifiers
 import os
 
 private func info(_ key: String) -> Any? { Bundle.main.object(forInfoDictionaryKey: key) }
+
+/// Decode bundled launcher artwork at the size it will actually be displayed.
+/// ImageIO downsamples large source images before creating a UIImage, avoiding
+/// a full-resolution decode and keeping launcher memory use predictable.
+private func loadLauncherImage(at url: URL, maxPixelSize: CGFloat) -> UIImage? {
+    guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+    let options: [CFString: Any] = [
+        kCGImageSourceCreateThumbnailFromImageAlways: true,
+        kCGImageSourceThumbnailMaxPixelSize: max(1, Int(maxPixelSize)),
+        kCGImageSourceCreateThumbnailWithTransform: true,
+        kCGImageSourceShouldCacheImmediately: true
+    ]
+    guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
+    return UIImage(cgImage: image)
+}
 
 private extension UIImage {
     func launcherDominantColor() -> UIColor? {
@@ -163,7 +179,7 @@ private struct LauncherView: View {
                     }
                     Text((info("CFBundleDisplayName") as? String) ?? "Game")
                         .font(.title.weight(.bold)).multilineTextAlignment(.center)
-                    Text("Version \((info("CFBundleShortVersionString") as? String) ?? "")")
+                    Text("Version \\((info("CFBundleShortVersionString") as? String) ?? "") · Build \\((info("CFBundleVersion") as? String) ?? "1")")
                         .font(.callout).foregroundStyle(.secondary)
                     playButton
                 }
@@ -229,6 +245,14 @@ private struct LauncherView: View {
                 .frame(width: geometry.size.width * 2 / 3)
             }
         }
+        // Keep the artwork outside the HStack/List so drawer updates cannot move it.
+        .background {
+            if let background = launcherBackground() {
+                Image(uiImage: background).resizable().scaledToFill()
+                    .overlay(.black.opacity(0.48))
+                    .ignoresSafeArea()
+            }
+        }
         .preferredColorScheme(.dark)
         .task {
             while !Task.isCancelled {
@@ -243,6 +267,13 @@ private struct LauncherView: View {
             Text("Play").font(.title3.weight(.semibold)).frame(maxWidth: 220)
         }.controlSize(.large).tint(accentColor)
         if #available(iOS 26.0, *) { button.buttonStyle(.glassProminent) } else { button.buttonStyle(.borderedProminent) }
+    }
+
+    private func launcherBackground() -> UIImage? {
+        guard let url = Bundle.main.resourceURL?.appendingPathComponent("dm/launcher-custom-background.png") else { return nil }
+        let screen = UIScreen.main
+        let maxPixelSize = max(screen.bounds.width, screen.bounds.height) * screen.scale
+        return loadLauncherImage(at: url, maxPixelSize: maxPixelSize)
     }
 
     private var accentColor: Color { launcherAccentColor() }
