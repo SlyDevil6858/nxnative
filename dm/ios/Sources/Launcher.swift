@@ -266,7 +266,6 @@ private struct LauncherView: View {
                 }
                 .padding(16)
                 .frame(width: geometry.size.width * 0.30, height: geometry.size.height, alignment: .center)
-                .offset(x: -8)
                 // Keep the left panel anchored to its normal top position while
                 // allowing it to extend behind the keyboard without resizing it.
                 .ignoresSafeArea(.keyboard, edges: themeRenamePath != nil ? .bottom : [])
@@ -304,6 +303,7 @@ private struct LauncherView: View {
                             ForEach(rows) {
                                 SettingRow(s: $0, m: m, accentColor: accentColor)
                                     .listRowBackground(Color.black)
+                                    .listRowSeparator(.hidden)
                             }
                             if section == "Controls" {
                                 DisclosureGroup(isExpanded: $showingThemeList) {
