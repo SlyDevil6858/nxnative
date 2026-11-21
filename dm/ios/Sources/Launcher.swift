@@ -85,10 +85,8 @@ private extension UIImage {
 }
 
 
-/// Resolve the app icon the same way the launcher header does, including its Info.plist fallback.
-private func launcherAppIcon() -> UIImage? {
-    // Sample the exact source image used to generate this build's app icon.
-    // App-icon catalog images are not reliably available through UIImage(named:).
+/// Load the app icon once. App-icon catalog images are not reliably available through UIImage(named:).
+private func loadLauncherAppIcon() -> UIImage? {
     if let iconURL = Bundle.main.url(forResource: "launcher-custom-icon", withExtension: "png", subdirectory: "dm"),
        let icon = UIImage(contentsOfFile: iconURL.path) {
         return icon
@@ -99,6 +97,23 @@ private func launcherAppIcon() -> UIImage? {
           let files = primary["CFBundleIconFiles"] as? [String],
           let last = files.last else { return nil }
     return UIImage(named: last)
+}
+
+/// The launcher artwork is immutable for the lifetime of this app process.
+/// Cache both the decoded icon and its derived accent so SwiftUI body updates
+/// never reload the image or rescan its pixels.
+private enum LauncherArtworkCache {
+    static let appIcon = loadLauncherAppIcon()
+    static let accentColor: Color = {
+        guard launcherUsesDominantAccent() else {
+            return Color(uiColor: launcherCustomAccentColor() ?? .systemBlue)
+        }
+        return Color(uiColor: appIcon?.dominantColor() ?? .systemBlue)
+    }()
+}
+
+private func launcherAppIcon() -> UIImage? {
+    LauncherArtworkCache.appIcon
 }
 
 /// Whether this build uses the game's app-icon colour for launcher accents.
@@ -126,13 +141,9 @@ private func launcherCustomAccentColor() -> UIColor? {
     )
 }
 
-/// Shared launcher accent. When dominant styling is off, a supplied custom
-/// colour wins; an empty custom value preserves nxnative's standard system blue.
+/// Return the cached launcher accent; the icon's dominant colour is calculated only once.
 private func launcherAccentColor() -> Color {
-    guard launcherUsesDominantAccent() else {
-        return Color(uiColor: launcherCustomAccentColor() ?? .systemBlue)
-    }
-    return Color(uiColor: launcherAppIcon()?.dominantColor() ?? .systemBlue)
+    LauncherArtworkCache.accentColor
 }
 
 
@@ -232,10 +243,30 @@ private struct LauncherTheme: Identifiable {
     var id: String { path }
 }
 
+/// Refreshes the memory readout independently so its timer does not invalidate LauncherView.
+private struct AvailableMemoryRow: View {
+    @State private var memory = os_proc_available_memory()
+
+    var body: some View {
+        HStack {
+            Text("Memory available")
+            Spacer()
+            Text(ByteCountFormatter.string(fromByteCount: Int64(memory), countStyle: .memory))
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+        }
+        .task {
+            while !Task.isCancelled {
+                memory = os_proc_available_memory()
+                try? await Task.sleep(for: .seconds(2))
+            }
+        }
+    }
+}
+
 private struct LauncherView: View {
     @ObservedObject var m: LauncherModel
     let play: () -> Void
-    @State private var memory = os_proc_available_memory()
     @State private var isControlLayoutEditing = false
     @State private var themes: [LauncherTheme] = []
     @State private var selectedTheme = UserDefaults.standard.string(forKey: "DmTouchControlThemeName") ?? "CLASSIC"
@@ -350,14 +381,10 @@ private struct LauncherView: View {
                     }
                     CloudSavesSection()
                     Section {
-                        HStack {
-                            Text("Memory available")
-                            Spacer()
-                            Text(ByteCountFormatter.string(fromByteCount: Int64(memory), countStyle: .memory)).monospacedDigit().foregroundStyle(.secondary)
-                        }
+                        AvailableMemoryRow()
                     }
                 }
-                .listStyle(.plain)
+                .listStyle(.grouped)
                 .listRowBackground(Color.black)
                 .background(Color.black)
                 .contentMargins(.horizontal, 0, for: .scrollContent)
@@ -436,12 +463,6 @@ private struct LauncherView: View {
             }
         }
         .onAppear(perform: refreshThemes)
-        .task {
-            while !Task.isCancelled {
-                memory = os_proc_available_memory()
-                try? await Task.sleep(for: .seconds(2))
-            }
-        }
     }
 
     private var themeMenuContent: some View {
