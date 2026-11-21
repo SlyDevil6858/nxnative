@@ -196,6 +196,9 @@ private struct LauncherView: View {
                             .foregroundColor(Color(white: 0.58)))
                             .font(.footnote)
                             .fixedSize(horizontal: false, vertical: true)
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(accentColor.opacity(0.14), in: RoundedRectangle(cornerRadius: 10))
                     }
                     Section {
                         Button("Reset to tested defaults") { m.reset() }
