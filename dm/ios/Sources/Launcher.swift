@@ -284,57 +284,58 @@ private struct LauncherView: View {
                 List {
                     ForEach(m.sections, id: \.self) { section in
                         if section == "Performance", let supportURL = launcherSupportURL() {
-                            Section {
-                                Text("Support")
-                                    .font(.headline)
-                                    .foregroundStyle(.white)
-                                    .listRowBackground(Color.black)
-                                    .listRowSeparator(.hidden)
-                                Button("Support the author of this port…") {
-                                    UIApplication.shared.open(supportURL)
-                                }
-                                .foregroundStyle(Color(red: 245.0 / 255.0, green: 176.0 / 255.0, blue: 15.0 / 255.0))
+                            Text("Support")
+                                .font(.headline)
+                                .foregroundStyle(.white)
+                                .listRowBackground(Color.black)
+                                .listRowSeparator(.hidden)
+                            Button("Support the author of this port…") {
+                                UIApplication.shared.open(supportURL)
                             }
+                            .foregroundStyle(Color(red: 245.0 / 255.0, green: 176.0 / 255.0, blue: 15.0 / 255.0))
                         }
                         let rows = m.rows(in: section)
                         if !rows.isEmpty {
-                            Section(section) {
-                                ForEach(rows) {
-                                    SettingRow(s: $0, m: m, accentColor: accentColor)
-                                        .listRowBackground(Color.black)
-                                }
-                                if section == "Controls" {
-                                    DisclosureGroup(isExpanded: $showingThemeList) {
-                                        themeMenuContent
-                                    } label: {
-                                        HStack(spacing: 6) {
-                                            Text("Touch controls theme")
-                                                .foregroundStyle(.white)
-                                            Spacer(minLength: 6)
-                                            Text(selectedTheme)
-                                                .foregroundStyle(accentColor)
-                                                .lineLimit(1)
-                                        }
-                                    }
-                                    .disclosureGroupStyle(LauncherDisclosureGroupStyle(accentColor: accentColor))
-                                    .background(Color.black)
-                                    .onChange(of: showingThemeList, perform: themeListVisibilityChanged)
-                                    Button("Edit touch controls layout…") {
-                                        dm_gamepad_present_launcher_editor()
-                                    }
-                                    .foregroundStyle(accentColor)
-                                    Button("Import touch controls theme…") { pickingTheme = true }
-                                        .foregroundStyle(accentColor)
-                                    (Text("QUICK TIP: ")
-                                        .foregroundColor(Color(red: 245 / 255, green: 176 / 255, blue: 15 / 255))
-                                        .fontWeight(.bold)
-                                     + Text("During gameplay, press and hold the 2D, 3D, or Tap button, or hold Select on your controller, to open the in-game control menu.")
-                                        .foregroundColor(Color(white: 0.58)))
-                                        .font(.footnote)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
+                            Text(section == "Controls" ? "Touch controls" : section)
+                                .font(.headline)
+                                .foregroundStyle(.white)
+                                .listRowBackground(Color.black)
+                                .listRowSeparator(.hidden)
+                            ForEach(rows) {
+                                SettingRow(s: $0, m: m, accentColor: accentColor)
                                     .listRowBackground(Color.black)
+                            }
+                            if section == "Controls" {
+                                DisclosureGroup(isExpanded: $showingThemeList) {
+                                    themeMenuContent
+                                } label: {
+                                    HStack(spacing: 6) {
+                                        Text("Touch controls theme")
+                                            .foregroundStyle(.white)
+                                        Spacer(minLength: 6)
+                                        Text(selectedTheme)
+                                            .foregroundStyle(accentColor)
+                                            .lineLimit(1)
+                                    }
                                 }
+                                .disclosureGroupStyle(LauncherDisclosureGroupStyle(accentColor: accentColor))
+                                .background(Color.black)
+                                .onChange(of: showingThemeList, perform: themeListVisibilityChanged)
+                                Button("Edit touch controls layout…") {
+                                    dm_gamepad_present_launcher_editor()
+                                }
+                                .foregroundStyle(accentColor)
+                                Button("Import touch controls theme…") { pickingTheme = true }
+                                    .foregroundStyle(accentColor)
+                                (Text("QUICK TIP: ")
+                                    .foregroundColor(Color(red: 245 / 255, green: 176 / 255, blue: 15 / 255))
+                                    .fontWeight(.bold)
+                                 + Text("During gameplay, press and hold the 2D, 3D, or Tap button, or hold Select on your controller, to open the in-game control menu.")
+                                    .foregroundColor(Color(white: 0.58)))
+                                    .font(.footnote)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .listRowBackground(Color.black)
                             }
                         }
                     }
