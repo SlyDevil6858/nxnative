@@ -316,7 +316,7 @@ private struct LauncherView: View {
                                     SettingRow(s: $0, m: m, accentColor: accentColor)
                                         // Toggle switches reach the panel edge; keep the label inset.
                                         .padding(.leading, 16)
-                                        .padding(.trailing, ($0.kind == "choice" || $0.kind == "range") ? 16 : 0)
+                                        .padding(.trailing, $0.kind == "choice" ? 16 : 0)
                                         .padding(.vertical, 9)
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                         .overlay(alignment: .bottom) {
