@@ -280,103 +280,136 @@ private struct LauncherView: View {
                     transaction.disablesAnimations = true
                 }
                 ScrollViewReader { themeScrollProxy in
-                List {
-                    ForEach(m.sections, id: \.self) { section in
-                        if section == "Performance", let supportURL = launcherSupportURL() {
-                            Text("Support")
-                                .font(.headline)
-                                .foregroundStyle(.white)
-                                .listRowBackground(Color.black)
-                                .listRowSeparator(.hidden)
-                            Button("Support the author of this port…") {
-                                UIApplication.shared.open(supportURL)
-                            }
-                            .foregroundStyle(Color(red: 245.0 / 255.0, green: 176.0 / 255.0, blue: 15.0 / 255.0))
-                        }
-                        let rows = m.rows(in: section)
-                        if !rows.isEmpty {
-                            Text(section == "Controls" ? "Touch controls" : section)
-                                .font(.headline)
-                                .foregroundStyle(.white)
-                                .listRowBackground(Color.black)
-                                .listRowSeparator(.hidden)
-                            ForEach(rows) {
-                                SettingRow(s: $0, m: m, accentColor: accentColor)
-                                    .listRowBackground(Color.black)
-                            }
-                            if section == "Controls" {
-                                DisclosureGroup(isExpanded: $showingThemeList) {
-                                    themeMenuContent
-                                } label: {
-                                    HStack(spacing: 6) {
-                                        Text("Touch controls theme")
-                                            .foregroundStyle(.white)
-                                        Spacer(minLength: 6)
-                                        Text(selectedTheme)
-                                            .foregroundStyle(accentColor)
-                                            .lineLimit(1)
-                                    }
-                                }
-                                .disclosureGroupStyle(LauncherDisclosureGroupStyle(accentColor: accentColor))
-                                .background(Color.black)
-                                .onChange(of: showingThemeList, perform: themeListVisibilityChanged)
-                                Button("Edit touch controls layout…") {
-                                    dm_gamepad_present_launcher_editor()
-                                }
-                                .foregroundStyle(accentColor)
-                                Button("Import touch controls theme…") { pickingTheme = true }
-                                    .foregroundStyle(accentColor)
-                                (Text("QUICK TIP: ")
-                                    .foregroundColor(Color(red: 245 / 255, green: 176 / 255, blue: 15 / 255))
-                                    .fontWeight(.bold)
-                                 + Text("During gameplay, press and hold the 2D, 3D, or Tap button, or hold Select on your controller, to open the in-game control menu.")
-                                    .foregroundColor(Color(white: 0.58)))
-                                    .font(.footnote)
-                                    .fixedSize(horizontal: false, vertical: true)
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0, pinnedViews: []) {
+                        ForEach(m.sections, id: \.self) { section in
+                            if section == "Performance", let supportURL = launcherSupportURL() {
+                                Text("Support")
+                                    .font(.headline)
+                                    .foregroundStyle(.white)
                                     .frame(maxWidth: .infinity, alignment: .leading)
-                                    .listRowBackground(Color.black)
+                                    .padding(.horizontal, 16)
+                                    .padding(.top, 12)
+                                    .padding(.bottom, 8)
+                                Button("Support the author of this port…") {
+                                    UIApplication.shared.open(supportURL)
+                                }
+                                .foregroundStyle(Color(red: 245.0 / 255.0, green: 176.0 / 255.0, blue: 15.0 / 255.0))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 10)
+                            }
+                            let rows = m.rows(in: section)
+                            if !rows.isEmpty {
+                                Text(section == "Controls" ? "Touch controls" : section)
+                                    .font(.headline)
+                                    .foregroundStyle(.white)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 16)
+                                    .padding(.top, 12)
+                                    .padding(.bottom, 8)
+                                ForEach(rows) {
+                                    SettingRow(s: $0, m: m, accentColor: accentColor)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 9)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .overlay(alignment: .bottom) {
+                                            Rectangle().fill(Color.white.opacity(0.12)).frame(height: 0.5)
+                                        }
+                                }
+                                if section == "Controls" {
+                                    DisclosureGroup(isExpanded: $showingThemeList) {
+                                        themeMenuContent
+                                    } label: {
+                                        HStack(spacing: 6) {
+                                            Text("Touch controls theme")
+                                                .foregroundStyle(.white)
+                                            Spacer(minLength: 6)
+                                            Text(selectedTheme)
+                                                .foregroundStyle(accentColor)
+                                                .lineLimit(1)
+                                        }
+                                    }
+                                    .disclosureGroupStyle(LauncherDisclosureGroupStyle(accentColor: accentColor))
+                                    .background(Color.black)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 9)
+                                    .onChange(of: showingThemeList, perform: themeListVisibilityChanged)
+                                    Button("Edit touch controls layout…") {
+                                        dm_gamepad_present_launcher_editor()
+                                    }
+                                    .foregroundStyle(accentColor)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 10)
+                                    Button("Import touch controls theme…") { pickingTheme = true }
+                                        .foregroundStyle(accentColor)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 10)
+                                    (Text("QUICK TIP: ")
+                                        .foregroundColor(Color(red: 245 / 255, green: 176 / 255, blue: 15 / 255))
+                                        .fontWeight(.bold)
+                                     + Text("During gameplay, press and hold the 2D, 3D, or Tap button, or hold Select on your controller, to open the in-game control menu.")
+                                        .foregroundColor(Color(white: 0.58)))
+                                        .font(.footnote)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 10)
+                                }
                             }
                         }
-                    }
-                    if !m.sections.contains("Performance"), let supportURL = launcherSupportURL() {
-                        Section {
+                        if !m.sections.contains("Performance"), let supportURL = launcherSupportURL() {
                             Text("Support")
                                 .font(.headline)
                                 .foregroundStyle(.white)
-                                .listRowBackground(Color.black)
-                                .listRowSeparator(.hidden)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 16)
+                                .padding(.top, 12)
+                                .padding(.bottom, 8)
                             Button("Support the author of this port…") {
                                 UIApplication.shared.open(supportURL)
                             }
                             .foregroundStyle(Color(red: 245.0 / 255.0, green: 176.0 / 255.0, blue: 15.0 / 255.0))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
                         }
-                    }
-                    Section {
                         Button { m.reset() } label: {
                             Text("Reset to tested defaults")
                                 .foregroundStyle(m.changed ? accentColor : Color(white: 0.58))
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         .buttonStyle(.plain)
                         .disabled(!m.changed)
-                    } footer: {
+                        .padding(.horizontal, 16)
+                        .padding(.top, 12)
+                        .padding(.bottom, 6)
                         Text("Brings back all settings this game was tested with.")
+                            .font(.footnote)
                             .foregroundStyle(Color(white: 0.58))
-                    }
-                    CloudSavesSection()
-                    Section {
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 12)
+                        CloudSavesSection()
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
                         HStack {
                             Text("Memory available")
                             Spacer()
-                            Text(ByteCountFormatter.string(fromByteCount: Int64(memory), countStyle: .memory)).monospacedDigit().foregroundStyle(.secondary)
+                            Text(ByteCountFormatter.string(fromByteCount: Int64(memory), countStyle: .memory))
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
                         }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.black)
                 }
-                .listStyle(.plain)
-                .listRowBackground(Color.black)
                 .background(Color.black)
-                .contentMargins(.horizontal, 0, for: .scrollContent)
                 .frame(width: geometry.size.width * 0.70, height: geometry.size.height)
-                .scrollContentBackground(.hidden)
                 .environment(\.colorScheme, .dark)
                 .scrollDismissesKeyboard(.interactively)
                 .onChange(of: themeRenamePath) { path in
