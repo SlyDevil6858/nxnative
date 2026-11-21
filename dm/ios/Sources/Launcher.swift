@@ -85,10 +85,8 @@ private extension UIImage {
 }
 
 
-/// Resolve the app icon the same way the launcher header does, including its Info.plist fallback.
-private func launcherAppIcon() -> UIImage? {
-    // Sample the exact source image used to generate this build's app icon.
-    // App-icon catalog images are not reliably available through UIImage(named:).
+/// Load the app icon once. App-icon catalog images are not reliably available through UIImage(named:).
+private func loadLauncherAppIcon() -> UIImage? {
     if let iconURL = Bundle.main.url(forResource: "launcher-custom-icon", withExtension: "png", subdirectory: "dm"),
        let icon = UIImage(contentsOfFile: iconURL.path) {
         return icon
@@ -99,6 +97,23 @@ private func launcherAppIcon() -> UIImage? {
           let files = primary["CFBundleIconFiles"] as? [String],
           let last = files.last else { return nil }
     return UIImage(named: last)
+}
+
+/// The launcher artwork is immutable for the lifetime of this app process.
+/// Cache both the decoded icon and its derived accent so SwiftUI body updates
+/// never reload the image or rescan its pixels.
+private enum LauncherArtworkCache {
+    static let appIcon = loadLauncherAppIcon()
+    static let accentColor: Color = {
+        guard launcherUsesDominantAccent() else {
+            return Color(uiColor: launcherCustomAccentColor() ?? .systemBlue)
+        }
+        return Color(uiColor: appIcon?.dominantColor() ?? .systemBlue)
+    }()
+}
+
+private func launcherAppIcon() -> UIImage? {
+    LauncherArtworkCache.appIcon
 }
 
 /// Whether this build uses the game's app-icon colour for launcher accents.
@@ -126,13 +141,9 @@ private func launcherCustomAccentColor() -> UIColor? {
     )
 }
 
-/// Shared launcher accent. When dominant styling is off, a supplied custom
-/// colour wins; an empty custom value preserves nxnative's standard system blue.
+/// Return the cached launcher accent; the icon's dominant colour is calculated only once.
 private func launcherAccentColor() -> Color {
-    guard launcherUsesDominantAccent() else {
-        return Color(uiColor: launcherCustomAccentColor() ?? .systemBlue)
-    }
-    return Color(uiColor: launcherAppIcon()?.dominantColor() ?? .systemBlue)
+    LauncherArtworkCache.accentColor
 }
 
 
