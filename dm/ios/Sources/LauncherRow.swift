@@ -56,9 +56,7 @@ struct LauncherDisclosureGroupStyle: DisclosureGroupStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         Button {
-            withAnimation(.easeInOut(duration: 0.22)) {
-                configuration.isExpanded.toggle()
-            }
+            configuration.isExpanded.toggle()
         } label: {
             HStack(spacing: 6) {
                 configuration.label
@@ -67,7 +65,6 @@ struct LauncherDisclosureGroupStyle: DisclosureGroupStyle {
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(isEnabled ? accentColor : Color(white: 0.58))
                     .rotationEffect(.degrees(configuration.isExpanded ? 0 : -90))
-                    .animation(.easeInOut(duration: 0.22), value: configuration.isExpanded)
                     .frame(width: 30, height: 30)
                     .contentShape(Rectangle())
             }
@@ -81,7 +78,6 @@ struct LauncherDisclosureGroupStyle: DisclosureGroupStyle {
         // which can cause the abrupt jump during expansion and collapse.
         if configuration.isExpanded {
             configuration.content
-                .transition(.move(edge: .top).combined(with: .opacity))
         }
     }
 }
@@ -105,9 +101,7 @@ struct SettingRow: View {
                 if option.count >= 2 {
                     Button {
                         m.values[s.env] = option[0]
-                        withAnimation(.easeInOut(duration: 0.24)) {
-                            showingChoiceList = false
-                        }
+                        showingChoiceList = false
                     } label: {
                         HStack(spacing: 8) {
                             Text(option[1])
