@@ -384,7 +384,7 @@ private struct LauncherView: View {
                         AvailableMemoryRow()
                     }
                 }
-                .listStyle(.plain)
+                .listStyle(.grouped)
                 .listRowBackground(Color.black)
                 .background(Color.black)
                 .contentMargins(.horizontal, 0, for: .scrollContent)
