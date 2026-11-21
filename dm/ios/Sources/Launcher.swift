@@ -298,7 +298,7 @@ private struct LauncherView: View {
                         }
                         let rows = m.rows(in: section)
                         if !rows.isEmpty {
-                            Section(section == "Controls" ? "Touch controls" : section) {
+                            Section(section) {
                                 ForEach(rows) {
                                     SettingRow(s: $0, m: m, accentColor: accentColor)
                                         .listRowBackground(Color.black)
