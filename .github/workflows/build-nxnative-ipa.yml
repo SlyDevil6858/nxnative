@@ -254,9 +254,11 @@ jobs:
           converted_dir = Path(tempfile.mkdtemp(prefix="nxnative-override-images-"))
 
           def find_override_image(stem):
-              for extension in image_extensions:
-                  candidate = folder / f"{stem}{extension}"
-                  if candidate.is_file():
+              normalized_stem = stem.casefold()
+              for candidate in folder.iterdir():
+                  if (candidate.is_file()
+                          and candidate.stem.casefold() == normalized_stem
+                          and candidate.suffix.casefold() in image_extensions):
                       return candidate
               return None
 
