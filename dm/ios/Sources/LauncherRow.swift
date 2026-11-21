@@ -97,7 +97,7 @@ struct SettingRow: View {
 
     private var choiceListContent: some View {
         VStack(spacing: 0) {
-            ForEach(s.options ?? [], id: \.self) { option in
+            ForEach(Array((s.options ?? []).enumerated()), id: \.offset) { index, option in
                 if option.count >= 2 {
                     Button {
                         m.values[s.env] = option[0]
@@ -119,6 +119,11 @@ struct SettingRow: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    if index < (s.options?.count ?? 0) - 1 {
+                        Rectangle()
+                            .fill(Color.white.opacity(0.12))
+                            .frame(height: 0.5)
+                    }
                 }
             }
         }
