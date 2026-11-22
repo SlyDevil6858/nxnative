@@ -83,7 +83,16 @@ struct LauncherDisclosureGroupStyle: DisclosureGroupStyle {
         // which can cause the abrupt jump during expansion and collapse.
         if configuration.isExpanded {
             configuration.content
+                // Replace only the expanded content row's bottom boundary with
+                // a custom rule using the same 20pt total inset as the closed row.
+                .overlay(alignment: .bottom) {
+                    Rectangle()
+                        .fill(launcherMainSeparatorColor)
+                        .frame(height: 0.5)
+                        .padding(.horizontal, 12)
+                }
                 .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8))
+                .listRowSeparator(.hidden, edges: .bottom)
                 .transition(.move(edge: .top).combined(with: .opacity))
         }
     }
