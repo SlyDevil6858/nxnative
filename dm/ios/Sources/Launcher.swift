@@ -354,7 +354,7 @@ private struct LauncherView: View {
                     if !editing { refreshThemes() }
                 }
                 .onAppear(perform: refreshThemes)
-                .frame(width: geometry.size.width * 2 / 3 + 5)
+                .frame(width: geometry.size.width * 2 / 3 + 4)
             }
             .opacity(isEditingTouchControls ? 0 : 1)
             .allowsHitTesting(!isEditingTouchControls)
