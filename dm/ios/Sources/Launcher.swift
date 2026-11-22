@@ -290,10 +290,9 @@ private struct LauncherView: View {
                         }
                         if section == "Controls" {
                             Section {
-                                EmptyView()
-                            } footer: {
                                 quickTipFooter
                                     .padding(.top, -16)
+                                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                             }
                             .listRowBackground(launcherSectionBackground)
                         }
@@ -301,7 +300,7 @@ private struct LauncherView: View {
                     if !m.sections.contains("Performance"), let supportURL = launcherSupportURL() {
                         Section("Support") {
                             Button("Support the author of this port…") { UIApplication.shared.open(supportURL) }
-                                .tint(accentColor)
+                                .tint(Color(red: 245.0 / 255.0, green: 176.0 / 255.0, blue: 15.0 / 255.0))
                         }
                         .listRowBackground(launcherSectionBackground)
                     }
