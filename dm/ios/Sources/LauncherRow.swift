@@ -126,7 +126,7 @@ struct SettingRow: View {
                     }
                     .buttonStyle(.plain)
                     Rectangle()
-                        .fill(Color.white.opacity(0.12))
+                        .fill(Color.white.opacity(0.08))
                         .frame(height: 0.5)
                 }
             }
