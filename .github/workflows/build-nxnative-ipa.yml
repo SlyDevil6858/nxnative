@@ -17,6 +17,7 @@ on:
           - katana ZERO
           - ENTER THE GUNGEON
           - EXIT THE GUNGEON
+          - UNDERTALE
         default: ANIMAL WELL
       prod_keys_path:
         description: "Path to prod.keys inside myprivaterepo"
@@ -91,7 +92,7 @@ jobs:
           build_number = os.environ["DM_APP_BUILD"].strip()
           if not re.fullmatch(r"[0-9]+(?:\.[0-9]+)*[A-Za-z]?", build_number):
               raise SystemExit("build_number must be numeric with an optional trailing letter, e.g. 23, 23a or 23.1b")
-          expected_stems = {"ANIMAL WELL": "ANIMAL WELL", "katana ZERO": "katana ZERO", "ENTER THE GUNGEON": "ENTER THE GUNGEON", "EXIT THE GUNGEON": "EXIT THE GUNGEON"}
+          expected_stems = {"ANIMAL WELL": "ANIMAL WELL", "katana ZERO": "katana ZERO", "ENTER THE GUNGEON": "ENTER THE GUNGEON", "EXIT THE GUNGEON": "EXIT THE GUNGEON", "UNDERTALE": "UNDERTALE"}
           if selection not in expected_stems:
               raise SystemExit(f"Unsupported ROM selection: {selection!r}")
           expected_stem = expected_stems[selection]
@@ -123,7 +124,7 @@ jobs:
               raise SystemExit("No non-empty .nsp, .xci, .nsz or .xcz files found directly inside game_folder")
 
           # Match the selected game title to the exact ROM filename in the private repo.
-          matches = [p for p in rom_files if p.stem == expected_stem]
+          matches = [p for p in rom_files if p.stem == expected_stem and (selection != "UNDERTALE" or p.suffix.lower() == ".nsp")]
           if len(matches) != 1:
               available = ", ".join(p.name for p in rom_files)
               raise SystemExit(
