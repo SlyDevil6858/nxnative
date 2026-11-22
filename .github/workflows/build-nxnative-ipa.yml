@@ -211,6 +211,24 @@ jobs:
           else:
               print("No custom launcher accent colour supplied; nxnative's default styling will be used.")
 
+          # Detect an existing ROM-specific background before contacting SteamGridDB.
+          # Match the filename stem case-insensitively and preserve the source file as-is.
+          image_extensions = (".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff", ".heic", ".heif")
+          existing_backgrounds = sorted(
+              (
+                  path for path in folder.iterdir()
+                  if path.is_file()
+                  and path.stem.casefold() == "background"
+                  and path.suffix.casefold() in image_extensions
+              ),
+              key=lambda path: path.name.casefold(),
+          )
+          if existing_backgrounds:
+              print(
+                  f"Found existing background image {existing_backgrounds[0].name}; "
+                  "skipping SteamGridDB lookup and download. Existing artwork will be kept intact."
+              )
+
           # Download the highest-rated SteamGridDB hero for the selected ROM.
           # The API key is supplied as a GitHub Actions secret; no key is committed.
           import json
@@ -219,7 +237,9 @@ jobs:
           import urllib.request
 
           sgdb_key = os.environ.get("STEAMGRIDDB_API_KEY", "").strip()
-          if sgdb_key:
+          if existing_backgrounds:
+              pass  # Preserve existing artwork; make no SteamGridDB requests.
+          elif sgdb_key:
               api_headers = {"Authorization": f"Bearer {sgdb_key}", "User-Agent": "nxnative-build/1.0"}
 
               def sgdb_get(path):
@@ -281,15 +301,19 @@ jobs:
           import subprocess
           import tempfile
 
-          image_extensions = (".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff", ".heic", ".heif")
           converted_dir = Path(tempfile.mkdtemp(prefix="nxnative-override-images-"))
 
           def find_override_image(stem):
-              for extension in image_extensions:
-                  candidate = folder / f"{stem}{extension}"
-                  if candidate.is_file():
-                      return candidate
-              return None
+              matches = sorted(
+                  (
+                      candidate for candidate in folder.iterdir()
+                      if candidate.is_file()
+                      and candidate.stem.casefold() == stem.casefold()
+                      and candidate.suffix.casefold() in image_extensions
+                  ),
+                  key=lambda candidate: candidate.name.casefold(),
+              )
+              return matches[0] if matches else None
 
           def export_png(stem, env_name):
               source = find_override_image(stem)
