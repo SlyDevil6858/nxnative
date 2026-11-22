@@ -493,6 +493,7 @@ private struct LauncherView: View {
                 Rectangle()
                     .fill(Color.white.opacity(0.08))
                     .frame(height: 0.5)
+                    .padding(.horizontal, 12)
             }
         }
         .padding(.top, 4)
