@@ -496,7 +496,7 @@ private struct LauncherView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .id("launcher-theme-\(theme.path)")
                 Rectangle()
-                    .fill(Color.white.opacity(0.06))
+                    .fill(Color(white: 0.025))
                     .frame(height: 0.5)
                     .padding(.horizontal, 0)
             }
