@@ -121,7 +121,7 @@ struct SettingRow: View {
                             }
                         }
                         .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
-                        .padding(.horizontal, 8)
+                        .padding(.horizontal, 16)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
