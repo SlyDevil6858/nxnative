@@ -54,17 +54,64 @@ private extension UIImage {
                        blue: CGFloat(d.b)/CGFloat(d.n*255), alpha: 1)
     }
 }
-private func launcherIconForAccent() -> UIImage? {
-    if let path = Bundle.main.url(forResource: "launcher-custom-icon", withExtension: "png", subdirectory: "dm"),
-       let image = UIImage(contentsOfFile: path.path) { return image }
-    if let image = UIImage(named: "AppIcon") { return image }
+/// Load the app icon once. App-icon catalog images are not reliably available through UIImage(named:).
+private func loadLauncherAppIcon() -> UIImage? {
+    if let iconURL = Bundle.main.url(forResource: "launcher-custom-icon", withExtension: "png", subdirectory: "dm"),
+       let icon = UIImage(contentsOfFile: iconURL.path) {
+        return icon
+    }
+    if let icon = UIImage(named: "AppIcon") { return icon }
     guard let icons = info("CFBundleIcons") as? [String: Any],
           let primary = icons["CFBundlePrimaryIcon"] as? [String: Any],
-          let names = primary["CFBundleIconFiles"] as? [String], let last = names.last else { return nil }
+          let files = primary["CFBundleIconFiles"] as? [String],
+          let last = files.last else { return nil }
     return UIImage(named: last)
 }
+
+/// The icon and its derived accent are immutable for this app process.
+/// Static initialization ensures the image is decoded and its 32×32 colour
+/// sample is calculated at most once, even as SwiftUI repeatedly updates views.
+private enum LauncherArtworkCache {
+    static let appIcon = loadLauncherAppIcon()
+    static let accentColor: Color = {
+        guard launcherUsesDominantAccent() else {
+            return Color(uiColor: launcherCustomAccentColor() ?? .systemBlue)
+        }
+        return Color(uiColor: appIcon?.launcherDominantColor() ?? .systemBlue)
+    }()
+}
+
+private func launcherAppIcon() -> UIImage? {
+    LauncherArtworkCache.appIcon
+}
+
+/// Dominant accent is enabled by default; a build may explicitly disable it.
+private func launcherUsesDominantAccent() -> Bool {
+    guard let value = info("DMDominantAccent") else { return true }
+    if let string = value as? String {
+        return ["true", "yes", "1"].contains(string.lowercased())
+    }
+    if let number = value as? NSNumber { return number.boolValue }
+    return true
+}
+
+/// Optional six-digit custom launcher accent supplied by the build workflow.
+private func launcherCustomAccentColor() -> UIColor? {
+    guard let rawHex = info("DMLauncherAccentHex") as? String else { return nil }
+    let hex = rawHex.trimmingCharacters(in: .whitespacesAndNewlines)
+        .trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+    guard hex.count == 6, let value = UInt32(hex, radix: 16) else { return nil }
+    return UIColor(
+        red: CGFloat((value >> 16) & 0xFF) / 255.0,
+        green: CGFloat((value >> 8) & 0xFF) / 255.0,
+        blue: CGFloat(value & 0xFF) / 255.0,
+        alpha: 1.0
+    )
+}
+
+/// Return the cached accent. Dominant-colour analysis runs only once per process.
 private func launcherAccentColor() -> Color {
-    Color(uiColor: launcherIconForAccent()?.launcherDominantColor() ?? .systemBlue)
+    LauncherArtworkCache.accentColor
 }
 private func launcherSupportURL() -> URL? {
     guard let raw = info("DMSupportURL") as? String else { return nil }
@@ -315,10 +362,7 @@ private struct LauncherView: View {
     }
 
     private func appIcon() -> UIImage? {
-        if let i = UIImage(named: "AppIcon") { return i }
-        guard let icons = info("CFBundleIcons") as? [String: Any], let primary = icons["CFBundlePrimaryIcon"] as? [String: Any],
-              let files = primary["CFBundleIconFiles"] as? [String], let last = files.last else { return nil }
-        return UIImage(named: last)
+        launcherAppIcon()
     }
 }
 
