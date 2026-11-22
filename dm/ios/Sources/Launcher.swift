@@ -293,6 +293,7 @@ private struct LauncherView: View {
                                 .foregroundColor(Color(white: 0.58)))
                                 .font(.footnote)
                         }
+                        }
                     }
                     if !m.sections.contains("Performance"), let supportURL = launcherSupportURL() {
                         Section("Support") {
