@@ -120,7 +120,7 @@ struct SettingRow: View {
                                     .foregroundStyle(Color(red: 0.22, green: 0.48, blue: 0.28))
                             }
                         }
-                        .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
+                        .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
                         .padding(.horizontal, 16)
                         .contentShape(Rectangle())
                     }
