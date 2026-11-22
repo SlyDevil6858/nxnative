@@ -279,7 +279,7 @@ private struct LauncherView: View {
                                                 .lineLimit(1)
                                         }
                                     }
-                                    .tint(accentColor)
+                                    .disclosureGroupStyle(LauncherDisclosureGroupStyle(accentColor: accentColor))
                                     .onChange(of: showingThemeList, perform: themeListVisibilityChanged)
                                     Button("Edit touch controls layout…") { dm_gamepad_present_launcher_editor() }
                                         .tint(accentColor)
@@ -298,11 +298,11 @@ private struct LauncherView: View {
                         .listRowBackground(launcherSectionBackground)
                     }
                     Section {
-                    } footer: {
                         (Text("QUICK TIP: ").fontWeight(.bold).foregroundColor(Color(red: 245.0 / 255.0, green: 176.0 / 255.0, blue: 15.0 / 255.0))
                          + Text("During gameplay, press and hold the 2D, 3D, or Tap button, or hold Select on your controller, to open the in-game control menu.")
                             .foregroundColor(Color(white: 0.58)))
                             .font(.footnote)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .listRowBackground(launcherSectionBackground)
                     Section {
@@ -325,6 +325,7 @@ private struct LauncherView: View {
                 }
                 .listStyle(.insetGrouped)
                 .listRowBackground(launcherSectionBackground)
+                .listRowSeparatorTint(Color.white.opacity(0.08))
                 .tint(accentColor)
                 .sheet(isPresented: $pickingTheme) {
                     DocumentPicker(types: [.folder]) { url in
@@ -354,7 +355,6 @@ private struct LauncherView: View {
                     if !editing { refreshThemes() }
                 }
                 .onAppear(perform: refreshThemes)
-                .contentMargins(.horizontal, 12, for: .scrollContent)
                 .frame(width: geometry.size.width * 2 / 3)
             }
             .opacity(isEditingTouchControls ? 0 : 1)
@@ -500,7 +500,6 @@ private struct LauncherView: View {
             }
         }
         .padding(.top, 4)
-        .background(Color.black)
     }
 
     private func saveLauncherThemeRename(_ theme: LauncherTheme) {
