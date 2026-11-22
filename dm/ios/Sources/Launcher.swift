@@ -256,7 +256,11 @@ private struct LauncherView: View {
                 List {
                     ForEach(m.sections, id: \.self) { section in
                         if section == "Performance", let supportURL = launcherSupportURL() {
-                            supportSection(supportURL)
+                            Section("Support") {
+                                Button("Support the author of this port…") { UIApplication.shared.open(supportURL) }
+                                    .tint(accentColor)
+                            }
+                            .listRowBackground(launcherSectionBackground)
                         }
                         let rows = m.rows(in: section)
                         if !rows.isEmpty {
@@ -281,16 +285,24 @@ private struct LauncherView: View {
                                     Button("Import touch controls theme…") { pickingTheme = true }
                                         .tint(accentColor)
                                 }
+                            }
+                            .listRowBackground(launcherSectionBackground)
+                        }
+                        if section == "Controls" {
+                            Section {
+                                EmptyView()
                             } footer: {
-                                if section == "Controls" {
-                                    quickTipFooter
-                                }
+                                quickTipFooter
                             }
                             .listRowBackground(launcherSectionBackground)
                         }
                     }
                     if !m.sections.contains("Performance"), let supportURL = launcherSupportURL() {
-                        supportSection(supportURL)
+                        Section("Support") {
+                            Button("Support the author of this port…") { UIApplication.shared.open(supportURL) }
+                                .tint(accentColor)
+                        }
+                        .listRowBackground(launcherSectionBackground)
                     }
                     Section {
                         Button("Reset to tested defaults") { m.reset() }
@@ -362,14 +374,6 @@ private struct LauncherView: View {
                 try? await Task.sleep(for: .seconds(2))
             }
         }
-    }
-
-    private func supportSection(_ url: URL) -> some View {
-        Section("Support") {
-            Button("Support the author of this port…") { UIApplication.shared.open(url) }
-                .tint(accentColor)
-        }
-        .listRowBackground(launcherSectionBackground)
     }
 
     @ViewBuilder var playButton: some View {
