@@ -243,6 +243,7 @@ private struct LauncherView: View {
                                 Button("Support the author of this port…") { UIApplication.shared.open(supportURL) }
                                     .tint(accentColor)
                             }
+                            .listRowBackground(launcherSectionBackground)
                         }
                         let rows = m.rows(in: section)
                         if !rows.isEmpty {
