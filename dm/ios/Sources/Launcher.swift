@@ -494,7 +494,7 @@ private struct LauncherView: View {
                 Rectangle()
                     .fill(launcherMainSeparatorColor)
                     .frame(height: 0.5)
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, theme.path == themes.last?.path ? 0 : 12)
             }
         }
         .padding(.top, 4)
