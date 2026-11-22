@@ -187,32 +187,37 @@ private struct LauncherView: View {
                 .frame(width: geometry.size.width / 3, height: geometry.size.height)
                 List {
                     ForEach(m.sections, id: \.self) { section in
+                        if section == "Performance", let supportURL = launcherSupportURL() {
+                            Section("Support") {
+                                Button("Support the author of this port…") { UIApplication.shared.open(supportURL) }
+                                    .tint(accentColor)
+                            }
+                        }
                         let rows = m.rows(in: section)
                         if !rows.isEmpty {
                             Section(section) {
                                 ForEach(rows) { SettingRow(s: $0, m: m, accentColor: accentColor) }
+                                if section == "Controls" {
+                                    Button("Edit touch controls layout…") { dm_gamepad_present_launcher_editor() }
+                                        .tint(accentColor)
+                                    Button("Import touch controls theme…") { importingTouchTheme = true }
+                                        .tint(accentColor)
+                                    (Text("QUICK TIP: ").fontWeight(.bold).foregroundColor(Color(red: 0.961, green: 0.690, blue: 0.059))
+                                     + Text("During gameplay, press and hold the 2D, 3D, or Tap button, or hold Select on your controller, to open the in-game control menu.")
+                                        .foregroundColor(Color(white: 0.58)))
+                                        .font(.footnote)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                        .padding(12)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                }
                             }
                         }
                     }
-                    if let supportURL = launcherSupportURL() {
+                    if !m.sections.contains("Performance"), let supportURL = launcherSupportURL() {
                         Section("Support") {
                             Button("Support the author of this port…") { UIApplication.shared.open(supportURL) }
                                 .tint(accentColor)
                         }
-                    }
-                    Section("Touch controls") {
-                        Button("Edit touch controls layout…") { dm_gamepad_present_launcher_editor() }
-                            .tint(accentColor)
-                        Button("Import touch controls theme…") { importingTouchTheme = true }
-                            .tint(accentColor)
-                        (Text("QUICK TIP: ").fontWeight(.bold).foregroundColor(accentColor)
-                         + Text("During gameplay, press and hold the 2D, 3D, or Tap button, or hold Select on your controller, to open the in-game control menu.")
-                            .foregroundColor(Color(white: 0.58)))
-                            .font(.footnote)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .padding(12)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(accentColor.opacity(0.14), in: RoundedRectangle(cornerRadius: 10))
                     }
                     Section {
                         Button("Reset to tested defaults") { m.reset() }
