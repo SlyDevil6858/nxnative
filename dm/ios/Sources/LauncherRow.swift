@@ -83,7 +83,7 @@ struct LauncherDisclosureGroupStyle: DisclosureGroupStyle {
         // which can cause the abrupt jump during expansion and collapse.
         if configuration.isExpanded {
             configuration.content
-                .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8))
+                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                 .transition(.move(edge: .top).combined(with: .opacity))
         }
     }
@@ -130,7 +130,7 @@ struct SettingRow: View {
                     Rectangle()
                         .fill(launcherMainSeparatorColor)
                         .frame(height: 0.5)
-                        .padding(.horizontal, option == (s.options ?? []).last ? 0 : 12)
+                        .padding(.horizontal, 12)
                 }
             }
         }
