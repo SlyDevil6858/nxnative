@@ -280,7 +280,6 @@ private struct LauncherView: View {
                                         }
                                     }
                                     .disclosureGroupStyle(LauncherDisclosureGroupStyle(accentColor: accentColor))
-                                    .onChange(of: showingThemeList, perform: themeListVisibilityChanged)
                                     Button("Edit touch controls layout…") { dm_gamepad_present_launcher_editor() }
                                         .tint(accentColor)
                                     Button("Import touch controls theme…") { pickingTheme = true }
@@ -781,10 +780,6 @@ private struct LauncherView: View {
             guard normalized.range(of: "^[0-9A-Fa-f]{6}$", options: .regularExpression) != nil else { return nil }
         }
         return json
-    }
-
-    private func themeListVisibilityChanged(_ isShowing: Bool) {
-        if isShowing { refreshThemes() }
     }
 
     private func refreshThemes() {
