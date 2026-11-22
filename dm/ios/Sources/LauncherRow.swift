@@ -130,7 +130,9 @@ struct SettingRow: View {
                     Rectangle()
                         .fill(launcherMainSeparatorColor)
                         .frame(height: 0.5)
-                        .padding(.horizontal, 12)
+                        .padding(.horizontal,
+                            (["upscaling", "game language"].contains(s.label.lowercased()) &&
+                             option == (s.options ?? []).last) ? 0 : 12)
                 }
             }
         }
