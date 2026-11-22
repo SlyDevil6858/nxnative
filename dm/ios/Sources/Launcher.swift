@@ -280,7 +280,6 @@ private struct LauncherView: View {
                                         }
                                     }
                                     .disclosureGroupStyle(LauncherDisclosureGroupStyle(accentColor: accentColor))
-                                    .modifier(LauncherMenuRowInsets())
                                     Button("Edit touch controls layout…") { dm_gamepad_present_launcher_editor() }
                                         .tint(accentColor)
                                     Button("Import touch controls theme…") { pickingTheme = true }
@@ -324,7 +323,7 @@ private struct LauncherView: View {
                 }
                 .listStyle(.insetGrouped)
                 .listRowBackground(launcherSectionBackground)
-                .listRowSeparatorTint(Color(white: 0.025))
+                .listRowSeparatorTint(Color.white.opacity(0.08))
                 .tint(accentColor)
                 .sheet(isPresented: $pickingTheme) {
                     DocumentPicker(types: [.folder]) { url in
@@ -453,8 +452,8 @@ private struct LauncherView: View {
                                         .foregroundStyle(Color(red: 0.22, green: 0.48, blue: 0.28))
                                 }
                             }
-                            .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
-                            .padding(.horizontal, 0)
+                            .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+                            .padding(.vertical, 4)
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
@@ -489,16 +488,18 @@ private struct LauncherView: View {
                         }
                     }
                 }
-                .padding(.vertical, 8)
+                .padding(8)
                 // Keep the row full-width even when bundled themes omit their
                 // edit/delete controls, so the checkmark reaches the same
                 // trailing alignment as the trash button on custom themes.
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
                 .id("launcher-theme-\(theme.path)")
                 Rectangle()
-                    .fill(Color(white: 0.025))
+                    .fill(Color.white.opacity(0.08))
                     .frame(height: 0.5)
-                    .padding(.horizontal, 0)
+                    .padding(.horizontal, 12)
             }
         }
         .padding(.top, 4)
