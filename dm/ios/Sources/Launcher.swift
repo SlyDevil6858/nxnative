@@ -488,6 +488,7 @@ private struct LauncherView: View {
                         }
                     }
                 }
+                .padding(8)
                 // Keep the row full-width even when bundled themes omit their
                 // edit/delete controls, so the checkmark reaches the same
                 // trailing alignment as the trash button on custom themes.
