@@ -202,7 +202,7 @@ private struct LauncherView: View {
                                         .tint(accentColor)
                                     Button("Import touch controls theme…") { importingTouchTheme = true }
                                         .tint(accentColor)
-                                    (Text("QUICK TIP: ").fontWeight(.bold).foregroundColor(Color(red: 0.961, green: 0.690, blue: 0.059))
+                                    (Text("QUICK TIP: ").fontWeight(.bold).foregroundColor(Color(red: 245.0 / 255.0, green: 176.0 / 255.0, blue: 15.0 / 255.0))
                                      + Text("During gameplay, press and hold the 2D, 3D, or Tap button, or hold Select on your controller, to open the in-game control menu.")
                                         .foregroundColor(Color(white: 0.58)))
                                         .font(.footnote)
