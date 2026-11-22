@@ -26,7 +26,7 @@ private struct LauncherToggleStyle: ToggleStyle {
                     .frame(width: 63, height: 29)
                 Capsule()
                     .fill(isLocked ? Color(white: 0.48) : Color.white)
-                    .frame(width: 36, height: 25)
+                    .frame(width: 36, height: 26)
                     .padding(.leading, 3)
                     .padding(.trailing, 2)
             }
@@ -130,7 +130,7 @@ struct SettingRow: View {
                     Rectangle()
                         .fill(launcherMainSeparatorColor)
                         .frame(height: 0.5)
-                        .padding(.horizontal, 12)
+                        .padding(.horizontal, option == (s.options ?? []).last ? 0 : 12)
                 }
             }
         }
