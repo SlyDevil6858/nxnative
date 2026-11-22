@@ -129,7 +129,10 @@ struct SettingRow: View {
                     Rectangle()
                         .fill(Color.white.opacity(0.06))
                         .frame(height: 0.5)
-                        .padding(.horizontal, 12)
+                        // The final divider is the bottom edge of the expanded menu.
+                        // Keep it aligned with the expanded List row, not the inset
+                        // used by the dividers between individual options.
+                        .padding(.horizontal, option == (s.options ?? []).last(where: { $0.count >= 2 }) ? 0 : 12)
                 }
             }
         }
