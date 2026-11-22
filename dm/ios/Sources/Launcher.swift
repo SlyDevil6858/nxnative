@@ -286,6 +286,12 @@ private struct LauncherView: View {
                                     Button("Import touch controls theme…") { pickingTheme = true }
                                         .tint(accentColor)
                                 }
+                            } footer: {
+                                if section == "Controls" {
+                                    (Text("QUICK TIP: ").foregroundColor(Color(red: 245.0 / 255.0, green: 176.0 / 255.0, blue: 15.0 / 255.0)) +
+                                     Text("During gameplay, press and hold the 2D, 3D, or Tap button, or hold Select on your controller, to open the in-game control menu..").foregroundColor(Color(white: 0.58)))
+                                        .font(.footnote)
+                                }
                             }
                             .listRowBackground(launcherSectionBackground)
                         }
