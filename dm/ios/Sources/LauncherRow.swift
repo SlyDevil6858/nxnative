@@ -23,10 +23,10 @@ private struct LauncherToggleStyle: ToggleStyle {
             ZStack(alignment: configuration.isOn ? .trailing : .leading) {
                 Capsule()
                     .fill(isLocked ? Color(white: 0.16) : (configuration.isOn ? accentColor : Color(white: 0.14)))
-                    .frame(width: 65, height: 31)
+                    .frame(width: 63, height: 31)
                 Capsule()
                     .fill(isLocked ? Color(white: 0.48) : Color.white)
-                    .frame(width: 42, height: 27)
+                    .frame(width: 40, height: 27)
                     .padding(.horizontal, 4)
             }
             .contentShape(Capsule())
