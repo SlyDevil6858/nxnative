@@ -212,12 +212,28 @@ private struct DocumentPicker: UIViewControllerRepresentable {
     }
 }
 
+/// A touch-control theme discovered from the app bundle or the user's Documents folder.
+private struct LauncherTheme: Identifiable {
+    let name: String
+    let path: String
+    var id: String { path }
+}
+
 private struct LauncherView: View {
     @ObservedObject var m: LauncherModel
     let play: () -> Void
     @State private var memory = os_proc_available_memory()
-    @State private var importingTouchTheme = false
-    @State private var touchThemeImportMessage = ""
+    @State private var themes: [LauncherTheme] = []
+    @State private var selectedTheme = UserDefaults.standard.string(forKey: "DmTouchControlThemeName") ?? "CLASSIC"
+    @State private var pickingTheme = false
+    @State private var showingThemeList = false
+    @State private var confirmingThemeDeletion = false
+    @State private var themeToDelete: LauncherTheme?
+    @State private var themeRenamePath: String?
+    @State private var themeRenameText = ""
+    @FocusState private var themeRenameFocused: Bool
+    @State private var showingThemeImportAlert = false
+    @State private var themeImportMessage = ""
 
     var body: some View {
         GeometryReader { geometry in
@@ -250,9 +266,23 @@ private struct LauncherView: View {
                             Section(section) {
                                 ForEach(rows) { SettingRow(s: $0, m: m, accentColor: accentColor) }
                                 if section == "Controls" {
+                                    DisclosureGroup(isExpanded: $showingThemeList) {
+                                        themeMenuContent
+                                    } label: {
+                                        HStack(spacing: 6) {
+                                            Text("Touch controls theme")
+                                                .foregroundStyle(.white)
+                                            Spacer(minLength: 6)
+                                            Text(selectedTheme)
+                                                .foregroundStyle(accentColor)
+                                                .lineLimit(1)
+                                        }
+                                    }
+                                    .tint(accentColor)
+                                    .onChange(of: showingThemeList, perform: themeListVisibilityChanged)
                                     Button("Edit touch controls layout…") { dm_gamepad_present_launcher_editor() }
                                         .tint(accentColor)
-                                    Button("Import touch controls theme…") { importingTouchTheme = true }
+                                    Button("Import touch controls theme…") { pickingTheme = true }
                                         .tint(accentColor)
                                 }
                             }
@@ -295,15 +325,31 @@ private struct LauncherView: View {
                 .listStyle(.insetGrouped)
                 .listRowBackground(launcherSectionBackground)
                 .tint(accentColor)
-                .fileImporter(isPresented: $importingTouchTheme, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
-                    importTouchTheme(result)
+                .sheet(isPresented: $pickingTheme) {
+                    DocumentPicker(types: [.folder]) { url in
+                        pickingTheme = false
+                        importTheme(from: url)
+                    } onCancel: { pickingTheme = false }
                 }
-                .alert("Touch controls theme", isPresented: Binding(
-                    get: { !touchThemeImportMessage.isEmpty },
-                    set: { if !$0 { touchThemeImportMessage = "" } }
-                )) {
-                    Button("OK") { touchThemeImportMessage = "" }
-                } message: { Text(touchThemeImportMessage) }
+                .alert("Touch controls theme", isPresented: $showingThemeImportAlert) {
+                    Button("OK", role: .cancel) { showingThemeImportAlert = false }
+                } message: {
+                    Text(themeImportMessage)
+                }
+                .confirmationDialog("Delete imported touch control theme?", isPresented: $confirmingThemeDeletion, titleVisibility: .visible) {
+                    Button("Delete \(themeToDelete?.name ?? "theme")", role: .destructive) {
+                        if let theme = themeToDelete { deleteTheme(theme) }
+                        themeToDelete = nil
+                    }
+                    Button("Cancel", role: .cancel) { themeToDelete = nil }
+                } message: {
+                    Text("This permanently deletes the imported theme folder from this device.")
+                }
+                .onReceive(NotificationCenter.default.publisher(for: Notification.Name("DmPadLauncherEditorVisibilityChanged"))) { notification in
+                    let editing = notification.userInfo?["editing"] as? Bool ?? false
+                    if !editing { refreshThemes() }
+                }
+                .onAppear(perform: refreshThemes)
                 .contentMargins(.horizontal, 12, for: .scrollContent)
                 .frame(width: geometry.size.width * 2 / 3)
             }
@@ -341,35 +387,584 @@ private struct LauncherView: View {
 
     private var accentColor: Color { launcherAccentColor() }
 
-    private func importTouchTheme(_ result: Result<[URL], Error>) {
+    private var themeMenuContent: some View {
+        VStack(spacing: 0) {
+            ForEach(themes) { theme in
+                HStack(spacing: 0) {
+                    if themeRenamePath == theme.path {
+                        TextField("Theme name", text: $themeRenameText)
+                            .focused($themeRenameFocused)
+                            .submitLabel(.done)
+                            .textInputAutocapitalization(.words)
+                            .autocorrectionDisabled()
+                            .padding(.horizontal, 10)
+                            .frame(height: 36)
+                            .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
+                            .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.white.opacity(0.18), lineWidth: 1))
+                            .onSubmit { saveLauncherThemeRename(theme) }
+                            .padding(.leading, 8)
+                        Button {
+                            saveLauncherThemeRename(theme)
+                        } label: {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundStyle(Color(red: 0.25, green: 0.78, blue: 0.38))
+                                .frame(width: 36, height: 36)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Save theme name")
+                        Button {
+                            cancelLauncherThemeRename()
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(Color.white.opacity(0.78))
+                                .frame(width: 32, height: 36)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Cancel theme rename")
+                    } else {
+                        Button {
+                            selectTheme(theme.path, name: theme.name)
+                            withAnimation(.easeInOut(duration: 0.24)) {
+                                showingThemeList = false
+                            }
+                        } label: {
+                            HStack(spacing: 8) {
+                                Text(theme.name)
+                                    .foregroundStyle(.white)
+                                    .lineLimit(1)
+                                Spacer(minLength: 4)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 4)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        if canDeleteTheme(theme) {
+                            Button {
+                                themeRenameText = theme.name
+                                themeRenamePath = theme.path
+                            } label: {
+                                Image(systemName: "pencil")
+                                    .font(.system(size: 17, weight: .bold))
+                                    .foregroundStyle(accentColor)
+                                    .frame(width: 32, height: 32)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Rename \\(theme.name)")
+                        }
+                        if selectedTheme == theme.name {
+                            // Put the active marker in the same trailing slot
+                            // used by the custom-theme trash button.
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(Color(red: 0.22, green: 0.48, blue: 0.28))
+                                .frame(width: 32, height: 32)
+                                .accessibilityLabel("Selected theme")
+                        } else if canDeleteTheme(theme) {
+                            Button(role: .destructive) {
+                                showingThemeList = false
+                                themeToDelete = theme
+                                confirmingThemeDeletion = true
+                            } label: {
+                                Image(systemName: "trash")
+                                    .foregroundStyle(Color(red: 0.55, green: 0.08, blue: 0.08))
+                                    .frame(width: 32, height: 32)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Delete \\(theme.name)")
+                        }
+                    }
+                }
+                // Keep the row full-width even when bundled themes omit their
+                // edit/delete controls, so the checkmark reaches the same
+                // trailing alignment as the trash button on custom themes.
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 4)
+                .id("launcher-theme-\(theme.path)")
+                Rectangle()
+                    .fill(Color.white.opacity(0.12))
+                    .frame(height: 0.5)
+            }
+        }
+        .padding(.top, 4)
+        .background(Color.black)
+    }
+
+    private func saveLauncherThemeRename(_ theme: LauncherTheme) {
+        let newName = themeRenameText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !newName.isEmpty,
+              newName.caseInsensitiveCompare("ANIMAL WELL") != .orderedSame,
+              newName.caseInsensitiveCompare("CLASSIC") != .orderedSame else { return }
+        renameTheme(theme, to: newName)
+        themeRenameFocused = false
+        themeRenamePath = nil
+    }
+
+    private func cancelLauncherThemeRename() {
+        themeRenameFocused = false
+        themeRenamePath = nil
+        themeRenameText = ""
+    }
+
+    private func selectedOverrideThemeDirectory() -> URL? {
+        guard let folder = info("DMOverrideFolder") as? String,
+              !folder.isEmpty, folder != ".", folder != "..",
+              !folder.contains("/"), !folder.contains("\\"),
+              let bundleRoot = Bundle.main.resourceURL else {
+            return nil
+        }
+
+        // New builds stage the selected ROM theme beside CLASSIC under the
+        // shared TouchControlThemes resource folder.
+        let bundledThemes = bundleRoot.appendingPathComponent("TouchControlThemes", isDirectory: true)
+        let selectedTheme = bundledThemes.appendingPathComponent(folder, isDirectory: true)
+        if FileManager.default.fileExists(atPath: selectedTheme.appendingPathComponent("theme.json").path) {
+            return selectedTheme
+        }
+
+        // Keep compatibility with app bundles produced before ROM themes were
+        // moved into TouchControlThemes.
+        let legacyOverrides = bundleRoot.appendingPathComponent("OVERRIDES", isDirectory: true)
+        let legacyTheme = legacyOverrides.appendingPathComponent(folder, isDirectory: true)
+        return FileManager.default.fileExists(atPath: legacyTheme.appendingPathComponent("theme.json").path)
+            ? legacyTheme : nil
+    }
+
+    private func bundledThemeFolders() -> [URL] {
+        let bundledRoot = Bundle.main.resourceURL?.appendingPathComponent("TouchControlThemes", isDirectory: true)
+        var folders = bundledRoot.flatMap {
+            try? FileManager.default.contentsOfDirectory(at: $0, includingPropertiesForKeys: [.isDirectoryKey])
+        } ?? []
+        if let selectedOverride = selectedOverrideThemeDirectory(),
+           !folders.contains(where: { $0.standardizedFileURL == selectedOverride.standardizedFileURL }) {
+            folders.append(selectedOverride)
+        }
+        return folders
+    }
+
+    private func themesDirectory() -> URL {
+        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let directory = documents.appendingPathComponent("TouchControlThemes", isDirectory: true)
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+
+        // Built-in themes stay read-only in the app bundle. Only imported themes live in Documents.
+        // Remove the retired Well built-in left by older builds.
+        for retired in ["Well"] {
+            try? FileManager.default.removeItem(at: directory.appendingPathComponent(retired, isDirectory: true))
+        }
+        let bundledRoot = Bundle.main.resourceURL?.appendingPathComponent("TouchControlThemes", isDirectory: true)
+        // FOREST is shipped in the bundle, then installed as a deletable, Files-visible copy in Documents.
+        let forestSource = bundledRoot?.appendingPathComponent("FOREST", isDirectory: true)
+        let forestDestination = directory.appendingPathComponent("FOREST", isDirectory: true)
+        let forestDeletionMarker = directory.appendingPathComponent(".FOREST.deleted")
+        if let forestSource, !FileManager.default.fileExists(atPath: forestDestination.path),
+           !FileManager.default.fileExists(atPath: forestDeletionMarker.path) {
+            try? FileManager.default.copyItem(at: forestSource, to: forestDestination)
+        }
+        // Remove identical legacy copies of the other bundled themes, but preserve editable FOREST.
+        let bundledFolders = bundledThemeFolders()
+        for bundled in bundledFolders where (try? bundled.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
+            if bundled.lastPathComponent.caseInsensitiveCompare("FOREST") == .orderedSame { continue }
+            let legacy = directory.appendingPathComponent(bundled.lastPathComponent, isDirectory: true)
+            let bundledJSON = try? Data(contentsOf: bundled.appendingPathComponent("theme.json"))
+            let legacyJSON = try? Data(contentsOf: legacy.appendingPathComponent("theme.json"))
+            if let bundledJSON, bundledJSON == legacyJSON {
+                try? FileManager.default.removeItem(at: legacy)
+            }
+        }
+        return directory
+    }
+
+    private func uniqueImportedThemeName(_ proposed: String, root: URL) -> String {
+        let trimmed = proposed.trimmingCharacters(in: .whitespacesAndNewlines)
+        let base = trimmed.isEmpty ? "Imported Theme" : trimmed
+        var existing = Set<String>()
+        var directories = [root]
+        if let bundled = Bundle.main.resourceURL?.appendingPathComponent("TouchControlThemes", isDirectory: true) {
+            directories.append(bundled)
+        }
+        for directory in directories {
+            let entries = (try? FileManager.default.contentsOfDirectory(
+                at: directory, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]
+            )) ?? []
+            for entry in entries where (try? entry.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
+                if let json = themeJSON(in: entry), let name = json["name"] as? String, !name.isEmpty {
+                    existing.insert(name)
+                } else {
+                    existing.insert(entry.lastPathComponent)
+                }
+            }
+        }
+        if let selectedOverride = selectedOverrideThemeDirectory(),
+           let json = themeJSON(in: selectedOverride),
+           let name = json["name"] as? String, !name.isEmpty {
+            existing.insert(name)
+        }
+        var candidate = base
+        var suffix = 2
+        while existing.contains(candidate) {
+            candidate = "\(base) \(suffix)"
+            suffix += 1
+        }
+        return candidate
+    }
+
+    private func uniqueThemeFolderName(_ proposed: String, root: URL, excluding excludedFolder: URL? = nil) -> String {
+        let fileManager = FileManager.default
+        let excludedURL = excludedFolder?.standardizedFileURL
+        let excludedPath = excludedURL?.path
+        let sourceFolderName = excludedURL?.lastPathComponent
+        let existingPaths = Set((try? fileManager.contentsOfDirectory(
+            at: root, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]
+        ))?.compactMap { entry -> String? in
+            guard (try? entry.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else { return nil }
+            return entry.standardizedFileURL.path
+        } ?? [])
+
+        var suffix = 1
+        while true {
+            let candidate = suffix == 1 ? proposed : "\(proposed) \(suffix)"
+            let candidatePath = root.appendingPathComponent(candidate, isDirectory: true).standardizedFileURL.path
+
+            if candidatePath == excludedPath {
+                // Keep the current folder only when its name already matches
+                // the requested name. If a duplicate suffix lands on the source
+                // folder (for example, renaming "Theme 2" to "Theme"), keep
+                // searching so the folder itself receives a new name.
+                if candidate == sourceFolderName {
+                    return candidate
+                }
+                suffix += 1
+                continue
+            }
+
+            if !existingPaths.contains(candidatePath) {
+                return candidate
+            }
+            suffix += 1
+        }
+    }
+
+    private func isBundledTheme(_ theme: LauncherTheme) -> Bool {
+        // Built-in includes both app-bundled themes and the ROM's selected
+        // override theme. Keep the override read-only even if its resolved
+        // directory is outside the app bundle.
+        let themeURL = URL(fileURLWithPath: theme.path).standardizedFileURL
+        if let overrideURL = selectedOverrideThemeDirectory()?.standardizedFileURL,
+           themeURL == overrideURL {
+            return true
+        }
+
+        guard let resourceRoot = Bundle.main.resourceURL?.standardizedFileURL.path else {
+            return false
+        }
+        let path = themeURL.path
+        return path == resourceRoot || path.hasPrefix(resourceRoot + "/")
+    }
+
+    private func canDeleteTheme(_ theme: LauncherTheme) -> Bool {
+        // ROM-matched override themes are bundled with the app and must use
+        // the same read-only row layout as themes inside the app bundle.
+        guard !isBundledTheme(theme) else { return false }
+        let folderName = URL(fileURLWithPath: theme.path).lastPathComponent
+        guard folderName.caseInsensitiveCompare("CLASSIC") != .orderedSame,
+              theme.name.caseInsensitiveCompare("CLASSIC") != .orderedSame else { return false }
+        let documentsRoot = themesDirectory().standardizedFileURL.path + "/"
+        let folderURL = URL(fileURLWithPath: theme.path).standardizedFileURL
+        let manifestURL = folderURL.appendingPathComponent("theme.json")
+        let belongsToCustomThemes = folderURL.path.hasPrefix(documentsRoot)
+        return belongsToCustomThemes &&
+            FileManager.default.isWritableFile(atPath: folderURL.path) &&
+            FileManager.default.isWritableFile(atPath: manifestURL.path)
+    }
+
+    private func renameTheme(_ theme: LauncherTheme, to proposedName: String) {
+        guard canDeleteTheme(theme) else { return }
+        let newName = proposedName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !newName.isEmpty,
+              newName.caseInsensitiveCompare("CLASSIC") != .orderedSame,
+              let json = themeJSON(in: URL(fileURLWithPath: theme.path)) else { return }
+
+        // Keep the on-disk folder name in sync with the theme's display name.
+        // Strip path/control characters so a rename cannot escape the themes directory.
+        let proposedFolderName = String(newName.map {
+            $0.isLetter || $0.isNumber || $0 == " " || $0 == "_" || $0 == "-" ? $0 : "_"
+        }).trimmingCharacters(in: CharacterSet(charactersIn: " ._"))
+        guard !proposedFolderName.isEmpty else { return }
+
+        let fileManager = FileManager.default
+        let sourceFolder = URL(fileURLWithPath: theme.path).standardizedFileURL
+        let root = themesDirectory().standardizedFileURL
+
+        // Resolve the destination against the source folder's actual parent.
+        // This is important for imported folders whose names already have a
+        // numeric duplicate suffix (for example, "My Theme 2").
+        guard sourceFolder.deletingLastPathComponent().standardizedFileURL == root else {
+            NSLog("Touch theme rename skipped: source folder is outside the custom themes directory (%@)", sourceFolder.path)
+            return
+        }
+        let folderName = uniqueThemeFolderName(proposedFolderName, root: root, excluding: sourceFolder)
+        let destinationFolder = sourceFolder.deletingLastPathComponent()
+            .appendingPathComponent(folderName, isDirectory: true).standardizedFileURL
+        let shouldMoveFolder = sourceFolder.path != destinationFolder.path
+
+        var updated = json
+        updated["name"] = newName
         do {
-            guard let source = try result.get().first else { return }
-            let scoped = source.startAccessingSecurityScopedResource()
-            defer { if scoped { source.stopAccessingSecurityScopedResource() } }
-            guard FileManager.default.fileExists(atPath: source.appendingPathComponent("theme.json").path) else {
-                touchThemeImportMessage = "The selected folder does not contain a theme.json file."
+            if shouldMoveFolder {
+                try fileManager.moveItem(at: sourceFolder, to: destinationFolder)
+            }
+
+            do {
+                let data = try JSONSerialization.data(withJSONObject: updated, options: [.prettyPrinted])
+                try data.write(to: destinationFolder.appendingPathComponent("theme.json"), options: .atomic)
+            } catch {
+                // Roll the folder move back if updating its manifest fails.
+                if shouldMoveFolder {
+                    try? fileManager.moveItem(at: destinationFolder, to: sourceFolder)
+                }
+                throw error
+            }
+
+            if selectedTheme == theme.name ||
+                UserDefaults.standard.string(forKey: "DmTouchControlThemePath") == sourceFolder.path {
+                UserDefaults.standard.set(newName, forKey: "DmTouchControlThemeName")
+                UserDefaults.standard.set(destinationFolder.path, forKey: "DmTouchControlThemePath")
+            }
+            refreshThemes()
+        } catch {
+            NSLog("Touch theme rename failed for %@ -> %@: %@", sourceFolder.lastPathComponent,
+                  destinationFolder.lastPathComponent, error.localizedDescription)
+        }
+    }
+
+    private func deleteTheme(_ theme: LauncherTheme) {
+        guard canDeleteTheme(theme) else { return }
+        do {
+            if URL(fileURLWithPath: theme.path).lastPathComponent.caseInsensitiveCompare("FOREST") == .orderedSame {
+                let marker = themesDirectory().appendingPathComponent(".FOREST.deleted")
+                FileManager.default.createFile(atPath: marker.path, contents: Data())
+            }
+            try FileManager.default.removeItem(at: URL(fileURLWithPath: theme.path))
+            if selectedTheme == theme.name {
+                if let selectedOverride = selectedOverrideThemeDirectory(),
+                   let matching = themes.first(where: { URL(fileURLWithPath: $0.path).standardizedFileURL == selectedOverride.standardizedFileURL }) {
+                    selectTheme(matching.path, name: matching.name)
+                } else if let classic = themes.first(where: { URL(fileURLWithPath: $0.path).lastPathComponent.caseInsensitiveCompare("CLASSIC") == .orderedSame }) {
+                    selectTheme(classic.path, name: classic.name)
+                }
+            }
+            refreshThemes()
+        } catch {
+            NSLog("Touch theme deletion failed: %@", error.localizedDescription)
+        }
+    }
+
+    private func themeJSON(in folder: URL) -> [String: Any]? {
+        let manifest = (try? FileManager.default.contentsOfDirectory(
+            at: folder, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]
+        ))?.first { $0.lastPathComponent.caseInsensitiveCompare("theme.json") == .orderedSame }
+            ?? folder.appendingPathComponent("theme.json")
+        guard let data = try? Data(contentsOf: manifest),
+              let object = try? JSONSerialization.jsonObject(with: data),
+              let json = object as? [String: Any],
+              let palette = json["palette"] as? [String: Any] else { return nil }
+        let required = ["idle", "pressed", "outline", "ringFill", "text", "pressedText"]
+        for key in required {
+            guard let value = palette.first(where: { $0.key.caseInsensitiveCompare(key) == .orderedSame })?.value as? String else { return nil }
+            let hex = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            let normalized = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
+            guard normalized.range(of: "^[0-9A-Fa-f]{6}$", options: .regularExpression) != nil else { return nil }
+        }
+        return json
+    }
+
+    private func themeListVisibilityChanged(_ isShowing: Bool) {
+        if isShowing { refreshThemes() }
+    }
+
+    private func refreshThemes() {
+        let documentsRoot = themesDirectory()
+        let bundledFolders = bundledThemeFolders()
+        let importedFolders = (try? FileManager.default.contentsOfDirectory(at: documentsRoot, includingPropertiesForKeys: [.isDirectoryKey])) ?? []
+        // When a bundled FOREST exists, show only its writable Documents copy.
+        let forestDeletionMarker = documentsRoot.appendingPathComponent(".FOREST.deleted")
+        let forestWasDeleted = FileManager.default.fileExists(atPath: forestDeletionMarker.path)
+        let hasDocumentsForest = importedFolders.contains {
+            $0.lastPathComponent.caseInsensitiveCompare("FOREST") == .orderedSame
+        }
+        let visibleBundled = bundledFolders.filter {
+            !((hasDocumentsForest || forestWasDeleted) && $0.lastPathComponent.caseInsensitiveCompare("FOREST") == .orderedSame)
+        }
+        let folders = visibleBundled + importedFolders
+        themes = folders.compactMap { folder in
+            guard (try? folder.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true,
+                  let json = themeJSON(in: folder) else { return nil }
+            return LauncherTheme(name: (json["name"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? folder.lastPathComponent,
+                                 path: folder.path)
+        }.sorted {
+            func normalizedThemeName(_ value: String) -> String {
+                var name = value.uppercased()
+                    .replacingOccurrences(of: "_", with: " ")
+                    .replacingOccurrences(of: "-", with: " ")
+                for suffix in [" SKIN", " THEME"] where name.hasSuffix(suffix) {
+                    name = String(name.dropLast(suffix.count)).trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+                return name.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            func priority(_ theme: LauncherTheme) -> Int {
+                let themeURL = URL(fileURLWithPath: theme.path).standardizedFileURL
+                let folder = normalizedThemeName(themeURL.lastPathComponent)
+                let display = normalizedThemeName(theme.name)
+                let overrideFolder = normalizedThemeName((info("DMOverrideFolder") as? String) ?? "")
+                let isSelectedOverridePath = selectedOverrideThemeDirectory()?.standardizedFileURL == themeURL
+                // Match by the build's ROM override folder as well as its resolved path.
+                // This keeps the ROM-specific theme first even if the bundle path layout changes.
+                if isSelectedOverridePath || (!overrideFolder.isEmpty &&
+                    (folder == overrideFolder || display == overrideFolder)) { return 0 }
+                if folder == "CLASSIC" || display == "CLASSIC" { return 1 }
+                // Other themes remain available after the ROM-matched override and CLASSIC.
+                return 2
+            }
+            let leftPriority = priority($0), rightPriority = priority($1)
+            if leftPriority != rightPriority { return leftPriority < rightPriority }
+            let byName = $0.name.localizedCaseInsensitiveCompare($1.name)
+            if byName != .orderedSame { return byName == .orderedAscending }
+            return $0.path.localizedCaseInsensitiveCompare($1.path) == .orderedAscending
+        }
+        let defaults = UserDefaults.standard
+        let path = defaults.string(forKey: "DmTouchControlThemePath")
+        if let selected = themes.first(where: { $0.path == path }) {
+            selectedTheme = selected.name
+        } else if let selectedOverride = selectedOverrideThemeDirectory(),
+                  let matchingTheme = themes.first(where: {
+                      URL(fileURLWithPath: $0.path).standardizedFileURL == selectedOverride.standardizedFileURL
+                  }) {
+            defaults.set(matchingTheme.path, forKey: "DmTouchControlThemePath")
+            defaults.set(matchingTheme.name, forKey: "DmTouchControlThemeName")
+            selectedTheme = matchingTheme.name
+        } else if let classic = themes.first(where: {
+            URL(fileURLWithPath: $0.path).lastPathComponent.caseInsensitiveCompare("CLASSIC") == .orderedSame
+        }) {
+            defaults.set(classic.path, forKey: "DmTouchControlThemePath")
+            defaults.set(classic.name, forKey: "DmTouchControlThemeName")
+            selectedTheme = classic.name
+        } else {
+            selectedTheme = "CLASSIC"
+            defaults.set("CLASSIC", forKey: "DmTouchControlThemeName")
+        }
+    }
+
+    private func selectTheme(_ path: String?, name: String) {
+        if let path { UserDefaults.standard.set(path, forKey: "DmTouchControlThemePath") }
+        else { UserDefaults.standard.removeObject(forKey: "DmTouchControlThemePath") }
+        UserDefaults.standard.set(true, forKey: "DmTouchControlThemeExplicitlySelected")
+        UserDefaults.standard.set(name, forKey: "DmTouchControlThemeName")
+        selectedTheme = name
+    }
+
+    private func importTheme(from source: URL) {
+        let scoped = source.startAccessingSecurityScopedResource()
+        defer { if scoped { source.stopAccessingSecurityScopedResource() } }
+
+        var importedName: String?
+        var importedPath: String?
+        var importFailure: String?
+        var coordinationError: NSError?
+        let coordinator = NSFileCoordinator(filePresenter: nil)
+
+        coordinator.coordinate(readingItemAt: source, options: [], error: &coordinationError) { readableSource in
+            let fileManager = FileManager.default
+            var candidate: URL?
+
+            if readableSource.lastPathComponent == "theme.json" {
+                candidate = readableSource.deletingLastPathComponent()
+            } else if themeJSON(in: readableSource) != nil {
+                candidate = readableSource
+            } else if let enumerator = fileManager.enumerator(
+                at: readableSource,
+                includingPropertiesForKeys: [.isDirectoryKey],
+                options: [.skipsHiddenFiles]
+            ) {
+                var validFolders: [URL] = []
+                for case let entry as URL in enumerator where entry.lastPathComponent.caseInsensitiveCompare("theme.json") == .orderedSame {
+                    let folder = entry.deletingLastPathComponent()
+                    if themeJSON(in: folder) != nil &&
+                        !validFolders.contains(where: { $0.standardizedFileURL == folder.standardizedFileURL }) {
+                        validFolders.append(folder)
+                    }
+                }
+                if validFolders.count == 1 {
+                    candidate = validFolders[0]
+                } else if validFolders.isEmpty {
+                    importFailure = "No valid theme.json was found. Select a theme folder containing a valid theme.json file."
+                } else {
+                    importFailure = "More than one valid theme was found. Select the folder for a single theme and try again."
+                }
+            }
+
+            guard let candidate, let json = themeJSON(in: candidate) else {
+                if importFailure == nil {
+                    importFailure = "This folder does not contain a valid touch controls theme."
+                }
                 return
             }
-            let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            let root = docs.appendingPathComponent("TouchControlThemes", isDirectory: true)
-            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-            let raw = source.lastPathComponent
-            let safe = String(raw.map { $0.isLetter || $0.isNumber || $0 == " " || $0 == "_" || $0 == "-" ? $0 : "_" })
-                .trimmingCharacters(in: CharacterSet(charactersIn: " ._"))
-            let base = safe.isEmpty ? "Imported Theme" : safe
-            var name = base
-            var destination = root.appendingPathComponent(name, isDirectory: true)
-            var suffix = 2
-            while FileManager.default.fileExists(atPath: destination.path) {
-                name = "\(base) \(suffix)"
-                destination = root.appendingPathComponent(name, isDirectory: true)
-                suffix += 1
+
+            let rawName = (json["name"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? candidate.lastPathComponent
+            let safeName = String(rawName.map {
+                $0.isLetter || $0.isNumber || $0 == " " || $0 == "_" || $0 == "-" ? $0 : "_"
+            }).trimmingCharacters(in: CharacterSet(charactersIn: " ._"))
+            let root = themesDirectory()
+            let uniqueName = uniqueImportedThemeName(safeName.isEmpty ? "Imported Theme" : safeName, root: root)
+            let folderName = uniqueThemeFolderName(uniqueName, root: root)
+            let destination = root.appendingPathComponent(folderName, isDirectory: true)
+            let staging = root.appendingPathComponent(".import-\(UUID().uuidString)", isDirectory: true)
+
+            do {
+                try fileManager.copyItem(at: candidate, to: staging)
+                let stagedFiles = try fileManager.contentsOfDirectory(
+                    at: staging, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]
+                )
+                if let manifest = stagedFiles.first(where: {
+                    $0.lastPathComponent.caseInsensitiveCompare("theme.json") == .orderedSame
+                }) {
+                    let canonicalManifest = staging.appendingPathComponent("theme.json")
+                    if manifest.lastPathComponent != "theme.json" {
+                        try fileManager.moveItem(at: manifest, to: canonicalManifest)
+                    }
+                    var stagedJSON = try JSONSerialization.jsonObject(with: Data(contentsOf: canonicalManifest)) as? [String: Any] ?? [:]
+                    stagedJSON["name"] = uniqueName
+                    let normalizedData = try JSONSerialization.data(withJSONObject: stagedJSON, options: [.prettyPrinted])
+                    try normalizedData.write(to: canonicalManifest, options: .atomic)
+                }
+                try fileManager.moveItem(at: staging, to: destination)
+                importedName = uniqueName
+                importedPath = destination.path
+            } catch {
+                try? fileManager.removeItem(at: staging)
+                importFailure = "The theme could not be copied into the app. \(error.localizedDescription)"
             }
-            try FileManager.default.copyItem(at: source, to: destination)
-            touchThemeImportMessage = "\(name) was imported into TouchControlThemes."
-        } catch {
-            touchThemeImportMessage = "Could not import the theme: \(error.localizedDescription)"
         }
+
+        if let coordinationError {
+            importFailure = "The selected folder could not be accessed. \(coordinationError.localizedDescription)"
+        }
+
+        if let importedName {
+            refreshThemes()
+            selectTheme(importedPath, name: importedName)
+            themeImportMessage = "\(importedName) was imported successfully and added to the theme list."
+        } else {
+            themeImportMessage = importFailure ?? "The theme could not be imported for an unknown reason."
+        }
+        showingThemeImportAlert = true
     }
 
     private func appIcon() -> UIImage? {
