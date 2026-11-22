@@ -283,11 +283,13 @@ private struct LauncherView: View {
                                     .onChange(of: showingThemeList, perform: themeListVisibilityChanged)
                                     Button("Edit touch controls layout…") { dm_gamepad_present_launcher_editor() }
                                         .tint(accentColor)
-                                    Button("Import touch controls theme…") { pickingTheme = true }
-                                        .tint(accentColor)
-                                }
                             }
                             .listRowBackground(launcherSectionBackground)
+                        } footer: {
+                            (Text("QUICK TIP: ").fontWeight(.bold).foregroundColor(Color(red: 245.0 / 255.0, green: 176.0 / 255.0, blue: 15.0 / 255.0))
+                             + Text("During gameplay, press and hold the 2D, 3D, or Tap button, or hold Select on your controller, to open the in-game control menu.")
+                                .foregroundColor(Color(white: 0.58)))
+                                .font(.footnote)
                         }
                     }
                     if !m.sections.contains("Performance"), let supportURL = launcherSupportURL() {
@@ -301,13 +303,7 @@ private struct LauncherView: View {
                         Button("Reset to tested defaults") { m.reset() }
                             .disabled(!m.changed)
                     } footer: {
-                        VStack(alignment: .leading, spacing: 8) {
-                            (Text("QUICK TIP: ").fontWeight(.bold).foregroundColor(Color(red: 245.0 / 255.0, green: 176.0 / 255.0, blue: 15.0 / 255.0))
-                             + Text("During gameplay, press and hold the 2D, 3D, or Tap button, or hold Select on your controller, to open the in-game control menu.")
-                                .foregroundColor(Color(white: 0.58)))
-                                .font(.footnote)
-                            Text("Brings back all settings this game was tested with.")
-                        }
+                        Text("Brings back all settings this game was tested with.")
                     }
                     .listRowBackground(launcherSectionBackground)
                     // The background save check reads the selected folder until it returns.
