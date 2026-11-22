@@ -283,6 +283,8 @@ private struct LauncherView: View {
                                     .onChange(of: showingThemeList, perform: themeListVisibilityChanged)
                                     Button("Edit touch controls layout…") { dm_gamepad_present_launcher_editor() }
                                         .tint(accentColor)
+                                    Button("Import touch controls theme…") { pickingTheme = true }
+                                        .tint(accentColor)
                             }
                             .listRowBackground(launcherSectionBackground)
                         } footer: {
