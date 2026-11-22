@@ -280,6 +280,7 @@ private struct LauncherView: View {
                                         }
                                     }
                                     .disclosureGroupStyle(LauncherDisclosureGroupStyle(accentColor: accentColor))
+                                    .modifier(LauncherMenuRowInsets())
                                     Button("Edit touch controls layout…") { dm_gamepad_present_launcher_editor() }
                                         .tint(accentColor)
                                     Button("Import touch controls theme…") { pickingTheme = true }
@@ -488,7 +489,7 @@ private struct LauncherView: View {
                         }
                     }
                 }
-                .padding(8)
+                .padding(.vertical, 8)
                 // Keep the row full-width even when bundled themes omit their
                 // edit/delete controls, so the checkmark reaches the same
                 // trailing alignment as the trash button on custom themes.
@@ -497,7 +498,7 @@ private struct LauncherView: View {
                 Rectangle()
                     .fill(Color.white.opacity(0.06))
                     .frame(height: 0.5)
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, 0)
             }
         }
         .padding(.top, 4)
