@@ -223,6 +223,7 @@ private struct LauncherView: View {
     @ObservedObject var m: LauncherModel
     let play: () -> Void
     @State private var memory = os_proc_available_memory()
+    @State private var isEditingTouchControls = false
     @State private var themes: [LauncherTheme] = []
     @State private var selectedTheme = UserDefaults.standard.string(forKey: "DmTouchControlThemeName") ?? "CLASSIC"
     @State private var pickingTheme = false
@@ -347,12 +348,17 @@ private struct LauncherView: View {
                 }
                 .onReceive(NotificationCenter.default.publisher(for: Notification.Name("DmPadLauncherEditorVisibilityChanged"))) { notification in
                     let editing = notification.userInfo?["editing"] as? Bool ?? false
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isEditingTouchControls = editing
+                    }
                     if !editing { refreshThemes() }
                 }
                 .onAppear(perform: refreshThemes)
                 .contentMargins(.horizontal, 12, for: .scrollContent)
                 .frame(width: geometry.size.width * 2 / 3)
             }
+            .opacity(isEditingTouchControls ? 0 : 1)
+            .allowsHitTesting(!isEditingTouchControls)
         }
         // Keep the artwork outside the HStack/List so drawer updates cannot move it.
         .background {
