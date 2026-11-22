@@ -81,9 +81,6 @@ struct LauncherDisclosureGroupStyle: DisclosureGroupStyle {
         // which can cause the abrupt jump during expansion and collapse.
         if configuration.isExpanded {
             configuration.content
-                // The expanded menu is a separate List row. Match its inset to
-                // the parent row's content after the menu's 12-point inner padding.
-                .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8))
                 .transition(.move(edge: .top).combined(with: .opacity))
         }
     }
@@ -122,9 +119,8 @@ struct SettingRow: View {
                                     .foregroundStyle(Color(red: 0.22, green: 0.48, blue: 0.28))
                             }
                         }
-                        .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 4)
+                        .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
+                        .padding(.horizontal, 8)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
