@@ -287,9 +287,7 @@ private struct LauncherView: View {
                                 }
                             } footer: {
                                 if section == "Controls" {
-                                    (Text("QUICK TIP: ").foregroundColor(Color(red: 245.0 / 255.0, green: 176.0 / 255.0, blue: 15.0 / 255.0)) +
-                                     Text("During gameplay, press and hold the 2D, 3D, or Tap button, or hold Select on your controller, to open the in-game control menu..").foregroundColor(Color(white: 0.58)))
-                                        .font(.footnote)
+                                    quickTipFooter
                                 }
                             }
                             .listRowBackground(launcherSectionBackground)
@@ -389,6 +387,14 @@ private struct LauncherView: View {
     }
 
     private var accentColor: Color { launcherAccentColor() }
+    private var quickTipFooter: Text {
+        var tip = AttributedString("QUICK TIP: ")
+        tip.foregroundColor = Color(red: 245.0 / 255.0, green: 176.0 / 255.0, blue: 15.0 / 255.0)
+        var explanation = AttributedString("During gameplay, press and hold the 2D, 3D, or Tap button, or hold Select on your controller, to open the in-game control menu..")
+        explanation.foregroundColor = Color(white: 0.58)
+        tip.append(explanation)
+        return Text(tip).font(.footnote)
+    }
 
     private var themeMenuContent: some View {
         VStack(spacing: 0) {
