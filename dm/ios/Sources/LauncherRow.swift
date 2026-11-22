@@ -5,6 +5,25 @@ import SwiftUI
 import UIKit
 #endif
 
+#if os(iOS)
+/// Gives launcher menu rows one shared horizontal edge for their content and native separators.
+private let launcherMenuRowHorizontalInset: CGFloat = 8
+
+struct LauncherMenuRowInsets: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .listRowInsets(EdgeInsets(
+                top: 0,
+                leading: launcherMenuRowHorizontalInset,
+                bottom: 0,
+                trailing: launcherMenuRowHorizontalInset
+            ))
+            .alignmentGuide(.listRowSeparatorLeading) { dimensions in dimensions[.leading] }
+            .alignmentGuide(.listRowSeparatorTrailing) { dimensions in dimensions[.trailing] }
+    }
+}
+#endif
+
 extension LauncherModel {
     func binding(_ s: Setting) -> Binding<String> { Binding(get: { self.values[s.env] ?? s.def }, set: { self.values[s.env] = $0 }) }
 }
@@ -74,15 +93,15 @@ struct LauncherDisclosureGroupStyle: DisclosureGroupStyle {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .modifier(LauncherMenuRowInsets())
 
         // Keep the expanded content as a separate List row. Wrapping both
         // header and content in a VStack makes the List resize one large row,
         // which can cause the abrupt jump during expansion and collapse.
         if configuration.isExpanded {
             configuration.content
-                // The expanded menu is a separate List row. Match its inset to
-                // the parent row's content after the menu's 12-point inner padding.
-                .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8))
+                // Keep menu content and its native row separators on the same edges as the header.
+                .modifier(LauncherMenuRowInsets())
                 .transition(.move(edge: .top).combined(with: .opacity))
         }
     }
@@ -122,17 +141,14 @@ struct SettingRow: View {
                             }
                         }
                         .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
-                        .padding(8)
+                        .padding(.vertical, 8)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     Rectangle()
                         .fill(Color.white.opacity(0.06))
                         .frame(height: 0.5)
-                        // The final divider is the bottom edge of the expanded menu.
-                        // Keep it aligned with the expanded List row, not the inset
-                        // used by the dividers between individual options.
-                        .padding(.horizontal, option == (s.options ?? []).last(where: { $0.count >= 2 }) ? 0 : 12)
+                        .padding(.horizontal, 0)
                 }
             }
         }
