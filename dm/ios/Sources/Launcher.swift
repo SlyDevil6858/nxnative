@@ -323,7 +323,7 @@ private struct LauncherView: View {
                 }
                 .listStyle(.insetGrouped)
                 .listRowBackground(launcherSectionBackground)
-                .listRowSeparatorTint(Color.white.opacity(0.06))
+                .listRowSeparatorTint(Color.white.opacity(0.04))
                 .tint(accentColor)
                 .sheet(isPresented: $pickingTheme) {
                     DocumentPicker(types: [.folder]) { url in
