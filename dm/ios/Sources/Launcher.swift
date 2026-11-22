@@ -115,6 +115,7 @@ private func launcherAccentColor() -> Color {
 }
 /// Near-black fill for the rounded inset-grouped section containers.
 private let launcherSectionBackground = Color(red: 11.0 / 255.0, green: 11.0 / 255.0, blue: 11.0 / 255.0)
+let launcherMainSeparatorColor = Color(red: 25.0 / 255.0, green: 25.0 / 255.0, blue: 25.0 / 255.0)
 
 private func launcherSupportURL() -> URL? {
     guard let raw = info("DMSupportURL") as? String else { return nil }
@@ -323,7 +324,7 @@ private struct LauncherView: View {
                 }
                 .listStyle(.insetGrouped)
                 .listRowBackground(launcherSectionBackground)
-                .listRowSeparatorTint(Color.white.opacity(0.08))
+                .listRowSeparatorTint(launcherMainSeparatorColor)
                 .tint(accentColor)
                 .sheet(isPresented: $pickingTheme) {
                     DocumentPicker(types: [.folder]) { url in
@@ -497,7 +498,7 @@ private struct LauncherView: View {
                 .padding(.vertical, 4)
                 .id("launcher-theme-\(theme.path)")
                 Rectangle()
-                    .fill(Color.white.opacity(0.08))
+                    .fill(launcherMainSeparatorColor)
                     .frame(height: 0.5)
                     .padding(.horizontal, 12)
             }
