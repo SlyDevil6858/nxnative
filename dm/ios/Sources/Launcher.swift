@@ -239,7 +239,7 @@ private struct LauncherView: View {
     var body: some View {
         GeometryReader { geometry in
             HStack(spacing: 0) {
-                VStack(spacing: 16) {
+                VStack(alignment: .center, spacing: 16) {
                     if let icon = appIcon() {
                         Image(uiImage: icon).resizable().frame(width: 96, height: 96)
                             .clipShape(RoundedRectangle(cornerRadius: 22))
@@ -252,7 +252,7 @@ private struct LauncherView: View {
                     playButton
                 }
                 .padding(16)
-                .frame(width: geometry.size.width / 3, height: geometry.size.height)
+                .frame(width: geometry.size.width / 3, height: geometry.size.height, alignment: .center)
                 List {
                     ForEach(m.sections, id: \.self) { section in
                         if section == "Performance", let supportURL = launcherSupportURL() {
@@ -291,7 +291,7 @@ private struct LauncherView: View {
                         if section == "Controls" {
                             Section {
                                 quickTipFooter
-                                    .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
+                                    .listRowInsets(EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16))
                             }
                             .listRowBackground(launcherSectionBackground)
                         }
