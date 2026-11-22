@@ -26,8 +26,9 @@ private struct LauncherToggleStyle: ToggleStyle {
                     .frame(width: 63, height: 29)
                 Capsule()
                     .fill(isLocked ? Color(white: 0.48) : Color.white)
-                    .frame(width: 40, height: 25)
-                    .padding(.horizontal, 4)
+                    .frame(width: 36, height: 25)
+                    .padding(.leading, 3)
+                    .padding(.trailing, 2)
             }
             .contentShape(Capsule())
             .onTapGesture {
