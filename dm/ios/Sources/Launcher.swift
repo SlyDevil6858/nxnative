@@ -294,6 +294,7 @@ private struct LauncherView: View {
                                     }
                                     .font(.footnote)
                                     .padding(.top, 6)
+                                }
                             }
                             .listRowBackground(launcherSectionBackground)
                         }
