@@ -293,6 +293,7 @@ private struct LauncherView: View {
                                 EmptyView()
                             } footer: {
                                 quickTipFooter
+                                    .padding(.top, -16)
                             }
                             .listRowBackground(launcherSectionBackground)
                         }
