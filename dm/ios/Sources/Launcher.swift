@@ -454,7 +454,7 @@ private struct LauncherView: View {
                                 }
                             }
                             .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
-                            .padding(.horizontal, 8)
+                            .padding(.horizontal, 0)
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
