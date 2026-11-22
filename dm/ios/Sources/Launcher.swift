@@ -249,13 +249,6 @@ private struct LauncherView: View {
                                         .tint(accentColor)
                                     Button("Import touch controls theme…") { importingTouchTheme = true }
                                         .tint(accentColor)
-                                    (Text("QUICK TIP: ").fontWeight(.bold).foregroundColor(Color(red: 245.0 / 255.0, green: 176.0 / 255.0, blue: 15.0 / 255.0))
-                                     + Text("During gameplay, press and hold the 2D, 3D, or Tap button, or hold Select on your controller, to open the in-game control menu.")
-                                        .foregroundColor(Color(white: 0.58)))
-                                        .font(.footnote)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                        .padding(12)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
                                 }
                             }
                         }
@@ -265,6 +258,13 @@ private struct LauncherView: View {
                             Button("Support the author of this port…") { UIApplication.shared.open(supportURL) }
                                 .tint(accentColor)
                         }
+                    }
+                    Section {
+                    } footer: {
+                        (Text("QUICK TIP: ").fontWeight(.bold).foregroundColor(Color(red: 245.0 / 255.0, green: 176.0 / 255.0, blue: 15.0 / 255.0))
+                         + Text("During gameplay, press and hold the 2D, 3D, or Tap button, or hold Select on your controller, to open the in-game control menu.")
+                            .foregroundColor(Color(white: 0.58)))
+                            .font(.footnote)
                     }
                     Section {
                         Button("Reset to tested defaults") { m.reset() }
