@@ -256,11 +256,7 @@ private struct LauncherView: View {
                 List {
                     ForEach(m.sections, id: \.self) { section in
                         if section == "Performance", let supportURL = launcherSupportURL() {
-                            Section("Support") {
-                                Button("Support the author of this port…") { UIApplication.shared.open(supportURL) }
-                                    .tint(accentColor)
-                            }
-                            .listRowBackground(launcherSectionBackground)
+                            supportSection(supportURL)
                         }
                         let rows = m.rows(in: section)
                         if !rows.isEmpty {
@@ -294,11 +290,7 @@ private struct LauncherView: View {
                         }
                     }
                     if !m.sections.contains("Performance"), let supportURL = launcherSupportURL() {
-                        Section("Support") {
-                            Button("Support the author of this port…") { UIApplication.shared.open(supportURL) }
-                                .tint(accentColor)
-                        }
-                        .listRowBackground(launcherSectionBackground)
+                        supportSection(supportURL)
                     }
                     Section {
                         Button("Reset to tested defaults") { m.reset() }
@@ -370,6 +362,14 @@ private struct LauncherView: View {
                 try? await Task.sleep(for: .seconds(2))
             }
         }
+    }
+
+    private func supportSection(_ url: URL) -> some View {
+        Section("Support") {
+            Button("Support the author of this port…") { UIApplication.shared.open(url) }
+                .tint(accentColor)
+        }
+        .listRowBackground(launcherSectionBackground)
     }
 
     @ViewBuilder var playButton: some View {
