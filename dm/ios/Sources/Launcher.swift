@@ -438,8 +438,8 @@ private struct LauncherView: View {
                                         .foregroundStyle(Color(red: 0.22, green: 0.48, blue: 0.28))
                                 }
                             }
-                            .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
-                            .padding(.vertical, 4)
+                            .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
+                            .padding(.horizontal, 8)
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
@@ -478,8 +478,6 @@ private struct LauncherView: View {
                 // edit/delete controls, so the checkmark reaches the same
                 // trailing alignment as the trash button on custom themes.
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
                 .id("launcher-theme-\(theme.path)")
                 Rectangle()
                     .fill(Color.white.opacity(0.08))
