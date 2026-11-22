@@ -1,0 +1,26 @@
+{
+  "name" : "ANIMAL WELL",
+  "palette" : {
+    "pressedText" : "DDF8FF",
+    "outline" : "A9EFFF",
+    "pressed" : "7928E8",
+    "ringFill" : "210B55",
+    "idle" : "5420B8",
+    "text" : "DDF8FF"
+  },
+  "buttons" : {
+    "A" : "6B20D8",
+    "X" : "8C27E8",
+    "ZR" : "28105A",
+    "B" : "3A0B91",
+    "Y" : "5B12C7",
+    "R" : "28105A",
+    "Dpad" : "0B2926",
+    "L" : "28105A",
+    "Minus" : "251044",
+    "ZL" : "28105A",
+    "Layout" : "5420B8",
+    "Plus" : "8A1B8D",
+    "Stick" : "5420B8"
+  }
+}
