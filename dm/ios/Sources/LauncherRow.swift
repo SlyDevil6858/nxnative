@@ -123,12 +123,12 @@ struct SettingRow: View {
                             }
                         }
                         .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
-                        .padding(.horizontal, 8)
+                        .padding(8)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     Rectangle()
-                        .fill(Color.white.opacity(0.08))
+                        .fill(Color.white.opacity(0.05))
                         .frame(height: 0.5)
                         .padding(.horizontal, 12)
                 }
