@@ -441,6 +441,10 @@ private struct LauncherView: View {
                                     .foregroundStyle(.white)
                                     .lineLimit(1)
                                 Spacer(minLength: 4)
+                                if selectedTheme == theme.name {
+                                    Image(systemName: "checkmark")
+                                        .foregroundStyle(Color(red: 0.22, green: 0.48, blue: 0.28))
+                                }
                             }
                             .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
                             .padding(.vertical, 4)
@@ -462,14 +466,7 @@ private struct LauncherView: View {
                             .buttonStyle(.plain)
                             .accessibilityLabel("Rename \\(theme.name)")
                         }
-                        if selectedTheme == theme.name {
-                            // Put the active marker in the same trailing slot
-                            // used by the custom-theme trash button.
-                            Image(systemName: "checkmark")
-                                .foregroundStyle(Color(red: 0.22, green: 0.48, blue: 0.28))
-                                .frame(width: 32, height: 32)
-                                .accessibilityLabel("Selected theme")
-                        } else if canDeleteTheme(theme) {
+                        if canDeleteTheme(theme) {
                             Button(role: .destructive) {
                                 showingThemeList = false
                                 themeToDelete = theme
