@@ -283,6 +283,7 @@ private struct LauncherView: View {
                     }
                 }
                 .listStyle(.insetGrouped)
+                .listRowBackground(Color(red: 23.0 / 255.0, green: 23.0 / 255.0, blue: 23.0 / 255.0))
                 .tint(accentColor)
                 .fileImporter(isPresented: $importingTouchTheme, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
                     importTouchTheme(result)
