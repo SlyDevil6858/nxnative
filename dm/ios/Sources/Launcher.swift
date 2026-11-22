@@ -113,6 +113,9 @@ private func launcherCustomAccentColor() -> UIColor? {
 private func launcherAccentColor() -> Color {
     LauncherArtworkCache.accentColor
 }
+/// Near-black fill for the rounded inset-grouped section containers.
+private let launcherSectionBackground = Color(red: 11.0 / 255.0, green: 11.0 / 255.0, blue: 11.0 / 255.0)
+
 private func launcherSupportURL() -> URL? {
     guard let raw = info("DMSupportURL") as? String else { return nil }
     let s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -165,6 +168,7 @@ private struct CloudSavesSection: View {
                  ? "Choose a folder in iCloud Drive, and the same one in the Mac app's Cloud saves. The save comes in when the game starts and goes out after each save; a save that is replaced is kept in save-backups."
                  : note)
         }
+        .listRowBackground(launcherSectionBackground)
         .onAppear(perform: refresh)
     }
 
@@ -251,6 +255,7 @@ private struct LauncherView: View {
                                         .tint(accentColor)
                                 }
                             }
+                            .listRowBackground(launcherSectionBackground)
                         }
                     }
                     if !m.sections.contains("Performance"), let supportURL = launcherSupportURL() {
@@ -258,6 +263,7 @@ private struct LauncherView: View {
                             Button("Support the author of this port…") { UIApplication.shared.open(supportURL) }
                                 .tint(accentColor)
                         }
+                        .listRowBackground(launcherSectionBackground)
                     }
                     Section {
                     } footer: {
@@ -266,12 +272,14 @@ private struct LauncherView: View {
                             .foregroundColor(Color(white: 0.58)))
                             .font(.footnote)
                     }
+                    .listRowBackground(launcherSectionBackground)
                     Section {
                         Button("Reset to tested defaults") { m.reset() }
                             .disabled(!m.changed)
                     } footer: {
                         Text("Brings back all settings this game was tested with.")
                     }
+                    .listRowBackground(launcherSectionBackground)
                     // The background save check reads the selected folder until it returns.
                     CloudSavesSection(checking: false)
                     Section {
@@ -281,9 +289,10 @@ private struct LauncherView: View {
                             Text(ByteCountFormatter.string(fromByteCount: Int64(memory), countStyle: .memory)).monospacedDigit().foregroundStyle(.secondary)
                         }
                     }
+                    .listRowBackground(launcherSectionBackground)
                 }
                 .listStyle(.insetGrouped)
-                .listRowBackground(Color(red: 23.0 / 255.0, green: 23.0 / 255.0, blue: 23.0 / 255.0))
+                .listRowBackground(launcherSectionBackground)
                 .tint(accentColor)
                 .fileImporter(isPresented: $importingTouchTheme, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
                     importTouchTheme(result)
