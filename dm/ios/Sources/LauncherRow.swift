@@ -84,6 +84,9 @@ struct LauncherDisclosureGroupStyle: DisclosureGroupStyle {
         if configuration.isExpanded {
             configuration.content
                 .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8))
+                // The custom top rule in choiceListContent replaces only
+                // this expanded-row boundary; the final menu-item rule stays native.
+                .listRowSeparator(.hidden, edges: .top)
                 .transition(.move(edge: .top).combined(with: .opacity))
         }
     }
@@ -104,7 +107,15 @@ struct SettingRow: View {
 
     private var choiceListContent: some View {
         VStack(spacing: 0) {
-            ForEach(s.options ?? [], id: \.self) { option in
+            // Match the expanded header/menu boundary to the closed row's
+            // native List separator inset. The menu-item separators below
+            // remain independent and keep their existing insets.
+            Rectangle()
+                .fill(launcherMainSeparatorColor)
+                .frame(height: 0.5)
+                .padding(.horizontal, 12)
+            VStack(spacing: 0) {
+                ForEach(s.options ?? [], id: \.self) { option in
                 if option.count >= 2 {
                     Button {
                         m.values[s.env] = option[0]
@@ -133,9 +144,9 @@ struct SettingRow: View {
                         .padding(.horizontal, 12)
                 }
             }
+            .padding(.top, 4)
         }
         .padding(.horizontal, 8)
-        .padding(.top, 4)
     }
     #endif
 
