@@ -258,7 +258,7 @@ private struct LauncherView: View {
                         if section == "Performance", let supportURL = launcherSupportURL() {
                             Section("Support") {
                                 Button("Support the author of this port…") { UIApplication.shared.open(supportURL) }
-                                    .tint(accentColor)
+                                    .tint(Color(red: 245.0 / 255.0, green: 176.0 / 255.0, blue: 15.0 / 255.0))
                             }
                             .listRowBackground(launcherSectionBackground)
                         }
