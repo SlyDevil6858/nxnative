@@ -120,19 +120,19 @@ struct SettingRow: View {
                                     .foregroundStyle(Color(red: 0.22, green: 0.48, blue: 0.28))
                             }
                         }
-                        .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
-                        .padding(.horizontal, 8)
+                        .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
+                        .padding(.horizontal, 16)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .padding(.horizontal, 12)
                     Rectangle()
                         .fill(launcherMainSeparatorColor)
                         .frame(height: 0.5)
-                        .padding(EdgeInsets(top: 0, leading: 10, bottom: 0, trailing: 12))
+                        .padding(.horizontal, 12)
                 }
             }
         }
+        .padding(.horizontal, 8)
         .padding(.top, 4)
     }
     #endif
