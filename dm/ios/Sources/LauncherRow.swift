@@ -5,25 +5,6 @@ import SwiftUI
 import UIKit
 #endif
 
-#if os(iOS)
-/// Gives launcher menu rows one shared horizontal edge for their content and native separators.
-private let launcherMenuRowHorizontalInset: CGFloat = 8
-
-struct LauncherMenuRowInsets: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .listRowInsets(EdgeInsets(
-                top: 0,
-                leading: launcherMenuRowHorizontalInset,
-                bottom: 0,
-                trailing: launcherMenuRowHorizontalInset
-            ))
-            .alignmentGuide(.listRowSeparatorLeading) { dimensions in dimensions[.leading] }
-            .alignmentGuide(.listRowSeparatorTrailing) { dimensions in dimensions[.trailing] }
-    }
-}
-#endif
-
 extension LauncherModel {
     func binding(_ s: Setting) -> Binding<String> { Binding(get: { self.values[s.env] ?? s.def }, set: { self.values[s.env] = $0 }) }
 }
@@ -90,18 +71,17 @@ struct LauncherDisclosureGroupStyle: DisclosureGroupStyle {
                     .frame(width: 30, height: 30)
                     .contentShape(Rectangle())
             }
+            .padding(.trailing, 8)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .modifier(LauncherMenuRowInsets())
 
         // Keep the expanded content as a separate List row. Wrapping both
         // header and content in a VStack makes the List resize one large row,
         // which can cause the abrupt jump during expansion and collapse.
         if configuration.isExpanded {
             configuration.content
-                // Keep menu content and its native row separators on the same edges as the header.
-                .modifier(LauncherMenuRowInsets())
+                .listRowInsets(EdgeInsets(top: 0, leading: 8, bottom: 0, trailing: 8))
                 .transition(.move(edge: .top).combined(with: .opacity))
         }
     }
@@ -141,14 +121,14 @@ struct SettingRow: View {
                             }
                         }
                         .frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
-                        .padding(.vertical, 8)
+                        .padding(.horizontal, 8)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     Rectangle()
-                        .fill(Color(white: 0.025))
+                        .fill(Color.white.opacity(0.08))
                         .frame(height: 0.5)
-                        .padding(.horizontal, 0)
+                        .padding(.horizontal, 12)
                 }
             }
         }
