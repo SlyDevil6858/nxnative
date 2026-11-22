@@ -298,18 +298,16 @@ private struct LauncherView: View {
                         .listRowBackground(launcherSectionBackground)
                     }
                     Section {
-                        (Text("QUICK TIP: ").fontWeight(.bold).foregroundColor(Color(red: 245.0 / 255.0, green: 176.0 / 255.0, blue: 15.0 / 255.0))
-                         + Text("During gameplay, press and hold the 2D, 3D, or Tap button, or hold Select on your controller, to open the in-game control menu.")
-                            .foregroundColor(Color(white: 0.58)))
-                            .font(.footnote)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .listRowBackground(launcherSectionBackground)
-                    Section {
                         Button("Reset to tested defaults") { m.reset() }
                             .disabled(!m.changed)
                     } footer: {
-                        Text("Brings back all settings this game was tested with.")
+                        VStack(alignment: .leading, spacing: 8) {
+                            (Text("QUICK TIP: ").fontWeight(.bold).foregroundColor(Color(red: 245.0 / 255.0, green: 176.0 / 255.0, blue: 15.0 / 255.0))
+                             + Text("During gameplay, press and hold the 2D, 3D, or Tap button, or hold Select on your controller, to open the in-game control menu.")
+                                .foregroundColor(Color(white: 0.58)))
+                                .font(.footnote)
+                            Text("Brings back all settings this game was tested with.")
+                        }
                     }
                     .listRowBackground(launcherSectionBackground)
                     // The background save check reads the selected folder until it returns.
