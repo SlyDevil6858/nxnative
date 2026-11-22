@@ -401,12 +401,10 @@ private struct LauncherView: View {
                             .submitLabel(.done)
                             .textInputAutocapitalization(.words)
                             .autocorrectionDisabled()
-                            .padding(.horizontal, 10)
                             .frame(height: 36)
                             .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
                             .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.white.opacity(0.18), lineWidth: 1))
                             .onSubmit { saveLauncherThemeRename(theme) }
-                            .padding(.leading, 8)
                         Button {
                             saveLauncherThemeRename(theme)
                         } label: {
@@ -443,7 +441,6 @@ private struct LauncherView: View {
                                 Spacer(minLength: 4)
                             }
                             .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
-                            .padding(.horizontal, 12)
                             .padding(.vertical, 4)
                             .contentShape(Rectangle())
                         }
@@ -490,10 +487,11 @@ private struct LauncherView: View {
                 // edit/delete controls, so the checkmark reaches the same
                 // trailing alignment as the trash button on custom themes.
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
                 .padding(.vertical, 4)
                 .id("launcher-theme-\(theme.path)")
                 Rectangle()
-                    .fill(Color.white.opacity(0.12))
+                    .fill(Color.white.opacity(0.08))
                     .frame(height: 0.5)
             }
         }
