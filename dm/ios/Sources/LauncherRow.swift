@@ -130,7 +130,7 @@ struct SettingRow: View {
                     Rectangle()
                         .fill(launcherMainSeparatorColor)
                         .frame(height: 0.5)
-                        .padding(.horizontal, option == (s.options ?? []).last ? 0 : 12)
+                        .padding(.horizontal, 12)
                 }
             }
         }
