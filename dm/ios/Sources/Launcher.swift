@@ -354,7 +354,7 @@ private struct LauncherView: View {
                     if !editing { refreshThemes() }
                 }
                 .onAppear(perform: refreshThemes)
-                .frame(width: geometry.size.width * 2 / 3 + 4)
+                .frame(width: geometry.size.width * 2 / 3 + 2)
             }
             .opacity(isEditingTouchControls ? 0 : 1)
             .allowsHitTesting(!isEditingTouchControls)
@@ -500,7 +500,7 @@ private struct LauncherView: View {
                 Rectangle()
                     .fill(launcherMainSeparatorColor)
                     .frame(height: 0.5)
-                    .padding(.horizontal, 12)
+                    .padding(EdgeInsets(top: 0, leading: 10, bottom: 0, trailing: 12))
             }
         }
         .padding(.top, 4)
