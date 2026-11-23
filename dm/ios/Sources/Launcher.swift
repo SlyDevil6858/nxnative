@@ -253,8 +253,8 @@ private struct LauncherView: View {
                     playButton
                 }
                 .padding(16)
-                // Keep the launcher identity panel at the screen's full height
-                // while the theme-name keyboard is presented.
+                // Keep the left panel anchored to its normal top position while
+                // allowing it to extend behind the keyboard without resizing it.
                 .frame(width: geometry.size.width / 3, height: geometry.size.height, alignment: .center)
                 .ignoresSafeArea(.keyboard, edges: themeRenamePath != nil ? .bottom : [])
                 List {
@@ -362,8 +362,7 @@ private struct LauncherView: View {
             .opacity(isEditingTouchControls ? 0 : 1)
             .allowsHitTesting(!isEditingTouchControls)
         }
-        // Keep the artwork anchored to the screen rather than the keyboard-
-        // resized content area.
+        // Keep the artwork outside the HStack/List so drawer updates cannot move it.
         .background {
             if let background = launcherBackground() {
                 Image(uiImage: background).resizable().scaledToFill()
@@ -372,6 +371,8 @@ private struct LauncherView: View {
                     .ignoresSafeArea(.keyboard, edges: themeRenamePath != nil ? .bottom : [])
             }
         }
+        // Apply keyboard avoidance to the GeometryReader and its background together.
+        // This keeps the artwork anchored while the settings List handles the keyboard.
         .ignoresSafeArea(.keyboard, edges: themeRenamePath != nil ? .bottom : [])
         .preferredColorScheme(.dark)
         .task {
