@@ -768,7 +768,7 @@ static CGPoint side(CGRect s, int right, CGFloat dx, CGFloat y) { return CGPoint
 - (CGPoint)facePos:(int)b { return [self position:b base:[self baseFacePos:b]]; }
 - (CGPoint)baseMacroCenter {
     CGPoint center=self.faceCenter;
-    return CGPointMake(center.x-2.15*self.faceGap-12*self.u,center.y+20*self.u);
+    return CGPointMake(center.x-2.15*self.faceGap,center.y-20*self.u);
 }
 - (CGRect)macroRect {
     CGPoint center=[self position:19 base:[self baseMacroCenter]];
