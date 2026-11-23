@@ -728,7 +728,7 @@ static CGPoint side(CGRect s, int right, CGFloat dx, CGFloat y) { return CGPoint
     static dispatch_once_t once;
     dispatch_once(&once, ^{
         ids = @[@"A",@"B",@"X",@"Y",@"L3",@"R3",@"L",@"R",@"ZL",@"ZR",@"Plus",@"Minus",
-                @"unused12",@"unused13",@"unused14",@"unused15",@"Stick",@"Dpad",@"Layout Switcher",@"B+Y Macro"];
+                @"unused12",@"unused13",@"unused14",@"unused15",@"Stick",@"Dpad",@"Layout Switcher",@"Y+B Macro"];
     });
     return b >= 0 && b < (int)ids.count ? ids[b] : @"";
 }
