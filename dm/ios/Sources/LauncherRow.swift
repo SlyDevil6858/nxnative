@@ -73,7 +73,6 @@ struct LauncherDisclosureGroupStyle: DisclosureGroupStyle {
                     .frame(width: 30, height: 30)
                     .contentShape(Rectangle())
             }
-            .padding(.trailing, 8)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
