@@ -341,8 +341,8 @@ jobs:
                   if not image_bytes:
                       raise RuntimeError(f"SteamGridDB {expected_kind} download was empty.")
                   signatures = {
-                      "image/png": (".png", image_bytes.startswith(b"\\x89PNG\\r\\n\\x1a\\n")),
-                      "image/jpeg": (".jpg", image_bytes.startswith(b"\\xff\\xd8\\xff")),
+                      "image/png": (".png", image_bytes.startswith(bytes([137]) + b"PNG" + bytes([13, 10, 26, 10]))),
+                      "image/jpeg": (".jpg", image_bytes.startswith(bytes([255, 216, 255]))),
                       "image/webp": (".webp", len(image_bytes) >= 12 and image_bytes[:4] == b"RIFF" and image_bytes[8:12] == b"WEBP"),
                   }
                   if content_type not in signatures or not signatures[content_type][1]:
