@@ -703,6 +703,7 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
     BOOL enabled=[NSUserDefaults.standardUserDefaults boolForKey:@"DmEnableBYMacro"];
     if (_macroEnabled==enabled) return;
     _macroEnabled=enabled;
+    if (!enabled && _selected==19) _selected=B_A;
     [self reset]; [self applyLayout]; [self updateEditor]; [self setNeedsLayout];
 }
 - (void)nextLayout {   // 2D → 3D (→ Tap in handheld mode) → 2D: release every touch first (no key stays held), save, lay out again
