@@ -2631,8 +2631,22 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _hudButton.accessibilityValue=hud?@"On":@"Off";
 }
 - (void)toggleBYMacro {
-    [NSUserDefaults.standardUserDefaults setBool:!_macroEnabled forKey:@"DmEnableBYMacro"];
-    [self userDefaultsDidChange:nil];
+    // Read the persisted value rather than relying on this view's cached state:
+    // the live and pre-launch editors can both observe the same defaults change.
+    BOOL enabled=![NSUserDefaults.standardUserDefaults boolForKey:@"DmEnableBYMacro"];
+    [NSUserDefaults.standardUserDefaults setBool:enabled forKey:@"DmEnableBYMacro"];
+    _macroEnabled=enabled;
+    // Release any active macro touch immediately when disabling, then refresh
+    // the hit-test/layout state and the toggle's on/off appearance.
+    [self reset];
+    [self applyLayout];
+    [self updateEditor];
+    [self refreshHUDToggleButtons];
+    [self setNeedsLayout];
+    if (_hapticsEnabled && _touchFeedback) {
+        [_touchFeedback selectionChanged];
+        [_touchFeedback prepare];
+    }
 }
 - (void)toggleHapticFeedback {
     _hapticsEnabled=!_hapticsEnabled;
