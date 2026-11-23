@@ -1566,7 +1566,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         case B_A:key=@"A";break; case B_B:key=@"B";break; case B_X:key=@"X";break; case B_Y:key=@"Y";break;
         case B_LS:key=@"L3";break; case B_RS:key=@"R3";break; case B_L:key=@"L";break; case B_R:key=@"R";break;
         case B_ZL:key=@"ZL";break; case B_ZR:key=@"ZR";break; case B_PLUS:key=@"Plus";break;
-        case B_MINUS:key=@"Minus";break; default:if (b>=B_LEFT) key=@"Dpad";break;
+        case B_MINUS:key=@"Minus";break; default:if (b==19) key=@"B+Y"; else if (b>=B_LEFT) key=@"Dpad";break;
     }
     if (b==B_N) key=@"Layout";
     UIColor *color=key ? _themeButtonColors[[@"Border" stringByAppendingString:key]] : nil;
@@ -2732,7 +2732,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     BOOL styleOnly=(_selected==18);
     if (_selected<0) {
         CGFloat scale=0,alpha=0; NSInteger count=0;
-        for (int b=0;b<18;b++) if ([self editable:b]) {
+        for (int b=0;b<20;b++) if ([self editable:b]) {
             scale += [self scale:b];
             NSNumber *saved=_custom[[self controlID:b]][@"alpha"];
             alpha += saved ? saved.floatValue : 1.0;
@@ -2942,7 +2942,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     if (_selected==18) return;
     float requestedScale=_sizeSlider.value;
     if (_selected<0) {
-        for (int b=0;b<18;b++) if ([self editable:b]) {
+        for (int b=0;b<20;b++) if ([self editable:b]) {
             NSString *key=[self controlID:b]; NSMutableDictionary *value=[_custom[key] mutableCopy] ?: [NSMutableDictionary dictionary];
             value[@"scale"]=@(requestedScale); _custom[key]=value;
         }
@@ -2958,7 +2958,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     if (_selected==18) return;
     float requestedAlpha=_alphaSlider.value;
     if (_selected<0) {
-        for (int b=0;b<18;b++) if ([self editable:b]) {
+        for (int b=0;b<20;b++) if ([self editable:b]) {
             NSString *key=[self controlID:b]; NSMutableDictionary *value=[_custom[key] mutableCopy] ?: [NSMutableDictionary dictionary];
             value[@"alpha"]=@(requestedAlpha); _custom[key]=value;
         }
@@ -3055,7 +3055,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             _selected=18; _dragAllHomes=nil; [self updateEditor]; return;
         }
         CGFloat best=44*self.u; NSInteger closest=-1;
-        for (int b=0;b<18;b++) if ([self editable:b]) {
+        for (int b=0;b<20;b++) if ([self editable:b]) {
             CGFloat distance=dist(start,[self controlCenter:b]);
             if (distance<best) { best=distance; closest=b; }
         }
