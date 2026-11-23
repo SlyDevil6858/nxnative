@@ -239,7 +239,7 @@ private struct LauncherView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            HStack(spacing: 0) {
+            HStack(alignment: .top, spacing: 0) {
                 VStack(alignment: .center, spacing: 16) {
                     if let icon = appIcon() {
                         Image(uiImage: icon).resizable().frame(width: 96, height: 96)
@@ -253,7 +253,10 @@ private struct LauncherView: View {
                     playButton
                 }
                 .padding(16)
-                .frame(width: geometry.size.width / 3, height: geometry.size.height, alignment: .center)
+                // Keep the launcher identity panel at the screen's full height
+                // while the theme-name keyboard is presented.
+                .frame(width: geometry.size.width / 3, height: UIScreen.main.bounds.height, alignment: .center)
+                .ignoresSafeArea(.keyboard, edges: themeRenamePath != nil ? .bottom : [])
                 List {
                     ForEach(m.sections, id: \.self) { section in
                         if section == "Performance", let supportURL = launcherSupportURL() {
@@ -359,14 +362,21 @@ private struct LauncherView: View {
             .opacity(isEditingTouchControls ? 0 : 1)
             .allowsHitTesting(!isEditingTouchControls)
         }
-        // Keep the artwork outside the HStack/List so drawer updates cannot move it.
-        .background {
+        // Keep the artwork anchored to the screen rather than the keyboard-
+        // resized content area.
+        .background(alignment: .top) {
             if let background = launcherBackground() {
                 Image(uiImage: background).resizable().scaledToFill()
+                    .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
+                    .clipped()
                     .overlay(.black.opacity(0.48))
                     .ignoresSafeArea()
+                    .ignoresSafeArea(.keyboard, edges: themeRenamePath != nil ? .bottom : [])
             }
         }
+        // Keep the GeometryReader and its background on the same keyboard-
+        // independent layout while a theme is being renamed.
+        .ignoresSafeArea(.keyboard, edges: themeRenamePath != nil ? .bottom : [])
         .preferredColorScheme(.dark)
         .task {
             while !Task.isCancelled {
