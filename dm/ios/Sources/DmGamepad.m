@@ -774,7 +774,8 @@ static CGPoint side(CGRect s, int right, CGFloat dx, CGFloat y) { return CGPoint
 - (CGRect)macroRect {
     CGPoint center=[self position:19 base:[self baseMacroCenter]];
     CGFloat u=self.u, scale=[self scale:19];
-    CGSize size=CGSizeMake(64*u*scale,38*u*scale);
+    CGFloat diameter=2*self.faceR*scale;
+    CGSize size=CGSizeMake(diameter,diameter);
     return CGRectMake(center.x-size.width/2,center.y-size.height/2,size.width,size.height);
 }
 - (CGPoint)faceGrabCenter {
@@ -1333,8 +1334,15 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     _controls.frame = self.layer.bounds;
     for (int b = B_A; b <= B_Y; b++) { CGPoint c = [self facePos:b]; setPath(_key[b], circlePath(c, [self faceRadius:b])); placeLabel(_label[b], c, 20 * u * [self scale:b]); }
     CGRect macro=[self macroRect];
-    setPath(_macroKey,CGPathCreateWithRoundedRect(macro,macro.size.height/2,macro.size.height/2,NULL));
-    placeLabel(_macroLabel,CGPointMake(CGRectGetMidX(macro),CGRectGetMidY(macro)),15*u*[self scale:19]);
+    setPath(_macroKey,circlePath(CGPointMake(CGRectGetMidX(macro),CGRectGetMidY(macro)),macro.size.width/2));
+    CGFloat macroFontSize=15*u*[self scale:19];
+    placeLabel(_macroLabel,CGPointMake(CGRectGetMidX(macro),CGRectGetMidY(macro)),macroFontSize);
+    UIFont *macroFont=[UIFont systemFontOfSize:macroFontSize weight:UIFontWeightBold];
+    NSMutableAttributedString *macroGlyphs=[[NSMutableAttributedString alloc] initWithString:@"B Y"
+        attributes:@{NSFontAttributeName:macroFont,NSForegroundColorAttributeName:[self themeTextColorForButton:19 pressed:_macroHeld]}];
+    [macroGlyphs addAttribute:NSBaselineOffsetAttributeName value:@(2.5*u) range:NSMakeRange(0,1)];
+    [macroGlyphs addAttribute:NSBaselineOffsetAttributeName value:@(-2.5*u) range:NSMakeRange(2,1)];
+    _macroLabel.string=macroGlyphs;
     for (int i = 0; i < (int)(sizeof k_btns / sizeof *k_btns); i++) { int b = k_btns[i];
         if (isDrop(b)) {
             BOOL right = b == B_ZR || b == B_R; CGPoint c = [self dropCenter:b];
@@ -2548,13 +2556,28 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     UIButton *importThemeButton=[self editorButton:@"Import…" action:@selector(importThemeFolder) frame:CGRectMake(172,220,80,32) parent:_tools];
     importThemeButton.titleLabel.font=[UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
     UIButton *createThemeButton=[self editorButton:@"Create theme" action:@selector(createCustomTheme)
-        frame:CGRectMake(8,258,_launcherPreview ? 344 : 200,32) parent:_tools];
+        frame:CGRectMake(8,258,_launcherPreview ? 344 : 152,32) parent:_tools];
     createThemeButton.titleLabel.adjustsFontSizeToFitWidth=YES;
     importThemeButton.titleLabel.adjustsFontSizeToFitWidth=YES;
     importThemeButton.titleLabel.minimumScaleFactor=0.8;
     importThemeButton.titleLabel.lineBreakMode=NSLineBreakByClipping;
 
     // Runtime toggles are only available in the live control editor.
+    _macroToggleButton=[UIButton buttonWithType:UIButtonTypeSystem];
+    _macroToggleButton.hidden=_launcherPreview;
+    _macroToggleButton.frame=CGRectMake(168,258,40,32);
+    _macroToggleButton.backgroundColor=[UIColor colorWithWhite:0.12 alpha:0.96];
+    _macroToggleButton.layer.cornerRadius=6;
+    _macroToggleButton.accessibilityLabel=@"B+Y macro button";
+    _macroToggleButton.accessibilityHint=@"Toggle the B+Y simultaneous touch button";
+    NSMutableAttributedString *macroToggleGlyphs=[[NSMutableAttributedString alloc] initWithString:@"B Y"
+        attributes:@{NSFontAttributeName:[UIFont systemFontOfSize:15 weight:UIFontWeightBold],NSForegroundColorAttributeName:UIColor.whiteColor}];
+    [macroToggleGlyphs addAttribute:NSBaselineOffsetAttributeName value:@2 range:NSMakeRange(0,1)];
+    [macroToggleGlyphs addAttribute:NSBaselineOffsetAttributeName value:@(-2) range:NSMakeRange(2,1)];
+    [_macroToggleButton setAttributedTitle:macroToggleGlyphs forState:UIControlStateNormal];
+    [_macroToggleButton addTarget:self action:@selector(toggleBYMacro) forControlEvents:UIControlEventTouchUpInside];
+    [_tools addSubview:_macroToggleButton];
+
     _hapticsButton=[UIButton buttonWithType:UIButtonTypeSystem];
     _hapticsButton.hidden=_launcherPreview;
     _hapticsButton.frame=CGRectMake(216,258,40,32);
@@ -2581,11 +2604,6 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [_fpsButton addTarget:self action:@selector(toggleFPSCounter) forControlEvents:UIControlEventTouchUpInside];
     [_tools addSubview:_fpsButton];
 
-    _macroToggleButton=[self editorButton:@"B+Y Macro: Off" action:@selector(toggleBYMacro) frame:CGRectMake(8,296,344,32) parent:_tools];
-    _macroToggleButton.titleLabel.font=[UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
-    _macroToggleButton.accessibilityLabel=@"B+Y macro button";
-    _macroToggleButton.accessibilityHint=@"Toggle the B+Y simultaneous touch button";
-
     _hudButton=[UIButton buttonWithType:UIButtonTypeSystem];
     _hudButton.hidden=_launcherPreview;
     _hudButton.frame=CGRectMake(312,258,40,32);
@@ -2605,12 +2623,14 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     BOOL hud=front_ios_runtime_metal_hud_enabled();
     UIColor *normal=[UIColor colorWithWhite:0.12 alpha:0.96];
     UIColor *enabled=[UIColor colorWithRed:0.16 green:0.34 blue:0.20 alpha:1];
+    _macroToggleButton.backgroundColor=_macroEnabled ? enabled : normal;
     _hapticsButton.backgroundColor=_hapticsEnabled ? enabled : normal;
     _fpsButton.backgroundColor=fps ? enabled : normal;
     _hudButton.backgroundColor=hud ? enabled : normal;
     _hapticsButton.tintColor=UIColor.whiteColor;
     _fpsButton.tintColor=UIColor.whiteColor;
     _hudButton.tintColor=UIColor.whiteColor;
+    _macroToggleButton.accessibilityValue=_macroEnabled?@"On":@"Off";
     _hapticsButton.accessibilityValue=_hapticsEnabled?@"On":@"Off";
     _fpsButton.accessibilityValue=fps?@"On":@"Off";
     _hudButton.accessibilityValue=hud?@"On":@"Off";
@@ -2746,8 +2766,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 }
 - (void)updateEditor {
     [self updateProfileMenu];
-    [self setEditorButton:_macroToggleButton title:[NSString stringWithFormat:@"B+Y Macro: %@",_macroEnabled?@"On":@"Off"]];
-    _macroToggleButton.backgroundColor=_macroEnabled?[UIColor colorWithRed:0.16 green:0.34 blue:0.20 alpha:1]:[UIColor colorWithWhite:0.12 alpha:0.96];
+    [self refreshHUDToggleButtons];
     [self updateThemeMenu];
     BOOL styleOnly=(_selected==18);
     if (_selected<0) {
