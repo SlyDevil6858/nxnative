@@ -114,7 +114,7 @@ private func launcherAccentColor() -> Color {
     LauncherArtworkCache.accentColor
 }
 /// Near-black fill for the rounded inset-grouped section containers.
-private let launcherSectionBackground = Color(red: 11.0 / 255.0, green: 11.0 / 255.0, blue: 11.0 / 255.0)
+private let launcherSectionBackground = Color(red: 8.0 / 255.0, green: 8.0 / 255.0, blue: 8.0 / 255.0)
 let launcherMainSeparatorColor = Color(red: 25.0 / 255.0, green: 25.0 / 255.0, blue: 25.0 / 255.0)
 
 private func launcherSupportURL() -> URL? {
@@ -255,7 +255,7 @@ private struct LauncherView: View {
                 .padding(16)
                 // Keep the launcher identity panel at the screen's full height
                 // while the theme-name keyboard is presented.
-                .frame(width: geometry.size.width / 3, height: UIScreen.main.bounds.height, alignment: .center)
+                .frame(width: geometry.size.width / 3, height: geometry.size.height, alignment: .center)
                 .ignoresSafeArea(.keyboard, edges: themeRenamePath != nil ? .bottom : [])
                 List {
                     ForEach(m.sections, id: \.self) { section in
@@ -364,18 +364,14 @@ private struct LauncherView: View {
         }
         // Keep the artwork anchored to the screen rather than the keyboard-
         // resized content area.
-        .background(alignment: .top) {
+        .background {
             if let background = launcherBackground() {
                 Image(uiImage: background).resizable().scaledToFill()
-                    .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
-                    .clipped()
                     .overlay(.black.opacity(0.48))
                     .ignoresSafeArea()
                     .ignoresSafeArea(.keyboard, edges: themeRenamePath != nil ? .bottom : [])
             }
         }
-        // Keep the GeometryReader and its background on the same keyboard-
-        // independent layout while a theme is being renamed.
         .ignoresSafeArea(.keyboard, edges: themeRenamePath != nil ? .bottom : [])
         .preferredColorScheme(.dark)
         .task {
