@@ -1853,7 +1853,12 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             UIButton *remove=[UIButton buttonWithType:UIButtonTypeCustom];
             remove.frame=CGRectMake(deleteButtonX,row*rowHeight+8,actionButtonSize,actionButtonSize);
             remove.backgroundColor=UIColor.clearColor;
-            [remove setImage:[[UIImage systemImageNamed:@"trash" withConfiguration:actionSymbol] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate]
+            UIImage *trashImage=[UIImage systemImageNamed:@"trash" withConfiguration:actionSymbol];
+            // UIButton positions images using UIImage alignment rects. SF Symbols can
+            // have optical alignment insets that differ from UILabel text layout;
+            // use the full symbol bounds so the visible glyph is centered in the slot.
+            trashImage=[trashImage imageWithAlignmentRectInsets:UIEdgeInsetsZero];
+            [remove setImage:[trashImage imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate]
                 forState:UIControlStateNormal];
             remove.tintColor=[UIColor colorWithRed:0.55 green:0.08 blue:0.08 alpha:1];
             remove.contentHorizontalAlignment=UIControlContentHorizontalAlignmentCenter;
@@ -1890,7 +1895,9 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
                 _themeMenuScroll.clipsToBounds);
             if (!editingThisTheme) {
                 UIButton *rename=[UIButton buttonWithType:UIButtonTypeCustom]; rename.frame=CGRectMake(renameButtonX,row*rowHeight+8,actionButtonSize,actionButtonSize);
-                [rename setImage:[[UIImage systemImageNamed:@"pencil" withConfiguration:renameSymbol] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate] forState:UIControlStateNormal];
+                UIImage *renameImage=[UIImage systemImageNamed:@"pencil" withConfiguration:renameSymbol];
+                renameImage=[renameImage imageWithAlignmentRectInsets:UIEdgeInsetsZero];
+                [rename setImage:[renameImage imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate] forState:UIControlStateNormal];
                 rename.tintColor=[self editorAccentColor]; rename.accessibilityLabel=[NSString stringWithFormat:@"Rename %@",title];
                 NSString *renamePath=[path copy];
                 [rename addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; DmGamepad *strongSelf=weakSelf; if (!strongSelf) return; if (!strongSelf->_themeMenuFramePinned) strongSelf->_themeMenuRenameOriginFrame=strongSelf->_themeMenuPanel.frame; strongSelf->_themeMenuPinnedFrame=strongSelf->_themeMenuRenameOriginFrame; strongSelf->_themeMenuFramePinned=YES; strongSelf->_themeRenamePath=renamePath; strongSelf->_themeRenameField=nil; [strongSelf updateThemeMenu]; }] forControlEvents:UIControlEventTouchUpInside];
