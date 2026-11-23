@@ -258,7 +258,7 @@ private struct LauncherView: View {
                 // Keep the left panel anchored to its normal top position while
                 // allowing it to extend behind the keyboard without resizing it.
                 .frame(width: geometry.size.width / 3, height: geometry.size.height, alignment: .center)
-                .ignoresSafeArea(.keyboard, edges: themeRenamePath != nil ? .bottom : [])
+                .ignoresSafeArea(.keyboard, edges: (themeRenamePath != nil || isEditingTouchControls) ? .bottom : [])
                 List {
                     ForEach(m.sections, id: \.self) { section in
                         if section == "Performance", let supportURL = launcherSupportURL() {
@@ -371,12 +371,12 @@ private struct LauncherView: View {
                 Image(uiImage: background).resizable().scaledToFill()
                     .overlay(.black.opacity(0.48))
                     .ignoresSafeArea()
-                    .ignoresSafeArea(.keyboard, edges: themeRenamePath != nil ? .bottom : [])
+                    .ignoresSafeArea(.keyboard, edges: (themeRenamePath != nil || isEditingTouchControls) ? .bottom : [])
             }
         }
         // Apply keyboard avoidance to the GeometryReader and its background together.
         // This keeps the artwork anchored while the settings List handles the keyboard.
-        .ignoresSafeArea(.keyboard, edges: themeRenamePath != nil ? .bottom : [])
+        .ignoresSafeArea(.keyboard, edges: (themeRenamePath != nil || isEditingTouchControls) ? .bottom : [])
         .preferredColorScheme(.dark)
         .task {
             while !Task.isCancelled {
