@@ -316,7 +316,8 @@ jobs:
                   mode, value = validate_asset_link(raw_url, expected_kind)
                   if mode == "direct":
                       return value
-                  records = sgdb_get(f"{expected_kind}s/{value}")
+                  endpoint_kind = "heroes" if expected_kind == "hero" else "icons"
+                  records = sgdb_get(f"{endpoint_kind}/{value}")
                   if isinstance(records, dict):
                       record = records
                   elif records:
