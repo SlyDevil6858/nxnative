@@ -1749,7 +1749,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     CGFloat actionButtonGap=4;
     // Place Delete first, using the same 4-point trailing inset as the
     // built-in theme checkmark. Place Rename immediately to its left.
-    CGFloat deleteButtonX=contentWidth-4-actionButtonSize;
+    CGFloat deleteButtonX=contentWidth-8-actionButtonSize;
     CGFloat renameButtonX=deleteButtonX-actionButtonGap-actionButtonSize;
     CGFloat pickButtonWidth=renameButtonX-4;
     NSUInteger row=0;
