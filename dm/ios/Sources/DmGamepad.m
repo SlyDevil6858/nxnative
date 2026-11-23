@@ -1837,6 +1837,10 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
                 activeMark.textColor=[UIColor colorWithRed:0.22 green:0.48 blue:0.28 alpha:1];
                 activeMark.userInteractionEnabled=NO;
                 [_themeMenuScroll addSubview:activeMark];
+                [activeMark layoutIfNeeded];
+                NSLog(@"[ThemeMenuLayout] built-in/custom checkmark title=%@ frame=%@ bounds=%@ scrollBounds=%@ contentSize=%@",
+                    title, NSStringFromCGRect(activeMark.frame), NSStringFromCGRect(activeMark.bounds),
+                    NSStringFromCGRect(_themeMenuScroll.bounds), NSStringFromCGSize(_themeMenuScroll.contentSize));
             }
         }
         // Only direct child folders in the app's imported-themes directory are custom themes.
@@ -1874,6 +1878,16 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
                 [strongSelf confirmDeleteThemeAtPath:deletePath name:deleteName];
             }] forControlEvents:UIControlEventTouchUpInside];
             [_themeMenuScroll addSubview:remove];
+            // Force UIButton's internal image view to lay out so diagnostics
+            // capture its real rendered frame, not just the button's frame.
+            [remove setNeedsLayout];
+            [remove layoutIfNeeded];
+            NSLog(@"[ThemeMenuLayout] delete title=%@ buttonFrame=%@ buttonBounds=%@ imageViewFrame=%@ imageViewBounds=%@ imageSize=%@ scrollFrame=%@ scrollBounds=%@ contentSize=%@ clips=%d",
+                title, NSStringFromCGRect(remove.frame), NSStringFromCGRect(remove.bounds),
+                NSStringFromCGRect(remove.imageView.frame), NSStringFromCGRect(remove.imageView.bounds),
+                NSStringFromCGSize(remove.currentImage.size), NSStringFromCGRect(_themeMenuScroll.frame),
+                NSStringFromCGRect(_themeMenuScroll.bounds), NSStringFromCGSize(_themeMenuScroll.contentSize),
+                _themeMenuScroll.clipsToBounds);
             if (!editingThisTheme) {
                 UIButton *rename=[UIButton buttonWithType:UIButtonTypeCustom]; rename.frame=CGRectMake(renameButtonX,row*rowHeight+8,actionButtonSize,actionButtonSize);
                 [rename setImage:[[UIImage systemImageNamed:@"pencil" withConfiguration:renameSymbol] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate] forState:UIControlStateNormal];
