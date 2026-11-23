@@ -413,7 +413,7 @@ static void pad_watch_select(GCController *c);
     UIView *_tools;
     UIButton *_toolsVisibilityButton;
     UISlider *_sizeSlider, *_alphaSlider;
-    UIButton *_hapticsButton, *_fpsButton, *_hudButton;
+    UIButton *_hapticsButton, *_fpsButton, *_hudButton, *_macroToggleButton;
     BOOL _hapticsEnabled;
     UIView *_themeMenuOverlay;
     UIView *_themeMenuPanel;
@@ -2573,6 +2573,11 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     [_fpsButton addTarget:self action:@selector(toggleFPSCounter) forControlEvents:UIControlEventTouchUpInside];
     [_tools addSubview:_fpsButton];
 
+    _macroToggleButton=[self editorButton:@"B+Y Macro: Off" action:@selector(toggleBYMacro) frame:CGRectMake(8,296,344,32) parent:_tools];
+    _macroToggleButton.titleLabel.font=[UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
+    _macroToggleButton.accessibilityLabel=@"B+Y macro button";
+    _macroToggleButton.accessibilityHint=@"Toggle the B+Y simultaneous touch button";
+
     _hudButton=[UIButton buttonWithType:UIButtonTypeSystem];
     _hudButton.hidden=_launcherPreview;
     _hudButton.frame=CGRectMake(312,258,40,32);
@@ -2601,6 +2606,10 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _hapticsButton.accessibilityValue=_hapticsEnabled?@"On":@"Off";
     _fpsButton.accessibilityValue=fps?@"On":@"Off";
     _hudButton.accessibilityValue=hud?@"On":@"Off";
+}
+- (void)toggleBYMacro {
+    [NSUserDefaults.standardUserDefaults setBool:!_macroEnabled forKey:@"DmEnableBYMacro"];
+    [self userDefaultsDidChange:nil];
 }
 - (void)toggleHapticFeedback {
     _hapticsEnabled=!_hapticsEnabled;
@@ -2729,6 +2738,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 }
 - (void)updateEditor {
     [self updateProfileMenu];
+    [self setEditorButton:_macroToggleButton title:[NSString stringWithFormat:@"B+Y Macro: %@",_macroEnabled?@"On":@"Off"]];
+    _macroToggleButton.backgroundColor=_macroEnabled?[UIColor colorWithRed:0.16 green:0.34 blue:0.20 alpha:1]:[UIColor colorWithWhite:0.12 alpha:0.96];
     [self updateThemeMenu];
     BOOL styleOnly=(_selected==18);
     if (_selected<0) {
