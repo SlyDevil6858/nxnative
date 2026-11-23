@@ -368,7 +368,7 @@ static void pad_watch_select(GCController *c);
     uint64_t _faceBits, _dpadBits, _btnBits;
     NSMapTable<UITouch *, NSNumber *> *_faceOf;    // which keys each touch on the diamond currently holds
     CAShapeLayer *_key[B_N]; CATextLayer *_label[B_N];   // one layer per key
-    CAShapeLayer *_macroKey; CATextLayer *_macroLabel; BOOL _macroEnabled, _macroHeld;
+    CAShapeLayer *_macroKey; CATextLayer *_macroYLabel, *_macroPlusLabel, *_macroBLabel; BOOL _macroEnabled, _macroHeld;
     CAShapeLayer *_ring, *_knob;                   // the left stick (the right one is not drawn)
     CAShapeLayer *_swap; CATextLayer *_swapLabel; BOOL _swapHeld;
     UISelectionFeedbackGenerator *_touchFeedback;   // subtle keyboard-like tick on each touch-control press edge
@@ -520,7 +520,10 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
             if (names[b]) _label[b] = label(_key[b], names[b]);   // the D-pad arms carry no label
         }
         _swap = shape(_controls); _swapLabel = label(_swap, @"");
-        _macroKey = shape(_controls); _macroLabel = label(_macroKey, @"B+Y");
+        _macroKey = shape(_controls);
+        _macroYLabel = label(_controls, @"Y");
+        _macroPlusLabel = label(_controls, @"+");
+        _macroBLabel = label(_controls, @"B");
         _macroKey.hidden = !_macroEnabled;
         _skinItems = [NSMutableDictionary dictionary];
         _customSkin = NO; // Native vector controls are used; the PNG skin system is retired.
@@ -774,7 +777,7 @@ static CGPoint side(CGRect s, int right, CGFloat dx, CGFloat y) { return CGPoint
 - (CGRect)macroRect {
     CGPoint center=[self position:19 base:[self baseMacroCenter]];
     CGFloat u=self.u, scale=[self scale:19];
-    CGSize size=CGSizeMake(64*u*scale,38*u*scale);
+    CGSize size=CGSizeMake(88*u*scale,38*u*scale);
     return CGRectMake(center.x-size.width/2,center.y-size.height/2,size.width,size.height);
 }
 - (CGPoint)faceGrabCenter {
@@ -1333,8 +1336,20 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     _controls.frame = self.layer.bounds;
     for (int b = B_A; b <= B_Y; b++) { CGPoint c = [self facePos:b]; setPath(_key[b], circlePath(c, [self faceRadius:b])); placeLabel(_label[b], c, 20 * u * [self scale:b]); }
     CGRect macro=[self macroRect];
-    setPath(_macroKey,CGPathCreateWithRoundedRect(macro,macro.size.height/2,macro.size.height/2,NULL));
-    placeLabel(_macroLabel,CGPointMake(CGRectGetMidX(macro),CGRectGetMidY(macro)),15*u*[self scale:19]);
+    CGPoint macroCenter=CGPointMake(CGRectGetMidX(macro),CGRectGetMidY(macro));
+    CGPathRef macroPath=CGPathCreateWithRoundedRect(CGRectMake(macroCenter.x-macro.size.width/2,macroCenter.y-macro.size.height/2,macro.size.width,macro.size.height),macro.size.height/2,macro.size.height/2,NULL);
+    CGAffineTransform macroRotation=CGAffineTransformMakeTranslation(-macroCenter.x,-macroCenter.y);
+    macroRotation=CGAffineTransformRotate(macroRotation,(CGFloat)M_PI/4.0);
+    macroRotation=CGAffineTransformTranslate(macroRotation,macroCenter.x,macroCenter.y);
+    CGPathRef rotatedMacroPath=CGPathCreateCopyByTransformingPath(macroPath,&macroRotation);
+    setPath(_macroKey,rotatedMacroPath);
+    CGPathRelease(rotatedMacroPath); CGPathRelease(macroPath);
+    CGFloat macroFontSize=15*u*[self scale:19];
+    CGFloat macroAxisOffset=macro.size.width*0.29;
+    CGFloat macroDiagonal=macroAxisOffset*(CGFloat)M_SQRT1_2;
+    placeLabel(_macroYLabel,CGPointMake(macroCenter.x-macroDiagonal,macroCenter.y-macroDiagonal),macroFontSize);
+    placeLabel(_macroPlusLabel,macroCenter,macroFontSize*1.25);
+    placeLabel(_macroBLabel,CGPointMake(macroCenter.x+macroDiagonal,macroCenter.y+macroDiagonal),macroFontSize);
     for (int i = 0; i < (int)(sizeof k_btns / sizeof *k_btns); i++) { int b = k_btns[i];
         if (isDrop(b)) {
             BOOL right = b == B_ZR || b == B_R; CGPoint c = [self dropCenter:b];
@@ -1408,7 +1423,7 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     _macroKey.fillColor=[self themeColorForButton:19 pressed:macroPressed].CGColor;
     _macroKey.strokeColor=[self themeBorderColorForButton:19].CGColor;
     _macroKey.opacity=[self opacity:19];
-    _macroLabel.foregroundColor=[self themeTextColorForButton:19 pressed:macroPressed].CGColor;
+    _macroYLabel.foregroundColor=_macroPlusLabel.foregroundColor=_macroBLabel.foregroundColor=[self themeTextColorForButton:19 pressed:macroPressed].CGColor;
     _swap.fillColor = [self themeColorForButton:B_N pressed:_swapHeld].CGColor;
     _swap.strokeColor = [self themeBorderColorForButton:B_N].CGColor; _swapLabel.foregroundColor = [self themeTextColorForControl:18 pressed:_swapHeld].CGColor;
     // Keep the 2D / 3D / TAP layout control above every other touch-control layer.
