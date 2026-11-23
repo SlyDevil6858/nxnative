@@ -1342,7 +1342,7 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     placeLabel(_macroLabel,CGPointMake(CGRectGetMidX(macro),CGRectGetMidY(macro)),macroFontSize);
     UIFont *macroFont=[UIFont systemFontOfSize:macroFontSize weight:UIFontWeightBold];
     NSMutableAttributedString *macroGlyphs=[[NSMutableAttributedString alloc] initWithString:@"Y + B"
-        attributes:@{NSFontAttributeName:macroFont,NSForegroundColorAttributeName:[self themeTextColorForButton:19 pressed:_macroHeld]}];
+        attributes:@{NSFontAttributeName:macroFont}];
     _macroLabel.string=macroGlyphs;
     for (int i = 0; i < (int)(sizeof k_btns / sizeof *k_btns); i++) { int b = k_btns[i];
         if (isDrop(b)) {
