@@ -505,6 +505,9 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
             [_touchFeedback prepare];
         }
         _owner = [NSMapTable strongToStrongObjectsMapTable]; _faceOf = [NSMapTable strongToStrongObjectsMapTable];
+        if (![NSUserDefaults.standardUserDefaults objectForKey:@"DmEnableBYMacro"]) {
+            [NSUserDefaults.standardUserDefaults setBool:NO forKey:@"DmEnableBYMacro"];
+        }
         _macroEnabled = [NSUserDefaults.standardUserDefaults boolForKey:@"DmEnableBYMacro"];
         static dispatch_once_t once;
         dispatch_once(&once, ^{ theme_init(); });
@@ -694,7 +697,7 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
     for (int b = 0; b < B_N; b++) _key[b].hidden = _tap || (fullOnly(b) && !_full);
     _ring.hidden = _knob.hidden = _tap;
     _swap.hidden = _swapLabel.hidden = NO;
-    _macroKey.hidden = (!_macroEnabled && !_editing) || _tap;
+    _macroKey.hidden = !_macroEnabled || _tap;
     _swapLabel.string = _tap ? @"Tap" : _full ? @"3D" : @"2D";
     [CATransaction commit];
 }
@@ -848,7 +851,7 @@ static BOOL isClick(int b) { return b == B_LS || b == B_RS; }
     CGRect rect = [self pillRect:b];
     return CGPointMake(CGRectGetMidX(rect), CGRectGetMidY(rect));
 }
-- (BOOL)editable:(int)b { return b < 12 ? (_full || !fullOnly(b)) : b == 16 || (b == 17 && _full) || b == 19; }
+- (BOOL)editable:(int)b { return b < 12 ? (_full || !fullOnly(b)) : b == 16 || (b == 17 && _full) || (b == 19 && _macroEnabled); }
 - (CGPoint)swapCenter { CGRect s = self.safe; return CGPointMake(CGRectGetMidX(s), CGRectGetMinY(s) + K_PILL_Y * self.u); }
 
 static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); }
