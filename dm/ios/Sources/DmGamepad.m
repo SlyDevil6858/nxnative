@@ -506,7 +506,6 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
         }
         _owner = [NSMapTable strongToStrongObjectsMapTable]; _faceOf = [NSMapTable strongToStrongObjectsMapTable];
         _macroEnabled = [NSUserDefaults.standardUserDefaults boolForKey:@"DmEnableBYMacro"];
-        [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(userDefaultsDidChange:) name:NSUserDefaultsDidChangeNotification object:nil];
         static dispatch_once_t once;
         dispatch_once(&once, ^{ theme_init(); });
         [self loadSelectedTheme];
@@ -548,6 +547,7 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
         _editHold.minimumPressDuration=0.6; _editHold.cancelsTouchesInView=YES; _editHold.delegate=self;
         [self addGestureRecognizer:_editHold];
         [self applyLayout];
+        [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(userDefaultsDidChange:) name:NSUserDefaultsDidChangeNotification object:nil];
         if (!g_launcher_preview && ![NSUserDefaults.standardUserDefaults boolForKey:@"DmPadMenuTipShown"]) {
             // A one-time hint points out the 2D / 3D layout button without covering the game.
             _menuTip=[DmPaddedTipLabel new];
