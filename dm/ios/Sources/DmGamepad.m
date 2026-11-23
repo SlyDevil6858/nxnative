@@ -1334,14 +1334,15 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     _controls.frame = self.layer.bounds;
     for (int b = B_A; b <= B_Y; b++) { CGPoint c = [self facePos:b]; setPath(_key[b], circlePath(c, [self faceRadius:b])); placeLabel(_label[b], c, 20 * u * [self scale:b]); }
     CGRect macro=[self macroRect];
-    setPath(_macroKey,circlePath(CGPointMake(CGRectGetMidX(macro),CGRectGetMidY(macro)),macro.size.width/2));
+    CGPoint macroCenter=CGPointMake(CGRectGetMidX(macro),CGRectGetMidY(macro));
+    CGSize macroPill=CGSizeMake(macro.size.width*1.48,macro.size.height*0.72);
+    CGRect macroPillRect=CGRectMake(macroCenter.x-macroPill.width/2,macroCenter.y-macroPill.height/2,macroPill.width,macroPill.height);
+    setPath(_macroKey,CGPathCreateWithRoundedRect(macroPillRect,macroPill.height/2,macroPill.height/2,NULL));
     CGFloat macroFontSize=15*u*[self scale:19];
     placeLabel(_macroLabel,CGPointMake(CGRectGetMidX(macro),CGRectGetMidY(macro)),macroFontSize);
     UIFont *macroFont=[UIFont systemFontOfSize:macroFontSize weight:UIFontWeightBold];
-    NSMutableAttributedString *macroGlyphs=[[NSMutableAttributedString alloc] initWithString:@"B Y"
+    NSMutableAttributedString *macroGlyphs=[[NSMutableAttributedString alloc] initWithString:@"Y + B"
         attributes:@{NSFontAttributeName:macroFont,NSForegroundColorAttributeName:[self themeTextColorForButton:19 pressed:_macroHeld]}];
-    [macroGlyphs addAttribute:NSBaselineOffsetAttributeName value:@(2.5*u) range:NSMakeRange(0,1)];
-    [macroGlyphs addAttribute:NSBaselineOffsetAttributeName value:@(-2.5*u) range:NSMakeRange(2,1)];
     _macroLabel.string=macroGlyphs;
     for (int i = 0; i < (int)(sizeof k_btns / sizeof *k_btns); i++) { int b = k_btns[i];
         if (isDrop(b)) {
@@ -2570,10 +2571,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _macroToggleButton.layer.cornerRadius=6;
     _macroToggleButton.accessibilityLabel=@"B+Y macro button";
     _macroToggleButton.accessibilityHint=@"Toggle the B+Y simultaneous touch button";
-    NSMutableAttributedString *macroToggleGlyphs=[[NSMutableAttributedString alloc] initWithString:@"B Y"
+    NSMutableAttributedString *macroToggleGlyphs=[[NSMutableAttributedString alloc] initWithString:@"Y + B"
         attributes:@{NSFontAttributeName:[UIFont systemFontOfSize:15 weight:UIFontWeightBold],NSForegroundColorAttributeName:UIColor.whiteColor}];
-    [macroToggleGlyphs addAttribute:NSBaselineOffsetAttributeName value:@2 range:NSMakeRange(0,1)];
-    [macroToggleGlyphs addAttribute:NSBaselineOffsetAttributeName value:@(-2) range:NSMakeRange(2,1)];
     [_macroToggleButton setAttributedTitle:macroToggleGlyphs forState:UIControlStateNormal];
     [_macroToggleButton addTarget:self action:@selector(toggleBYMacro) forControlEvents:UIControlEventTouchUpInside];
     [_tools addSubview:_macroToggleButton];
