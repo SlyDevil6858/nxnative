@@ -1747,13 +1747,9 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     CGFloat contentWidth=288;
     CGFloat actionButtonSize=32;
     CGFloat actionButtonGap=4;
-    // Built-in themes place their checkmark in a 32-point trailing slot,
-    // ending 4 points before the row's trailing edge. Anchor the custom-theme
-    // action group to that exact same slot so the two buttons share its edge.
-    CGFloat trailingSlotInset=4;
-    CGFloat trailingSlotWidth=32;
-    CGFloat trailingSlotX=contentWidth-trailingSlotInset-trailingSlotWidth;
-    CGFloat deleteButtonX=trailingSlotX;
+    // Place Delete first, using the same 4-point trailing inset as the
+    // built-in theme checkmark. Place Rename immediately to its left.
+    CGFloat deleteButtonX=contentWidth-4-actionButtonSize;
     CGFloat renameButtonX=deleteButtonX-actionButtonGap-actionButtonSize;
     CGFloat pickButtonWidth=renameButtonX-4;
     NSUInteger row=0;
@@ -1833,8 +1829,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
                 [strongSelf closeThemeMenu];
             }] forControlEvents:UIControlEventTouchUpInside]; [_themeMenuScroll addSubview:pick];
             if ([current isEqualToString:title]) {
-                CGFloat markX=hasManagementActions ? renameButtonX-38 : trailingSlotX;
-                CGFloat markWidth=hasManagementActions ? 26 : trailingSlotWidth;
+                CGFloat markX=hasManagementActions ? renameButtonX-38 : 252;
+                CGFloat markWidth=hasManagementActions ? 26 : 32;
                 UILabel *activeMark=[[UILabel alloc] initWithFrame:CGRectMake(markX,row*rowHeight,markWidth,rowHeight)];
                 activeMark.text=@"✓"; activeMark.textAlignment=hasManagementActions ? NSTextAlignmentRight : NSTextAlignmentCenter;
                 activeMark.font=[UIFont systemFontOfSize:18 weight:UIFontWeightBold];
@@ -1849,14 +1845,6 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         if (hasManagementActions) {
             UIImageSymbolConfiguration *actionSymbol=[UIImageSymbolConfiguration configurationWithPointSize:17 weight:UIImageSymbolWeightSemibold];
             UIImageSymbolConfiguration *renameSymbol=[UIImageSymbolConfiguration configurationWithPointSize:18 weight:UIImageSymbolWeightBold];
-            if (!editingThisTheme) {
-                UIButton *rename=[UIButton buttonWithType:UIButtonTypeCustom]; rename.frame=CGRectMake(renameButtonX,row*rowHeight+8,actionButtonSize,actionButtonSize);
-                [rename setImage:[[UIImage systemImageNamed:@"pencil" withConfiguration:renameSymbol] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate] forState:UIControlStateNormal];
-                rename.tintColor=[self editorAccentColor]; rename.accessibilityLabel=[NSString stringWithFormat:@"Rename %@",title];
-                NSString *renamePath=[path copy];
-                [rename addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; DmGamepad *strongSelf=weakSelf; if (!strongSelf) return; if (!strongSelf->_themeMenuFramePinned) strongSelf->_themeMenuRenameOriginFrame=strongSelf->_themeMenuPanel.frame; strongSelf->_themeMenuPinnedFrame=strongSelf->_themeMenuRenameOriginFrame; strongSelf->_themeMenuFramePinned=YES; strongSelf->_themeRenamePath=renamePath; strongSelf->_themeRenameField=nil; [strongSelf updateThemeMenu]; }] forControlEvents:UIControlEventTouchUpInside];
-                [_themeMenuScroll addSubview:rename];
-            }
             if (!editingThisTheme) {
             UIButton *remove=[UIButton buttonWithType:UIButtonTypeCustom];
             remove.frame=CGRectMake(deleteButtonX,row*rowHeight+8,actionButtonSize,actionButtonSize);
@@ -1886,6 +1874,14 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
                 [strongSelf confirmDeleteThemeAtPath:deletePath name:deleteName];
             }] forControlEvents:UIControlEventTouchUpInside];
             [_themeMenuScroll addSubview:remove];
+            if (!editingThisTheme) {
+                UIButton *rename=[UIButton buttonWithType:UIButtonTypeCustom]; rename.frame=CGRectMake(renameButtonX,row*rowHeight+8,actionButtonSize,actionButtonSize);
+                [rename setImage:[[UIImage systemImageNamed:@"pencil" withConfiguration:renameSymbol] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate] forState:UIControlStateNormal];
+                rename.tintColor=[self editorAccentColor]; rename.accessibilityLabel=[NSString stringWithFormat:@"Rename %@",title];
+                NSString *renamePath=[path copy];
+                [rename addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; DmGamepad *strongSelf=weakSelf; if (!strongSelf) return; if (!strongSelf->_themeMenuFramePinned) strongSelf->_themeMenuRenameOriginFrame=strongSelf->_themeMenuPanel.frame; strongSelf->_themeMenuPinnedFrame=strongSelf->_themeMenuRenameOriginFrame; strongSelf->_themeMenuFramePinned=YES; strongSelf->_themeRenamePath=renamePath; strongSelf->_themeRenameField=nil; [strongSelf updateThemeMenu]; }] forControlEvents:UIControlEventTouchUpInside];
+                [_themeMenuScroll addSubview:rename];
+            }
             }
         }
         UIView *separator=[[UIView alloc] initWithFrame:CGRectMake(0,(row+1)*rowHeight-1,contentWidth,0.5)];
