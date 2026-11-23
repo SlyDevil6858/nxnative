@@ -3,7 +3,7 @@
 #import "DmPadGeometry.h"
 
 static inline NSArray<NSString *> *dm_pad_control_ids(void) {
-    return @[@"A", @"B", @"X", @"Y", @"L3", @"R3", @"L", @"R", @"ZL", @"ZR", @"Plus", @"Minus", @"Stick", @"Dpad"];
+    return @[@"A", @"B", @"X", @"Y", @"L3", @"R3", @"L", @"R", @"ZL", @"ZR", @"Plus", @"Minus", @"Stick", @"Dpad", @"B+Y Macro"];
 }
 
 static inline NSDictionary *dm_pad_clean_controls(id source) {
