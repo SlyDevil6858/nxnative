@@ -237,7 +237,6 @@ private struct LauncherView: View {
     @State private var themeRenameText = ""
     @FocusState private var themeRenameFocused: Bool
     @State private var showingThemeImportAlert = false
-    @AppStorage("DmEnableBYMacro") private var enableBYMacro = false
     @State private var themeImportMessage = ""
 
     var body: some View {
@@ -291,15 +290,6 @@ private struct LauncherView: View {
                                         .tint(accentColor)
                                     Button("Import touch controls theme…") { pickingTheme = true }
                                         .tint(accentColor)
-                                    Toggle(isOn: $enableBYMacro) {
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text("B+Y macro button")
-                                            Text("Adds a touch button that presses B and Y together.")
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                    }
-                                    .tint(accentColor)
                                 }
                             }
                             .listRowBackground(launcherSectionBackground)
