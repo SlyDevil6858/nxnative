@@ -694,7 +694,7 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
     for (int b = 0; b < B_N; b++) _key[b].hidden = _tap || (fullOnly(b) && !_full);
     _ring.hidden = _knob.hidden = _tap;
     _swap.hidden = _swapLabel.hidden = NO;
-    _macroKey.hidden = !_macroEnabled || _tap;
+    _macroKey.hidden = (!_macroEnabled && !_editing) || _tap;
     _swapLabel.string = _tap ? @"Tap" : _full ? @"3D" : @"2D";
     [CATransaction commit];
 }
@@ -703,7 +703,6 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
     BOOL enabled=[NSUserDefaults.standardUserDefaults boolForKey:@"DmEnableBYMacro"];
     if (_macroEnabled==enabled) return;
     _macroEnabled=enabled;
-    if (!enabled && _selected==19) _selected=B_A;
     [self reset]; [self applyLayout]; [self updateEditor]; [self setNeedsLayout];
 }
 - (void)nextLayout {   // 2D → 3D (→ Tap in handheld mode) → 2D: release every touch first (no key stays held), save, lay out again
@@ -849,7 +848,7 @@ static BOOL isClick(int b) { return b == B_LS || b == B_RS; }
     CGRect rect = [self pillRect:b];
     return CGPointMake(CGRectGetMidX(rect), CGRectGetMidY(rect));
 }
-- (BOOL)editable:(int)b { return b < 12 ? (_full || !fullOnly(b)) : b == 16 || (b == 17 && _full) || (b == 19 && _macroEnabled); }
+- (BOOL)editable:(int)b { return b < 12 ? (_full || !fullOnly(b)) : b == 16 || (b == 17 && _full) || b == 19; }
 - (CGPoint)swapCenter { CGRect s = self.safe; return CGPointMake(CGRectGetMidX(s), CGRectGetMinY(s) + K_PILL_Y * self.u); }
 
 static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); }
@@ -2891,8 +2890,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         return;
     }
     _editWasTap=_tap;
-    if (_tap) { _tap=NO; [self loadControls]; [self applyLayout]; }
-    [self reset]; _editing=YES; _controls.hidden=_padOff; _selected=B_A; _tools.hidden=NO;
+    if (_tap) { _tap=NO; [self loadControls]; }
+    [self reset]; _editing=YES; [self applyLayout]; _controls.hidden=_padOff; _selected=B_A; _tools.hidden=NO;
     _toolsVisibilityButton.hidden=NO;
     [self updateToolsVisibilityButtonAppearance];
     if (!UIAccessibilityIsReduceMotionEnabled()) {
@@ -2924,7 +2923,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 }
 - (void)finishEdit {
     [self reset]; _editing=NO;
-    if (_editWasTap) { _tap=YES; [self applyLayout]; }
+    if (_editWasTap) _tap=YES;
+    [self applyLayout];
     _tools.hidden=YES; _toolsVisibilityButton.hidden=YES; _controls.hidden=_padOff;
     _editHighlight.hidden=YES;
     [_editHighlight removeAnimationForKey:@"synchronizedPulse"];
