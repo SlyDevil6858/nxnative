@@ -856,7 +856,14 @@ static BOOL isClick(int b) { return b == B_LS || b == B_RS; }
 
 static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); }
 - (int)btnAt:(CGPoint)p {   // locked keys (tested on touch-down only, then locked)
-    if (_macroEnabled && !_tap && CGRectContainsPoint(CGRectInset([self macroRect],-2.0,-2.0),p)) return 19;
+    if (_macroEnabled && !_tap) {
+        CGRect macro=[self macroRect];
+        CGPoint center=CGPointMake(CGRectGetMidX(macro),CGRectGetMidY(macro));
+        CGPoint local=CGPointMake(p.x-center.x,p.y-center.y);
+        CGPoint unrotated=CGPointMake(local.x*(CGFloat)M_SQRT1_2+local.y*(CGFloat)M_SQRT1_2,
+                                      -local.x*(CGFloat)M_SQRT1_2+local.y*(CGFloat)M_SQRT1_2);
+        if (CGRectContainsPoint(CGRectInset(macro,-2.0,-2.0),CGPointMake(center.x+unrotated.x,center.y+unrotated.y))) return 19;
+    }
     CGFloat u = self.u;
     for (int i = 0; i < (int)(sizeof k_btns / sizeof *k_btns); i++) { int b = k_btns[i];
         if (fullOnly(b) && !_full) continue;
