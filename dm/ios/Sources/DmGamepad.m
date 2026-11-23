@@ -1747,8 +1747,13 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     CGFloat contentWidth=288;
     CGFloat actionButtonSize=32;
     CGFloat actionButtonGap=4;
-    CGFloat actionTrailingInset=20;
-    CGFloat deleteButtonX=contentWidth-actionTrailingInset-actionButtonSize;
+    // Built-in themes place their checkmark in a 32-point trailing slot,
+    // ending 4 points before the row's trailing edge. Anchor the custom-theme
+    // action group to that exact same slot so the two buttons share its edge.
+    CGFloat trailingSlotInset=4;
+    CGFloat trailingSlotWidth=32;
+    CGFloat trailingSlotX=contentWidth-trailingSlotInset-trailingSlotWidth;
+    CGFloat deleteButtonX=trailingSlotX;
     CGFloat renameButtonX=deleteButtonX-actionButtonGap-actionButtonSize;
     CGFloat pickButtonWidth=renameButtonX-4;
     NSUInteger row=0;
@@ -1828,8 +1833,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
                 [strongSelf closeThemeMenu];
             }] forControlEvents:UIControlEventTouchUpInside]; [_themeMenuScroll addSubview:pick];
             if ([current isEqualToString:title]) {
-                CGFloat markX=hasManagementActions ? renameButtonX-38 : 252;
-                CGFloat markWidth=hasManagementActions ? 26 : 32;
+                CGFloat markX=hasManagementActions ? renameButtonX-38 : trailingSlotX;
+                CGFloat markWidth=hasManagementActions ? 26 : trailingSlotWidth;
                 UILabel *activeMark=[[UILabel alloc] initWithFrame:CGRectMake(markX,row*rowHeight,markWidth,rowHeight)];
                 activeMark.text=@"✓"; activeMark.textAlignment=hasManagementActions ? NSTextAlignmentRight : NSTextAlignmentCenter;
                 activeMark.font=[UIFont systemFontOfSize:18 weight:UIFontWeightBold];
