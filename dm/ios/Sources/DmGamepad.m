@@ -768,7 +768,7 @@ static CGPoint side(CGRect s, int right, CGFloat dx, CGFloat y) { return CGPoint
 - (CGPoint)facePos:(int)b { return [self position:b base:[self baseFacePos:b]]; }
 - (CGPoint)baseMacroCenter {
     CGPoint center=self.faceCenter;
-    return CGPointMake(center.x-2.15*self.faceGap,center.y);
+    return CGPointMake(center.x-2.15*self.faceGap-12*self.u,center.y+20*self.u);
 }
 - (CGRect)macroRect {
     CGPoint center=[self position:19 base:[self baseMacroCenter]];
@@ -2553,20 +2553,20 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     UIButton *importThemeButton=[self editorButton:@"Import…" action:@selector(importThemeFolder) frame:CGRectMake(172,220,80,32) parent:_tools];
     importThemeButton.titleLabel.font=[UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
     UIButton *createThemeButton=[self editorButton:@"Create theme" action:@selector(createCustomTheme)
-        frame:CGRectMake(8,258,_launcherPreview ? 344 : 152,32) parent:_tools];
+        frame:CGRectMake(8,258,_launcherPreview ? 296 : 152,32) parent:_tools];
     createThemeButton.titleLabel.adjustsFontSizeToFitWidth=YES;
     importThemeButton.titleLabel.adjustsFontSizeToFitWidth=YES;
     importThemeButton.titleLabel.minimumScaleFactor=0.8;
     importThemeButton.titleLabel.lineBreakMode=NSLineBreakByClipping;
 
-    // Runtime toggles are only available in the live control editor.
+    // Keep the Y+B toggle available in both the live and pre-launch control editors.
     _macroToggleButton=[UIButton buttonWithType:UIButtonTypeSystem];
-    _macroToggleButton.hidden=_launcherPreview;
-    _macroToggleButton.frame=CGRectMake(168,258,40,32);
+    _macroToggleButton.hidden=NO;
+    _macroToggleButton.frame=_launcherPreview ? CGRectMake(312,258,40,32) : CGRectMake(168,258,40,32);
     _macroToggleButton.backgroundColor=[UIColor colorWithWhite:0.12 alpha:0.96];
     _macroToggleButton.layer.cornerRadius=6;
-    _macroToggleButton.accessibilityLabel=@"B+Y macro button";
-    _macroToggleButton.accessibilityHint=@"Toggle the B+Y simultaneous touch button";
+    _macroToggleButton.accessibilityLabel=@"Y+B macro button";
+    _macroToggleButton.accessibilityHint=@"Toggle the Y+B simultaneous touch button";
     NSMutableAttributedString *macroToggleGlyphs=[[NSMutableAttributedString alloc] initWithString:@"Y + B"
         attributes:@{NSFontAttributeName:[UIFont systemFontOfSize:15 weight:UIFontWeightBold],NSForegroundColorAttributeName:UIColor.whiteColor}];
     [_macroToggleButton setAttributedTitle:macroToggleGlyphs forState:UIControlStateNormal];
