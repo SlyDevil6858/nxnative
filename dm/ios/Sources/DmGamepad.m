@@ -520,7 +520,7 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
             if (names[b]) _label[b] = label(_key[b], names[b]);   // the D-pad arms carry no label
         }
         _swap = shape(_controls); _swapLabel = label(_swap, @"");
-        _macroKey = shape(_controls); _macroLabel = label(_macroKey, @"YB");
+        _macroKey = shape(_controls); _macroLabel = label(_macroKey, @"B+Y");
         _macroKey.hidden = !_macroEnabled;
         _skinItems = [NSMutableDictionary dictionary];
         _customSkin = NO; // Native vector controls are used; the PNG skin system is retired.
@@ -774,8 +774,7 @@ static CGPoint side(CGRect s, int right, CGFloat dx, CGFloat y) { return CGPoint
 - (CGRect)macroRect {
     CGPoint center=[self position:19 base:[self baseMacroCenter]];
     CGFloat u=self.u, scale=[self scale:19];
-    CGFloat diameter=2*self.faceR*scale;
-    CGSize size=CGSizeMake(diameter,diameter);
+    CGSize size=CGSizeMake(64*u*scale,38*u*scale);
     return CGRectMake(center.x-size.width/2,center.y-size.height/2,size.width,size.height);
 }
 - (CGPoint)faceGrabCenter {
@@ -1334,20 +1333,8 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     _controls.frame = self.layer.bounds;
     for (int b = B_A; b <= B_Y; b++) { CGPoint c = [self facePos:b]; setPath(_key[b], circlePath(c, [self faceRadius:b])); placeLabel(_label[b], c, 20 * u * [self scale:b]); }
     CGRect macro=[self macroRect];
-    CGPoint macroCenter=CGPointMake(CGRectGetMidX(macro),CGRectGetMidY(macro));
-    CGSize macroPill=CGSizeMake(macro.size.width*1.48,macro.size.height*0.72);
-    CGPathRef macroPillPath=CGPathCreateWithRoundedRect(CGRectMake(macroCenter.x-macroPill.width/2,macroCenter.y-macroPill.height/2,macroPill.width,macroPill.height),macroPill.height/2,macroPill.height/2,NULL);
-    CGAffineTransform macroTilt=CGAffineTransformMakeTranslation(-macroCenter.x,-macroCenter.y);
-    macroTilt=CGAffineTransformRotate(macroTilt,-(CGFloat)M_PI/9.0);
-    macroTilt=CGAffineTransformTranslate(macroTilt,macroCenter.x,macroCenter.y);
-    CGPathRef tiltedMacroPath=CGPathCreateCopyByTransformingPath(macroPillPath,&macroTilt);
-    setPath(_macroKey,tiltedMacroPath);
-    CGPathRelease(tiltedMacroPath); CGPathRelease(macroPillPath);
-    CGFloat macroFontSize=15*u*[self scale:19];
-    placeLabel(_macroLabel,macroCenter,macroFontSize);
-    UIFont *macroFont=[UIFont systemFontOfSize:macroFontSize weight:UIFontWeightBold];
-    _macroLabel.string=[[NSAttributedString alloc] initWithString:@"YB"
-        attributes:@{NSFontAttributeName:macroFont,NSForegroundColorAttributeName:[self themeTextColorForButton:19 pressed:_macroHeld]}];
+    setPath(_macroKey,CGPathCreateWithRoundedRect(macro,macro.size.height/2,macro.size.height/2,NULL));
+    placeLabel(_macroLabel,CGPointMake(CGRectGetMidX(macro),CGRectGetMidY(macro)),15*u*[self scale:19]);
     for (int i = 0; i < (int)(sizeof k_btns / sizeof *k_btns); i++) { int b = k_btns[i];
         if (isDrop(b)) {
             BOOL right = b == B_ZR || b == B_R; CGPoint c = [self dropCenter:b];
