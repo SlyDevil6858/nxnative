@@ -1,0 +1,11 @@
+{
+  "name": "UNDERTALE",
+  "palette": {
+    "idle": "000000",
+    "pressed": "FFFFFF",
+    "outline": "7F7F7F",
+    "ringFill": "4D4444",
+    "text": "FFFFFF",
+    "pressedText": "000000"
+  }
+}
