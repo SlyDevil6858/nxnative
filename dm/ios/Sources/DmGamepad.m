@@ -520,7 +520,7 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
             if (names[b]) _label[b] = label(_key[b], names[b]);   // the D-pad arms carry no label
         }
         _swap = shape(_controls); _swapLabel = label(_swap, @"");
-        _macroKey = shape(_controls); _macroLabel = label(_macroKey, @"B+Y");
+        _macroKey = shape(_controls); _macroLabel = label(_macroKey, @"YB");
         _macroKey.hidden = !_macroEnabled;
         _skinItems = [NSMutableDictionary dictionary];
         _customSkin = NO; // Native vector controls are used; the PNG skin system is retired.
@@ -1334,15 +1334,20 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     _controls.frame = self.layer.bounds;
     for (int b = B_A; b <= B_Y; b++) { CGPoint c = [self facePos:b]; setPath(_key[b], circlePath(c, [self faceRadius:b])); placeLabel(_label[b], c, 20 * u * [self scale:b]); }
     CGRect macro=[self macroRect];
-    setPath(_macroKey,circlePath(CGPointMake(CGRectGetMidX(macro),CGRectGetMidY(macro)),macro.size.width/2));
+    CGPoint macroCenter=CGPointMake(CGRectGetMidX(macro),CGRectGetMidY(macro));
+    CGSize macroPill=CGSizeMake(macro.size.width*1.48,macro.size.height*0.72);
+    CGPathRef macroPillPath=CGPathCreateWithRoundedRect(CGRectMake(macroCenter.x-macroPill.width/2,macroCenter.y-macroPill.height/2,macroPill.width,macroPill.height),macroPill.height/2,macroPill.height/2,NULL);
+    CGAffineTransform macroTilt=CGAffineTransformMakeTranslation(-macroCenter.x,-macroCenter.y);
+    macroTilt=CGAffineTransformRotate(macroTilt,-(CGFloat)M_PI/9.0);
+    macroTilt=CGAffineTransformTranslate(macroTilt,macroCenter.x,macroCenter.y);
+    CGPathRef tiltedMacroPath=CGPathCreateCopyByTransformingPath(macroPillPath,&macroTilt);
+    setPath(_macroKey,tiltedMacroPath);
+    CGPathRelease(tiltedMacroPath); CGPathRelease(macroPillPath);
     CGFloat macroFontSize=15*u*[self scale:19];
-    placeLabel(_macroLabel,CGPointMake(CGRectGetMidX(macro),CGRectGetMidY(macro)),macroFontSize);
+    placeLabel(_macroLabel,macroCenter,macroFontSize);
     UIFont *macroFont=[UIFont systemFontOfSize:macroFontSize weight:UIFontWeightBold];
-    NSMutableAttributedString *macroGlyphs=[[NSMutableAttributedString alloc] initWithString:@"B Y"
+    _macroLabel.string=[[NSAttributedString alloc] initWithString:@"YB"
         attributes:@{NSFontAttributeName:macroFont,NSForegroundColorAttributeName:[self themeTextColorForButton:19 pressed:_macroHeld]}];
-    [macroGlyphs addAttribute:NSBaselineOffsetAttributeName value:@(2.5*u) range:NSMakeRange(0,1)];
-    [macroGlyphs addAttribute:NSBaselineOffsetAttributeName value:@(-2.5*u) range:NSMakeRange(2,1)];
-    _macroLabel.string=macroGlyphs;
     for (int i = 0; i < (int)(sizeof k_btns / sizeof *k_btns); i++) { int b = k_btns[i];
         if (isDrop(b)) {
             BOOL right = b == B_ZR || b == B_R; CGPoint c = [self dropCenter:b];
@@ -2570,10 +2575,8 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     _macroToggleButton.layer.cornerRadius=6;
     _macroToggleButton.accessibilityLabel=@"B+Y macro button";
     _macroToggleButton.accessibilityHint=@"Toggle the B+Y simultaneous touch button";
-    NSMutableAttributedString *macroToggleGlyphs=[[NSMutableAttributedString alloc] initWithString:@"B Y"
+    NSAttributedString *macroToggleGlyphs=[[NSAttributedString alloc] initWithString:@"YB"
         attributes:@{NSFontAttributeName:[UIFont systemFontOfSize:15 weight:UIFontWeightBold],NSForegroundColorAttributeName:UIColor.whiteColor}];
-    [macroToggleGlyphs addAttribute:NSBaselineOffsetAttributeName value:@2 range:NSMakeRange(0,1)];
-    [macroToggleGlyphs addAttribute:NSBaselineOffsetAttributeName value:@(-2) range:NSMakeRange(2,1)];
     [_macroToggleButton setAttributedTitle:macroToggleGlyphs forState:UIControlStateNormal];
     [_macroToggleButton addTarget:self action:@selector(toggleBYMacro) forControlEvents:UIControlEventTouchUpInside];
     [_tools addSubview:_macroToggleButton];
