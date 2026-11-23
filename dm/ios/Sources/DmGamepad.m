@@ -2253,7 +2253,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         k_stickTrack=themeColorWithAlphaMultiplier(color,0.25);
     } else if (_colorTarget==1) {
         if (_colorPickerControl<0) {
-            for (int control=0;control<18;control++) if ([self editable:control]) {
+            for (int control=0;control<20;control++) if ([self editable:control]) {
                 NSString *key=[self borderColorKeyForControl:control];
                 if (key.length) colors[key]=color;
             }
@@ -2267,7 +2267,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         if (_colorPickerControl<0) k_stickBorder=themeColorWithAlphaMultiplier(color,0.88);
     } else {
         if (_colorPickerControl<0) {
-            for (int control=0;control<18;control++) if ([self editable:control]) {
+            for (int control=0;control<20;control++) if ([self editable:control]) {
                 NSString *key=[self themeColorKeyForControl:control];
                 if (key.length) colors[key]=color;
             }
@@ -2354,6 +2354,14 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             json[@"palette"]=@{@"idle":@"FFFFFF",@"pressed":@"FFFFFF",@"outline":@"FFFFFF",@"ringFill":@"FFFFFF",@"text":@"FFFFFF",@"pressedText":@"000000"};
         }
         json[@"name"]=displayName;
+        // Give the B+Y macro an explicit theme fill. Older themes have no
+        // per-button entry for it, so preserve their existing palette-based
+        // appearance by using the theme's idle color as its initial fill.
+        NSMutableDictionary *buttons=[json[@"buttons"] isKindOfClass:NSDictionary.class]?[json[@"buttons"] mutableCopy]:[NSMutableDictionary dictionary];
+        NSDictionary *palette=[json[@"palette"] isKindOfClass:NSDictionary.class]?json[@"palette"]:@{};
+        if (!themeHex(themePaletteValue(buttons,@"B+Y")))
+            buttons[@"B+Y"]=themePaletteValue(palette,@"idle") ?: @"FFFFFF";
+        json[@"buttons"]=buttons;
         NSError *error=nil;
         if (![NSFileManager.defaultManager createDirectoryAtURL:destination withIntermediateDirectories:YES attributes:nil error:&error]) {
             [self showThemeCreationError:error.localizedDescription]; return;
