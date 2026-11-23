@@ -116,7 +116,7 @@ private func launcherAccentColor() -> Color {
 /// Near-black fill for the rounded inset-grouped section containers.
 private let launcherSectionBackground = Color(red: 8.0 / 255.0, green: 8.0 / 255.0, blue: 8.0 / 255.0)
 /// Dark native List separators, distinct from the custom theme-menu divider.
-private let launcherListSeparatorColor = Color(red: 13.0 / 255.0, green: 13.0 / 255.0, blue: 13.0 / 255.0)
+private let launcherListSeparatorColor = Color(red: 8.0 / 255.0, green: 8.0 / 255.0, blue: 8.0 / 255.0)
 let launcherMainSeparatorColor = Color(red: 25.0 / 255.0, green: 25.0 / 255.0, blue: 25.0 / 255.0)
 
 private func launcherSupportURL() -> URL? {
