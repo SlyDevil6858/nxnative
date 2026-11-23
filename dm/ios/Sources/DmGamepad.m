@@ -368,6 +368,7 @@ static void pad_watch_select(GCController *c);
     uint64_t _faceBits, _dpadBits, _btnBits;
     NSMapTable<UITouch *, NSNumber *> *_faceOf;    // which keys each touch on the diamond currently holds
     CAShapeLayer *_key[B_N]; CATextLayer *_label[B_N];   // one layer per key
+    CAShapeLayer *_macroKey; CATextLayer *_macroLabel; BOOL _macroEnabled, _macroHeld;
     CAShapeLayer *_ring, *_knob;                   // the left stick (the right one is not drawn)
     CAShapeLayer *_swap; CATextLayer *_swapLabel; BOOL _swapHeld;
     UISelectionFeedbackGenerator *_touchFeedback;   // subtle keyboard-like tick on each touch-control press edge
@@ -504,6 +505,8 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
             [_touchFeedback prepare];
         }
         _owner = [NSMapTable strongToStrongObjectsMapTable]; _faceOf = [NSMapTable strongToStrongObjectsMapTable];
+        _macroEnabled = [NSUserDefaults.standardUserDefaults boolForKey:@"DmEnableBYMacro"];
+        [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(userDefaultsDidChange:) name:NSUserDefaultsDidChangeNotification object:nil];
         static dispatch_once_t once;
         dispatch_once(&once, ^{ theme_init(); });
         [self loadSelectedTheme];
@@ -518,6 +521,8 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
             if (names[b]) _label[b] = label(_key[b], names[b]);   // the D-pad arms carry no label
         }
         _swap = shape(_controls); _swapLabel = label(_swap, @"");
+        _macroKey = shape(_controls); _macroLabel = label(_macroKey, @"B+Y");
+        _macroKey.hidden = !_macroEnabled;
         _skinItems = [NSMutableDictionary dictionary];
         _customSkin = NO; // Native vector controls are used; the PNG skin system is retired.
         // One shared accent-colour outline surrounds the selected controls.
@@ -689,8 +694,16 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
     for (int b = 0; b < B_N; b++) _key[b].hidden = _tap || (fullOnly(b) && !_full);
     _ring.hidden = _knob.hidden = _tap;
     _swap.hidden = _swapLabel.hidden = NO;
+    _macroKey.hidden = !_macroEnabled || _tap;
     _swapLabel.string = _tap ? @"Tap" : _full ? @"3D" : @"2D";
     [CATransaction commit];
+}
+- (void)userDefaultsDidChange:(NSNotification *)notification {
+    (void)notification;
+    BOOL enabled=[NSUserDefaults.standardUserDefaults boolForKey:@"DmEnableBYMacro"];
+    if (_macroEnabled==enabled) return;
+    _macroEnabled=enabled;
+    [self reset]; [self applyLayout]; [self updateEditor]; [self setNeedsLayout];
 }
 - (void)nextLayout {   // 2D → 3D (→ Tap in handheld mode) → 2D: release every touch first (no key stays held), save, lay out again
     int l = _tap ? 0 : _full ? (dm_opmode() == 0 ? 2 : 0) : 1;
@@ -715,7 +728,7 @@ static CGPoint side(CGRect s, int right, CGFloat dx, CGFloat y) { return CGPoint
     static dispatch_once_t once;
     dispatch_once(&once, ^{
         ids = @[@"A",@"B",@"X",@"Y",@"L3",@"R3",@"L",@"R",@"ZL",@"ZR",@"Plus",@"Minus",
-                @"unused12",@"unused13",@"unused14",@"unused15",@"Stick",@"Dpad",@"Layout Switcher"];
+                @"unused12",@"unused13",@"unused14",@"unused15",@"Stick",@"Dpad",@"Layout Switcher",@"B+Y Macro"];
     });
     return b >= 0 && b < (int)ids.count ? ids[b] : @"";
 }
@@ -753,6 +766,16 @@ static CGPoint side(CGRect s, int right, CGFloat dx, CGFloat y) { return CGPoint
     }
 }
 - (CGPoint)facePos:(int)b { return [self position:b base:[self baseFacePos:b]]; }
+- (CGPoint)baseMacroCenter {
+    CGPoint center=self.faceCenter;
+    return CGPointMake(center.x-2.15*self.faceGap,center.y);
+}
+- (CGRect)macroRect {
+    CGPoint center=[self position:19 base:[self baseMacroCenter]];
+    CGFloat u=self.u, scale=[self scale:19];
+    CGSize size=CGSizeMake(64*u*scale,38*u*scale);
+    return CGRectMake(center.x-size.width/2,center.y-size.height/2,size.width,size.height);
+}
 - (CGPoint)faceGrabCenter {
     CGPoint center=CGPointZero;
     for (int b=B_A;b<=B_Y;b++) {
@@ -815,6 +838,7 @@ static BOOL isClick(int b) { return b == B_LS || b == B_RS; }
 }
 - (CGPoint)controlCenter:(int)b {
     if (b == 18) return self.swapCenter;
+    if (b == 19) { CGRect r=[self macroRect]; return CGPointMake(CGRectGetMidX(r),CGRectGetMidY(r)); }
     if (b == 16) return self.stickHome;
     if (b == 17) return self.dpadCenter;
     if (b < 4) return [self facePos:b];
@@ -823,11 +847,12 @@ static BOOL isClick(int b) { return b == B_LS || b == B_RS; }
     CGRect rect = [self pillRect:b];
     return CGPointMake(CGRectGetMidX(rect), CGRectGetMidY(rect));
 }
-- (BOOL)editable:(int)b { return b < 12 ? (_full || !fullOnly(b)) : b == 16 || (b == 17 && _full); }
+- (BOOL)editable:(int)b { return b < 12 ? (_full || !fullOnly(b)) : b == 16 || (b == 17 && _full) || (b == 19 && _macroEnabled); }
 - (CGPoint)swapCenter { CGRect s = self.safe; return CGPointMake(CGRectGetMidX(s), CGRectGetMinY(s) + K_PILL_Y * self.u); }
 
 static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); }
 - (int)btnAt:(CGPoint)p {   // locked keys (tested on touch-down only, then locked)
+    if (_macroEnabled && !_tap && CGRectContainsPoint(CGRectInset([self macroRect],-2.0,-2.0),p)) return 19;
     CGFloat u = self.u;
     for (int i = 0; i < (int)(sizeof k_btns / sizeof *k_btns); i++) { int b = k_btns[i];
         if (fullOnly(b) && !_full) continue;
@@ -863,9 +888,13 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
 // ---- Touch ----
 - (void)recompute {
     uint64_t face = 0; for (UITouch *t in _faceOf) face |= [_faceOf objectForKey:t].unsignedLongLongValue;
-    uint64_t btn = 0, dpad = 0; BOOL swap = NO;
+    uint64_t btn = 0, dpad = 0; BOOL swap = NO, macro = NO;
     for (UITouch *t in _owner) { uint64_t v = [_owner objectForKey:t].unsignedLongLongValue; int c = (int)(v & 0xff);
-        if (c == C_BTN) btn |= 1ull << (v >> 8);
+        if (c == C_BTN) {
+            int b=(int)(v >> 8);
+            if (b==19) { btn |= (1ull << B_B) | (1ull << B_Y); macro=YES; }
+            else btn |= 1ull << b;
+        }
         else if (c == C_DPAD) dpad |= [self dpadAt:[t locationInView:self]];
         else if (c == C_SWAP) swap = YES; }
     int32_t ax[4] = {0};
@@ -875,14 +904,14 @@ static CGFloat dist(CGPoint a, CGPoint b) { return hypot(a.x - b.x, a.y - b.y); 
         CGFloat m = fmin((d - dz) / (R * K_FULL - dz), 1) / d;   // outside the dead zone: 0 rising to full at the full-tilt radius
         ax[i * 2] = (int32_t)lrint(o.x * m * 32767); ax[i * 2 + 1] = (int32_t)lrint(-o.y * m * 32767);   // host: up is positive; rounded so full tilt is exactly 32767
     }
-    BOOL changed = face != _faceBits || dpad != _dpadBits || btn != _btnBits || swap != _swapHeld;
+    BOOL changed = face != _faceBits || dpad != _dpadBits || btn != _btnBits || swap != _swapHeld || macro != _macroHeld;
     uint64_t pressed = (face | dpad | btn) & ~(_faceBits | _dpadBits | _btnBits);
     unsigned gripping = (_stick[0] ? 1u : 0) | (_stick[1] ? 2u : 0);
     if (pressed || (swap && !_swapHeld) || (gripping & ~_hapticSticks)) {
         [_touchFeedback selectionChanged]; [_touchFeedback prepare];
     }
     _hapticSticks = gripping;
-    _faceBits = face; _dpadBits = dpad; _btnBits = btn; _swapHeld = swap;
+    _faceBits = face; _dpadBits = dpad; _btnBits = btn; _swapHeld = swap; _macroHeld=macro;
     pthread_mutex_lock(&g_mu);
     g_touch_btn = face | dpad | btn; g_touch_lx = ax[0]; g_touch_ly = ax[1]; g_touch_rx = ax[2]; g_touch_ry = ax[3];
     pthread_mutex_unlock(&g_mu);
@@ -1223,6 +1252,7 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
 }
 - (CGFloat)editHighlightRadiusForControl:(int)b {
     if (b == 18) return K_SWAP_R * self.u;
+    if (b == 19) { CGRect r=[self macroRect]; return MAX(r.size.width,r.size.height)/2; }
     if (b == 16) return [self stickR:0];
     if (b == 17) return self.dpadR;
     if (b < 4) return [self faceRadius:b];
@@ -1301,6 +1331,9 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     }
     _controls.frame = self.layer.bounds;
     for (int b = B_A; b <= B_Y; b++) { CGPoint c = [self facePos:b]; setPath(_key[b], circlePath(c, [self faceRadius:b])); placeLabel(_label[b], c, 20 * u * [self scale:b]); }
+    CGRect macro=[self macroRect];
+    setPath(_macroKey,CGPathCreateWithRoundedRect(macro,macro.size.height/2,macro.size.height/2,NULL));
+    placeLabel(_macroLabel,CGPointMake(CGRectGetMidX(macro),CGRectGetMidY(macro)),15*u*[self scale:19]);
     for (int i = 0; i < (int)(sizeof k_btns / sizeof *k_btns); i++) { int b = k_btns[i];
         if (isDrop(b)) {
             BOOL right = b == B_ZR || b == B_R; CGPoint c = [self dropCenter:b];
@@ -1331,7 +1364,7 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
         CGMutablePathRef outlines = CGPathCreateMutable();
         if (_selected < 0) {
             // "All controls" uses the same circular selection halo around every editable control.
-            for (int b = 0; b < 18; b++) if ([self editable:b]) {
+            for (int b = 0; b < 20; b++) if ([self editable:b]) {
                 CGPoint center = [self controlCenter:b];
                 CGFloat radius = [self editHighlightRadiusForControl:b] + 7 * u;
                 CGPathAddEllipseInRect(outlines, NULL,
@@ -1370,6 +1403,11 @@ static void placeLabel(CATextLayer *t, CGPoint c, CGFloat fs) {
     _ring.strokeColor = k_stickBorder.CGColor; _knob.strokeColor = k_stickBorder.CGColor;
     CAShapeLayer *innerRing=(CAShapeLayer *)_knob.sublayers.firstObject;
     innerRing.strokeColor=k_stickBorder.CGColor;
+    BOOL macroPressed=_macroHeld;
+    _macroKey.fillColor=[self themeColorForButton:19 pressed:macroPressed].CGColor;
+    _macroKey.strokeColor=[self themeBorderColorForButton:19].CGColor;
+    _macroKey.opacity=[self opacity:19];
+    _macroLabel.foregroundColor=[self themeTextColorForButton:19 pressed:macroPressed].CGColor;
     _swap.fillColor = [self themeColorForButton:B_N pressed:_swapHeld].CGColor;
     _swap.strokeColor = [self themeBorderColorForButton:B_N].CGColor; _swapLabel.foregroundColor = [self themeTextColorForControl:18 pressed:_swapHeld].CGColor;
     // Keep the 2D / 3D / TAP layout control above every other touch-control layer.
@@ -1504,7 +1542,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         case B_A:key=@"A";break; case B_B:key=@"B";break; case B_X:key=@"X";break; case B_Y:key=@"Y";break;
         case B_LS:key=@"L3";break; case B_RS:key=@"R3";break; case B_L:key=@"L";break; case B_R:key=@"R";break;
         case B_ZL:key=@"ZL";break; case B_ZR:key=@"ZR";break; case B_PLUS:key=@"Plus";break;
-        case B_MINUS:key=@"Minus";break; default:if (b>=B_LEFT) key=@"Dpad";break;
+        case B_MINUS:key=@"Minus";break; default:if (b==19) key=@"B+Y"; else if (b>=B_LEFT) key=@"Dpad";break;
     }
     UIColor *base=key ? _themeButtonColors[key] : nil;
     // Older themes stored both thumbstick buttons under "Stick". Keep that
@@ -2110,6 +2148,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     if (control==16) return @"Stick";
     if (control==17) return @"Dpad";
     if (control==18) return @"Layout";
+    if (control==19) return @"B+Y";
     switch (control) {
         case B_A:return @"A"; case B_B:return @"B"; case B_X:return @"X"; case B_Y:return @"Y";
         case B_LS:return @"L3"; case B_RS:return @"R3"; case B_L:return @"L"; case B_R:return @"R";
@@ -2654,7 +2693,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 - (void)showControlPopup {
     NSMutableArray *items=[NSMutableArray array];
     [items addObject:@{@"title":@"All controls", @"handler":[^{ self->_selected=-1; [self updateEditor]; } copy]}];
-    for (int b=0;b<18;b++) if ([self editable:b]) {
+    for (int b=0;b<20;b++) if ([self editable:b]) {
         int selected=b;
         [items addObject:@{@"title":[self controlID:b], @"handler":[^{ self->_selected=selected; [self updateEditor]; } copy]}];
     }
@@ -2873,7 +2912,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 - (void)resetControl {
     if (_selected==18) return;
     if (_selected<0) {
-        for (int b=0;b<18;b++) if ([self editable:b]) [_custom removeObjectForKey:[self controlID:b]];
+        for (int b=0;b<20;b++) if ([self editable:b]) [_custom removeObjectForKey:[self controlID:b]];
     } else [_custom removeObjectForKey:[self controlID:_selected]];
     [self updateEditor]; [self setNeedsLayout];
 }
@@ -3025,7 +3064,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         _dragTouch=touch; _dragStart=start; _dragHome=[self controlCenter:(int)closest];
         if (allSelected) {
             NSMutableDictionary *homes=[NSMutableDictionary dictionary];
-            for (int b=0;b<18;b++) if ([self editable:b]) homes[[self controlID:b]]=[NSValue valueWithCGPoint:[self controlCenter:b]];
+            for (int b=0;b<20;b++) if ([self editable:b]) homes[[self controlID:b]]=[NSValue valueWithCGPoint:[self controlCenter:b]];
             _dragAllHomes=[homes copy];
         } else { _selected=(int)closest; _dragAllHomes=nil; }
         [self updateEditor]; return;
