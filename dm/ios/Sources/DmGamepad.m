@@ -1926,7 +1926,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             if (!editingThisTheme) {
             UIButton *remove=[UIButton buttonWithType:UIButtonTypeCustom];
             rowDelete=remove;
-            remove.frame=CGRectMake(deleteButtonX,row*rowHeight+8,actionButtonSize,actionButtonSize);
+            remove.frame=CGRectMake(deleteButtonX,rowY+(rowHeight-actionButtonSize)/2,actionButtonSize,actionButtonSize);
             remove.backgroundColor=UIColor.clearColor;
             UIImage *trashImage=[UIImage systemImageNamed:@"trash" withConfiguration:actionSymbol];
             // UIButton positions images using UIImage alignment rects. SF Symbols can
@@ -1959,7 +1959,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             }] forControlEvents:UIControlEventTouchUpInside];
             [_themeMenuScroll addSubview:remove];
             if (!editingThisTheme) {
-                UIButton *rename=[UIButton buttonWithType:UIButtonTypeCustom]; rename.frame=CGRectMake(renameButtonX,row*rowHeight+8,actionButtonSize,actionButtonSize);
+                UIButton *rename=[UIButton buttonWithType:UIButtonTypeCustom]; rename.frame=CGRectMake(renameButtonX,rowY+(rowHeight-actionButtonSize)/2,actionButtonSize,actionButtonSize);
                 rowRename=rename;
                 UIImage *renameImage=[UIImage systemImageNamed:@"pencil" withConfiguration:renameSymbol];
                 renameImage=[renameImage imageWithAlignmentRectInsets:UIEdgeInsetsZero];
