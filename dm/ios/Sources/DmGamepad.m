@@ -710,6 +710,9 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
     BOOL enabled=DM_ENABLE_BY_MACRO && [NSUserDefaults.standardUserDefaults boolForKey:@"DmEnableBYMacro"];
     if (_macroEnabled==enabled) return;
     _macroEnabled=enabled;
+    // The macro is no longer an editable control when disabled. Move the
+    // selector ring to B rather than leaving it attached to a hidden control.
+    if (!enabled && _selected==19) _selected=B_B;
     [self reset]; [self applyLayout]; [self updateEditor]; [self setNeedsLayout];
 }
 - (void)nextLayout {   // 2D → 3D (→ Tap in handheld mode) → 2D: release every touch first (no key stays held), save, lay out again
@@ -2644,6 +2647,9 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     BOOL enabled=![NSUserDefaults.standardUserDefaults boolForKey:@"DmEnableBYMacro"];
     [NSUserDefaults.standardUserDefaults setBool:enabled forKey:@"DmEnableBYMacro"];
     _macroEnabled=enabled;
+    // If the selector ring is on the macro, move it to B before the macro
+    // disappears so the editor always points at a visible editable control.
+    if (!enabled && _selected==19) _selected=B_B;
     // Release any active macro touch immediately when disabling, then refresh
     // the hit-test/layout state and the toggle's on/off appearance.
     [self reset];
@@ -2900,6 +2906,9 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
 - (void)toggleToolsVisibility {
     if (!_editing) return;
     _tools.hidden=!_tools.hidden;
+    // The theme selector belongs to the tools panel; never leave its overlay
+    // open after the eye button hides that panel.
+    [self closeThemeMenu];
     [_touchFeedback selectionChanged]; [_touchFeedback prepare];
     [self updateToolsVisibilityButtonAppearance];
     [self setNeedsLayout];
