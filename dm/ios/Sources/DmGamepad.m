@@ -1801,11 +1801,11 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     CGFloat contentWidth=288;
     CGFloat actionButtonSize=32;
     CGFloat actionButtonGap=4;
-    // The row stack anchors the management controls 24 points from the
-    // trailing edge; these values are retained for the rename/checkmark frames.
-    CGFloat deleteButtonX=contentWidth-24-actionButtonSize;
-    CGFloat renameButtonX=deleteButtonX-actionButtonGap-actionButtonSize;
-    CGFloat pickButtonWidth=renameButtonX-4;
+    CGFloat actionButtonTrailingInset=24;
+    // Derive every row position from the same trailing inset and action sizes.
+    CGFloat renameButtonX=contentWidth-actionButtonTrailingInset-(2*actionButtonSize+2*actionButtonGap);
+    CGFloat deleteButtonX=renameButtonX+actionButtonSize+actionButtonGap;
+    CGFloat pickButtonWidth=renameButtonX-actionButtonGap;
     NSUInteger row=0;
     for (NSURL *folder in folders) {
         BOOL isDir=NO;
@@ -1985,7 +1985,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             rowStack.distribution=UIStackViewDistributionFill;
             rowStack.spacing=actionButtonGap;
             rowStack.frame=CGRectMake(0,row*rowHeight,
-                contentWidth-(hasManagementActions?24:0),rowHeight);
+                contentWidth-(hasManagementActions?actionButtonTrailingInset:0),rowHeight);
             for (UIView *control in rowControls) control.translatesAutoresizingMaskIntoConstraints=NO;
             if (primaryControl) {
                 [primaryControl.heightAnchor constraintEqualToConstant:rowHeight].active=YES;
