@@ -172,7 +172,9 @@ jobs:
 
       - name: Install Pillow for SteamGridDB artwork conversion
         if: steps.verify-input.outputs.list_only != 'true'
-        run: python3 -m pip install --disable-pip-version-check Pillow
+        run: |
+          python3 -m venv "$RUNNER_TEMP/sgdb-artwork-venv"
+          "$RUNNER_TEMP/sgdb-artwork-venv/bin/python" -m pip install --disable-pip-version-check Pillow
 
       - name: Select ROM-matched launcher appearance and accent color
         if: steps.verify-input.outputs.list_only != 'true'
@@ -188,7 +190,7 @@ jobs:
           CUSTOM_SGDB_ICON_URL: ${{ inputs.custom_sgdb_icon_url }}
           CUSTOM_SGDB_BACKGROUND_URL: ${{ inputs.custom_sgdb_background_url }}
         run: |
-          python3 - <<'PY'
+          "$RUNNER_TEMP/sgdb-artwork-venv/bin/python" - <<'PY'
           import os
           import re
           from pathlib import Path
