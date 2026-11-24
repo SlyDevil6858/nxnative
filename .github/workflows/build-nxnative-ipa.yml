@@ -45,8 +45,8 @@ on:
         required: true
         type: boolean
         default: true
-      game_title_font:
-        description: "Use a game-matched, open-licensed font for the launcher title"
+      steamgriddb_logo:
+        description: "Replace the launcher game title with the highest-rated SteamGridDB LOGO when available"
         required: true
         type: boolean
         default: false
@@ -192,6 +192,7 @@ jobs:
           SUPPORT_URL: ${{ inputs.support_url }}
           STEAMGRIDDB_API_KEY: ${{ secrets.STEAMGRIDDB_API_KEY }}
           STEAMGRIDDB_ICON: ${{ inputs.steamgriddb_icon }}
+          STEAMGRIDDB_LOGO: ${{ inputs.steamgriddb_logo }}
           CUSTOM_SGDB_ICON_URL: ${{ inputs.custom_sgdb_icon_url }}
           CUSTOM_SGDB_BACKGROUND_URL: ${{ inputs.custom_sgdb_background_url }}
         run: |
@@ -266,7 +267,9 @@ jobs:
           custom_background_url = os.environ.get("CUSTOM_SGDB_BACKGROUND_URL", "").strip()
           existing_backgrounds = find_existing_image("BACKGROUND")
           existing_icons = find_existing_image("ICON")
+          existing_logos = find_existing_image("LOGO")
           download_icon = os.environ.get("STEAMGRIDDB_ICON", "true").lower() == "true"
+          download_logo = os.environ.get("STEAMGRIDDB_LOGO", "false").lower() == "true"
 
           if not custom_background_url and existing_backgrounds:
               print(f"Found existing background image {existing_backgrounds[0].name}; preserving it (no custom background link supplied).")
@@ -278,6 +281,10 @@ jobs:
               print("A custom SteamGridDB ICON link was supplied; it takes priority over the automatic ICON toggle and any existing ICON file.")
           if custom_background_url:
               print("A custom SteamGridDB HERO link was supplied; it takes priority over automatic hero selection and any existing BACKGROUND file.")
+          if not download_logo:
+              print("SteamGridDB LOGO replacement is disabled; the launcher will show the game title as text.")
+          elif existing_logos:
+              print(f"Found existing override logo {existing_logos[0].name}; preserving it for the launcher title.")
 
           # Use the selected ROM filename (without extension) for automatic game matching.
           # The API key is supplied as a GitHub Actions secret; no key is committed.
@@ -289,10 +296,11 @@ jobs:
           sgdb_key = os.environ.get("STEAMGRIDDB_API_KEY", "").strip()
           need_hero = bool(custom_background_url) or (not existing_backgrounds)
           need_icon = bool(custom_icon_url) or (download_icon and not existing_icons)
-          if (need_hero or need_icon) and not sgdb_key:
+          need_logo = download_logo and not existing_logos
+          if (need_hero or need_icon or need_logo) and not sgdb_key:
               print("STEAMGRIDDB_API_KEY is not configured; skipping unavailable automatic artwork. The selected ROM's extracted icon will remain available as the launcher icon and dominant-colour source.")
 
-          if need_hero or need_icon:
+          if need_hero or need_icon or need_logo:
               api_headers = {"Authorization": f"Bearer {sgdb_key}", "User-Agent": "nxnative-build/1.0"}
 
               def sgdb_get(path):
@@ -445,6 +453,30 @@ jobs:
                       print(f"SteamGridDB ICON download failed: {error}")
                       print("Continuing without a custom ICON; the build will use the selected ROM's extracted default icon for its app icon and dominant-colour accent.")
 
+                  if need_logo:
+                      try:
+                          if not sgdb_key:
+                              raise RuntimeError("STEAMGRIDDB_API_KEY is not configured.")
+                          if 'game_id' not in locals():
+                              query = urllib.parse.quote(rom_stem, safe="")
+                              games = sgdb_get(f"search/autocomplete/{query}")
+                              normalized_title = " ".join(rom_stem.casefold().split())
+                              exact_games = [game for game in games if " ".join(game.get("name", "").casefold().split()) == normalized_title]
+                              if not exact_games:
+                                  raise RuntimeError(f"No exact SteamGridDB game match for ROM filename {rom_stem!r}")
+                              game_id = exact_games[0]["id"]
+                          logos = sgdb_get(f"logos/game/{game_id}?types=static&nsfw=false&humor=false")
+                          if logos:
+                              logo = max(enumerate(logos), key=lambda item: (int(item[1].get("score", 0)), -item[0]))[1]
+                              if not logo.get("url"):
+                                  raise RuntimeError("Top-rated SteamGridDB LOGO did not include an image URL.")
+                              download_asset(logo["url"], "logo", "LOGO")
+                              print(f"Selected highest-rated SteamGridDB LOGO (score: {logo.get('score', 0)}).")
+                          else:
+                              print(f"SteamGridDB has no eligible LOGO artwork for {rom_stem}; the launcher will keep the game title as text.")
+                      except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ValueError, KeyError, RuntimeError) as error:
+                          print(f"SteamGridDB LOGO download failed: {error}")
+                          print("The launcher will keep the game title as text.")
 
               except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ValueError, KeyError, RuntimeError) as error:
                   raise SystemExit(f"SteamGridDB artwork download failed: {error}")
@@ -489,6 +521,8 @@ jobs:
 
           export_png("ICON", "NXNATIVE_CUSTOM_ICON")
           export_png("BACKGROUND", "NXNATIVE_CUSTOM_BACKGROUND")
+          if os.environ.get("STEAMGRIDDB_LOGO", "false").lower() == "true":
+              export_png("LOGO", "NXNATIVE_CUSTOM_LOGO")
           print(f"Using ROM-matched override directory OVERRIDES/{rom_stem}/")
           print("Supported override image formats: PNG, JPG/JPEG, WebP, GIF, BMP, TIFF and HEIC/HEIF.")
           print("Missing override images are optional; nxnative will use its built-in defaults for those assets.")
@@ -551,75 +585,6 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install Pillow lz4 "capstone>=5,<6" fonttools nsz zbic "backports.zstd; python_version < '3.14'"
 
-      - name: Install Python dependencies
-        if: steps.verify-input.outputs.list_only != 'true'
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install Pillow lz4 "capstone>=5,<6" fonttools nsz zbic "backports.zstd; python_version < '3.14'"
-
-      - name: Download the selected game's launcher title font
-        if: steps.verify-input.outputs.list_only != 'true' && inputs.game_title_font
-        env:
-          ROM_SELECTION: ${{ inputs.rom_selection }}
-        run: |
-          python - <<'PY'
-          import os
-          import urllib.request
-          from pathlib import Path
-          from fontTools.ttLib import TTFont
-          from fontTools.varLib.instancer import instantiateVariableFont
-
-          # These are stylistic matches, not claims that the original wordmarks
-          # were typeset with these exact fonts. All are SIL Open Font License.
-          fonts = {
-              "ANIMAL WELL": ("silkscreen", "Silkscreen-Regular.ttf", "Silkscreen-Regular.ttf", {}),
-              "katana ZERO": ("orbitron", "Orbitron%5Bwght%5D.ttf", "Orbitron-Bold.ttf", {"wght": 800}),
-              "ENTER THE GUNGEON": ("pirataone", "PirataOne-Regular.ttf", "PirataOne-Regular.ttf", {}),
-              "EXIT THE GUNGEON": ("pirataone", "PirataOne-Regular.ttf", "PirataOne-Regular.ttf", {}),
-              "UNDERTALE": ("vt323", "VT323-Regular.ttf", "VT323-Regular.ttf", {}),
-              "DELTARUNE": ("pressstart2p", "PressStart2P-Regular.ttf", "PressStart2P-Regular.ttf", {}),
-          }
-          selection = os.environ["ROM_SELECTION"]
-          if selection not in fonts:
-              raise SystemExit(f"No game-title font mapping exists for {selection!r}.")
-          family, source_name, output_name, axes = fonts[selection]
-          base = f"https://raw.githubusercontent.com/google/fonts/main/ofl/{family}/"
-          temp = Path(os.environ["RUNNER_TEMP"]) / "nxnative-game-title-font"
-          temp.mkdir(parents=True, exist_ok=True)
-          source = temp / source_name.replace("%5B", "[").replace("%5D", "]")
-          request = urllib.request.Request(base + source_name, headers={"User-Agent": "nxnative-build/1.0"})
-          with urllib.request.urlopen(request, timeout=60) as response:
-              data = response.read()
-          if not data:
-              raise SystemExit(f"Downloaded font is empty: {source_name}")
-          source.write_bytes(data)
-          font = TTFont(str(source))
-          if axes:
-              font = instantiateVariableFont(font, axes, inplace=False)
-          output = temp / output_name
-          font.save(output)
-          font.close()
-          check = TTFont(str(output))
-          postscript = next((record.toUnicode() for record in check["name"].names if record.nameID == 6), None)
-          check.close()
-          if not postscript:
-              raise SystemExit("Downloaded font has no PostScript name; UIKit cannot register it.")
-          license_request = urllib.request.Request(base + "OFL.txt", headers={"User-Agent": "nxnative-build/1.0"})
-          with urllib.request.urlopen(license_request, timeout=60) as response:
-              license_text = response.read()
-          if b"SIL OPEN FONT LICENSE" not in license_text.upper():
-              raise SystemExit("The selected font did not provide its expected SIL Open Font License.")
-          license_path = temp / "OFL.txt"
-          license_path.write_bytes(license_text)
-          env_path = os.environ["GITHUB_ENV"]
-          with open(env_path, "a", encoding="utf-8") as env:
-              env.write(f"NXNATIVE_TITLE_FONT_PATH={output}\n")
-              env.write(f"NXNATIVE_TITLE_FONT_LICENSE={license_path}\n")
-              env.write(f"NXNATIVE_TITLE_FONT_NAME={postscript}\n")
-          print(f"Selected {selection} title typeface: {postscript}")
-          print(f"Bundled its SIL Open Font License: {license_path}")
-          PY
-
       - name: Build IPA for a 6 GB iPhone
         if: steps.verify-input.outputs.list_only != 'true'
         id: build-ipa
@@ -631,9 +596,7 @@ jobs:
           DM_APP_BUILD: ${{ inputs.build_number }}
           DM_ICON: ${{ env.NXNATIVE_CUSTOM_ICON }}
           DM_LAUNCHER_BACKGROUND: ${{ env.NXNATIVE_CUSTOM_BACKGROUND }}
-          DM_LAUNCHER_TITLE_FONT: ${{ env.NXNATIVE_TITLE_FONT_PATH }}
-          DM_LAUNCHER_TITLE_FONT_LICENSE: ${{ env.NXNATIVE_TITLE_FONT_LICENSE }}
-          DM_LAUNCHER_TITLE_FONT_NAME: ${{ env.NXNATIVE_TITLE_FONT_NAME }}
+          DM_LAUNCHER_LOGO: ${{ env.NXNATIVE_CUSTOM_LOGO }}
           DM_OVERRIDE_FOLDER: ${{ env.NXNATIVE_OVERRIDE_FOLDER }}
           DM_SHOW_FPS: "0"
           DM_DOMINANT_ACCENT: ${{ inputs.dominant_color_styling }}
