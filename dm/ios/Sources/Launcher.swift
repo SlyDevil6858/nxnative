@@ -248,16 +248,12 @@ private struct LauncherView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 22))
                             .accessibilityHidden(true)
                     }
-                    if let logo = launcherLogo() {
-                        Image(uiImage: logo)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(maxWidth: 220, maxHeight: 84)
-                            .accessibilityLabel((info("CFBundleDisplayName") as? String) ?? "Game")
-                    } else {
-                        Text((info("CFBundleDisplayName") as? String) ?? "Game")
-                            .font(.title.weight(.bold)).multilineTextAlignment(.center)
-                    }
+                    Text((info("CFBundleDisplayName") as? String) ?? "Game")
+                        .font(launcherTitleFont)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.55)
+                        .frame(maxWidth: 220)
                     Text("Version \((info("CFBundleShortVersionString") as? String) ?? "") · Build \((info("CFBundleVersion") as? String) ?? "1")")
                         .font(.callout).foregroundStyle(.secondary)
                     playButton
@@ -401,16 +397,19 @@ private struct LauncherView: View {
         if #available(iOS 26.0, *) { button.buttonStyle(.glassProminent) } else { button.buttonStyle(.borderedProminent) }
     }
 
-    private func launcherLogo() -> UIImage? {
-        guard let url = Bundle.main.resourceURL?.appendingPathComponent("dm/launcher-custom-logo.png") else { return nil }
-        return UIImage(contentsOfFile: url.path)
-    }
-
     private func launcherBackground() -> UIImage? {
         guard let url = Bundle.main.resourceURL?.appendingPathComponent("dm/launcher-custom-background.png") else { return nil }
         let screen = UIScreen.main
         let maxPixelSize = max(screen.bounds.width, screen.bounds.height) * screen.scale
         return loadLauncherImage(at: url, maxPixelSize: maxPixelSize)
+    }
+
+    private var launcherTitleFont: Font {
+        guard let name = info("DMGameTitleFontName") as? String,
+              UIFont(name: name, size: 28) != nil else {
+            return .title.weight(.bold)
+        }
+        return .custom(name, size: 28, relativeTo: .title)
     }
 
     private var accentColor: Color { launcherAccentColor() }
