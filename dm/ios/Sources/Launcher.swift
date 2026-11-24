@@ -517,7 +517,7 @@ private struct LauncherView: View {
                         }
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
                 .id("launcher-theme-\(theme.path)")
                 Rectangle()
                     .fill(launcherMainSeparatorColor)
