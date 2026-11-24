@@ -1832,12 +1832,10 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         __weak typeof(self) weakSelf=self;
         BOOL editingThisTheme=[_themeRenamePath isEqualToString:path];
         UIButton *rowPick=nil,*rowRename=nil,*rowDelete=nil,*rowSave=nil,*rowCancel=nil;
-        UITextField *rowField=nil;
         UIView *rowPrimary=nil;
         UILabel *rowMark=nil;
         if (editingThisTheme) {
             UITextField *field=[[UITextField alloc] initWithFrame:CGRectMake(4,row*rowHeight+7,renameButtonX-12,34)];
-            rowField=field;
             UIView *fieldSlot=[UIView new];
             rowPrimary=fieldSlot;
             [fieldSlot addSubview:field];
