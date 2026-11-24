@@ -266,9 +266,7 @@ jobs:
           custom_background_url = os.environ.get("CUSTOM_SGDB_BACKGROUND_URL", "").strip()
           existing_backgrounds = find_existing_image("BACKGROUND")
           existing_icons = find_existing_image("ICON")
-          existing_logos = find_existing_image("LOGO")
           download_icon = os.environ.get("STEAMGRIDDB_ICON", "true").lower() == "true"
-          download_logo = os.environ.get("STEAMGRIDDB_LOGO", "false").lower() == "true"
 
           if not custom_background_url and existing_backgrounds:
               print(f"Found existing background image {existing_backgrounds[0].name}; preserving it (no custom background link supplied).")
@@ -280,10 +278,6 @@ jobs:
               print("A custom SteamGridDB ICON link was supplied; it takes priority over the automatic ICON toggle and any existing ICON file.")
           if custom_background_url:
               print("A custom SteamGridDB HERO link was supplied; it takes priority over automatic hero selection and any existing BACKGROUND file.")
-          if not download_logo:
-              print("SteamGridDB LOGO replacement is disabled; the launcher will show the game title as text.")
-          elif existing_logos:
-              print(f"Found existing override logo {existing_logos[0].name}; preserving it for the launcher title.")
 
           # Use the selected ROM filename (without extension) for automatic game matching.
           # The API key is supplied as a GitHub Actions secret; no key is committed.
@@ -295,11 +289,10 @@ jobs:
           sgdb_key = os.environ.get("STEAMGRIDDB_API_KEY", "").strip()
           need_hero = bool(custom_background_url) or (not existing_backgrounds)
           need_icon = bool(custom_icon_url) or (download_icon and not existing_icons)
-          need_logo = download_logo and not existing_logos
-          if (need_hero or need_icon or need_logo) and not sgdb_key:
+          if (need_hero or need_icon) and not sgdb_key:
               print("STEAMGRIDDB_API_KEY is not configured; skipping unavailable automatic artwork. The selected ROM's extracted icon will remain available as the launcher icon and dominant-colour source.")
 
-          if need_hero or need_icon or need_logo:
+          if need_hero or need_icon:
               api_headers = {"Authorization": f"Bearer {sgdb_key}", "User-Agent": "nxnative-build/1.0"}
 
               def sgdb_get(path):
@@ -452,30 +445,6 @@ jobs:
                       print(f"SteamGridDB ICON download failed: {error}")
                       print("Continuing without a custom ICON; the build will use the selected ROM's extracted default icon for its app icon and dominant-colour accent.")
 
-                  if need_logo:
-                      try:
-                          if not sgdb_key:
-                              raise RuntimeError("STEAMGRIDDB_API_KEY is not configured.")
-                          if 'game_id' not in locals():
-                              query = urllib.parse.quote(rom_stem, safe="")
-                              games = sgdb_get(f"search/autocomplete/{query}")
-                              normalized_title = " ".join(rom_stem.casefold().split())
-                              exact_games = [game for game in games if " ".join(game.get("name", "").casefold().split()) == normalized_title]
-                              if not exact_games:
-                                  raise RuntimeError(f"No exact SteamGridDB game match for ROM filename {rom_stem!r}")
-                              game_id = exact_games[0]["id"]
-                          logos = sgdb_get(f"logos/game/{game_id}?types=static&nsfw=false&humor=false")
-                          if logos:
-                              logo = max(enumerate(logos), key=lambda item: (int(item[1].get("score", 0)), -item[0]))[1]
-                              if not logo.get("url"):
-                                  raise RuntimeError("Top-rated SteamGridDB LOGO did not include an image URL.")
-                              download_asset(logo["url"], "logo", "LOGO")
-                              print(f"Selected highest-rated SteamGridDB LOGO (score: {logo.get('score', 0)}).")
-                          else:
-                              print(f"SteamGridDB has no eligible LOGO artwork for {rom_stem}; the launcher will keep the game title as text.")
-                      except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ValueError, KeyError, RuntimeError) as error:
-                          print(f"SteamGridDB LOGO download failed: {error}")
-                          print("The launcher will keep the game title as text.")
 
               except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ValueError, KeyError, RuntimeError) as error:
                   raise SystemExit(f"SteamGridDB artwork download failed: {error}")
