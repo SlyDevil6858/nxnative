@@ -1,0 +1,11 @@
+{
+  "name": "DELTARUNE",
+  "palette": {
+    "idle": "000000",
+    "pressed": "FFFFFF",
+    "outline": "767373",
+    "ringFill": "CECDCD",
+    "text": "FFFFFF",
+    "pressedText": "000000"
+  }
+}
