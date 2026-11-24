@@ -1801,7 +1801,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     CGFloat contentWidth=288;
     CGFloat actionButtonSize=32;
     CGFloat actionButtonGap=4;
-    CGFloat actionButtonTrailingInset=24;
+    CGFloat actionButtonTrailingInset=8;
     // Derive every row position from the same trailing inset and action sizes.
     CGFloat renameButtonX=contentWidth-actionButtonTrailingInset-(2*actionButtonSize+2*actionButtonGap);
     CGFloat deleteButtonX=renameButtonX+actionButtonSize+actionButtonGap;
