@@ -81,7 +81,7 @@ case "${DM_ENABLE_BY_MACRO:-false}" in
   0|NO|no|FALSE|false|"") BY_MACRO=0 ;;
   *) die "DM_ENABLE_BY_MACRO must be true or false" ;;
 esac
-echo "OTHER_CFLAGS = \$(inherited) -DDM_ENABLE_BY_MACRO=$BY_MACRO" >> Gen/dm.xcconfig
+export DM_ENABLE_BY_MACRO=$BY_MACRO
 t "Y+B macro: $([ "$BY_MACRO" = 1 ] && echo enabled || echo excluded)"
 F=$(python3 tools/gen_embed.py "$PATCHED" Gen/embed.S $MODS) || die "gen_embed"
 echo "OTHER_LDFLAGS = \$(inherited) \$(DM_FRAMEWORKS) $F" >> Gen/dm.xcconfig
