@@ -1844,7 +1844,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
             [fieldSlot addSubview:field];
             field.translatesAutoresizingMaskIntoConstraints=NO;
             [NSLayoutConstraint activateConstraints:@[
-                [field.leadingAnchor constraintEqualToAnchor:fieldSlot.leadingAnchor constant:4],
+                [field.leadingAnchor constraintEqualToAnchor:fieldSlot.leadingAnchor constant:5],
                 [field.trailingAnchor constraintEqualToAnchor:fieldSlot.trailingAnchor constant:-4],
                 [field.centerYAnchor constraintEqualToAnchor:fieldSlot.centerYAnchor],
                 [field.heightAnchor constraintEqualToConstant:34]
