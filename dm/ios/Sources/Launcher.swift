@@ -460,6 +460,7 @@ private struct LauncherView: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("Cancel theme rename")
+                        .padding(.trailing, 16)
                     } else {
                         Button {
                             selectTheme(theme.path, name: theme.name)
@@ -510,6 +511,7 @@ private struct LauncherView: View {
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel("Delete \\(theme.name)")
+                            .padding(.trailing, 16)
                         }
                     }
                 }
