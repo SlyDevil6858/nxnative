@@ -278,9 +278,7 @@ jobs:
           need_hero = bool(custom_background_url) or (not existing_backgrounds)
           need_icon = bool(custom_icon_url) or (download_icon and not existing_icons)
           if (need_hero or need_icon) and not sgdb_key:
-              if custom_icon_url or custom_background_url or need_icon:
-                  raise SystemExit("SteamGridDB artwork was requested, but STEAMGRIDDB_API_KEY is not configured.")
-              print("STEAMGRIDDB_API_KEY is not configured; skipping automatic hero download.")
+              print("STEAMGRIDDB_API_KEY is not configured; skipping unavailable automatic artwork. The selected ROM's extracted icon will remain available as the launcher icon and dominant-colour source.")
 
           if need_hero or need_icon:
               api_headers = {"Authorization": f"Bearer {sgdb_key}", "User-Agent": "nxnative-build/1.0"}
@@ -390,28 +388,33 @@ jobs:
                           else:
                               print(f"SteamGridDB has no eligible hero artwork for {rom_stem}; leaving BACKGROUND unchanged.")
 
-                  if custom_icon_url:
-                      icon_url = resolve_asset_url(custom_icon_url, "icon")
-                      download_asset(icon_url, "icon", "ICON", replace_existing=True)
-                  elif need_icon:
-                      if not sgdb_key:
-                          raise RuntimeError("Automatic SteamGridDB ICON download is enabled, but STEAMGRIDDB_API_KEY is not configured.")
-                      if 'game_id' not in locals():
-                          query = urllib.parse.quote(rom_stem, safe="")
-                          games = sgdb_get(f"search/autocomplete/{query}")
-                          normalized_title = " ".join(rom_stem.casefold().split())
-                          exact_games = [game for game in games if " ".join(game.get("name", "").casefold().split()) == normalized_title]
-                          if not exact_games:
-                              raise RuntimeError(f"No exact SteamGridDB game match for ROM filename {rom_stem!r}")
-                          game_id = exact_games[0]["id"]
-                      icons = sgdb_get(f"icons/game/{game_id}?types=static&nsfw=false&humor=false")
-                      if icons:
-                          icon = max(enumerate(icons), key=lambda item: (int(item[1].get("score", 0)), -item[0]))[1]
-                          if not icon.get("url"):
-                              raise RuntimeError("Top-rated SteamGridDB ICON did not include an image URL.")
-                          download_asset(icon["url"], "icon", "ICON")
-                      else:
-                          print(f"SteamGridDB has no eligible ICON artwork for {rom_stem}; leaving ICON unchanged.")
+                  try:
+                      if custom_icon_url:
+                          icon_url = resolve_asset_url(custom_icon_url, "icon")
+                          download_asset(icon_url, "icon", "ICON", replace_existing=True)
+                      elif need_icon:
+                          if not sgdb_key:
+                              raise RuntimeError("STEAMGRIDDB_API_KEY is not configured.")
+                          if 'game_id' not in locals():
+                              query = urllib.parse.quote(rom_stem, safe="")
+                              games = sgdb_get(f"search/autocomplete/{query}")
+                              normalized_title = " ".join(rom_stem.casefold().split())
+                              exact_games = [game for game in games if " ".join(game.get("name", "").casefold().split()) == normalized_title]
+                              if not exact_games:
+                                  raise RuntimeError(f"No exact SteamGridDB game match for ROM filename {rom_stem!r}")
+                              game_id = exact_games[0]["id"]
+                          icons = sgdb_get(f"icons/game/{game_id}?types=static&nsfw=false&humor=false")
+                          if icons:
+                              icon = max(enumerate(icons), key=lambda item: (int(item[1].get("score", 0)), -item[0]))[1]
+                              if not icon.get("url"):
+                                  raise RuntimeError("Top-rated SteamGridDB ICON did not include an image URL.")
+                              download_asset(icon["url"], "icon", "ICON")
+                          else:
+                              print(f"SteamGridDB has no eligible ICON artwork for {rom_stem}; leaving ICON unchanged.")
+                  except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ValueError, KeyError, RuntimeError) as error:
+                      print(f"SteamGridDB ICON download failed: {error}")
+                      print("Continuing without a custom ICON; the build will use the selected ROM's extracted default icon for its app icon and dominant-colour accent.")
+
               except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ValueError, KeyError, RuntimeError) as error:
                   raise SystemExit(f"SteamGridDB artwork download failed: {error}")
 
