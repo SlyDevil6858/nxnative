@@ -260,6 +260,7 @@ private struct LauncherView: View {
                     }
                     Text("Version \((info("CFBundleShortVersionString") as? String) ?? "") · Build \((info("CFBundleVersion") as? String) ?? "1")")
                         .font(.callout).foregroundStyle(.secondary)
+                        .padding(.bottom, 8)
                     playButton
                 }
                 .padding(16)
