@@ -29,6 +29,11 @@ on:
         required: true
         type: string
         default: "0"
+      enable_by_macro:
+        description: "Include the Y+B simultaneous-touch macro and its editor controls"
+        required: true
+        type: boolean
+        default: false
       dominant_color_styling:
         description: "Use the game's app-icon dominant color for launcher accents"
         required: true
@@ -528,6 +533,7 @@ jobs:
           DM_DOMINANT_ACCENT: ${{ inputs.dominant_color_styling }}
           DM_CUSTOM_ACCENT_HEX: ${{ env.NXNATIVE_CUSTOM_ACCENT_HEX }}
           DM_SUPPORT_URL: ${{ env.NXNATIVE_SUPPORT_URL }}
+          DM_ENABLE_BY_MACRO: ${{ inputs.enable_by_macro }}
         run: |
           set -o pipefail
           DATA_ROOT="$GITHUB_WORKSPACE/private-game-data"
