@@ -31,6 +31,10 @@
 #include <stdatomic.h>
 #import "DmPadProfiles.h"
 
+#ifndef DM_ENABLE_BY_MACRO
+#define DM_ENABLE_BY_MACRO 0
+#endif
+
 extern BOOL front_ios_runtime_fps_enabled(void);
 extern BOOL front_ios_runtime_metal_hud_enabled(void);
 extern void front_ios_set_runtime_hud(BOOL fps, BOOL metalHUD);
@@ -508,7 +512,7 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
         if (![NSUserDefaults.standardUserDefaults objectForKey:@"DmEnableBYMacro"]) {
             [NSUserDefaults.standardUserDefaults setBool:NO forKey:@"DmEnableBYMacro"];
         }
-        _macroEnabled = [NSUserDefaults.standardUserDefaults boolForKey:@"DmEnableBYMacro"];
+        _macroEnabled = DM_ENABLE_BY_MACRO && [NSUserDefaults.standardUserDefaults boolForKey:@"DmEnableBYMacro"];
         static dispatch_once_t once;
         dispatch_once(&once, ^{ theme_init(); });
         [self loadSelectedTheme];
@@ -703,7 +707,7 @@ static BOOL fullOnly(int b) { return b == B_LS || b == B_RS || b >= B_LEFT; }   
 }
 - (void)userDefaultsDidChange:(NSNotification *)notification {
     (void)notification;
-    BOOL enabled=[NSUserDefaults.standardUserDefaults boolForKey:@"DmEnableBYMacro"];
+    BOOL enabled=DM_ENABLE_BY_MACRO && [NSUserDefaults.standardUserDefaults boolForKey:@"DmEnableBYMacro"];
     if (_macroEnabled==enabled) return;
     _macroEnabled=enabled;
     [self reset]; [self applyLayout]; [self updateEditor]; [self setNeedsLayout];
@@ -2556,25 +2560,26 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
     UIButton *importThemeButton=[self editorButton:@"Import…" action:@selector(importThemeFolder) frame:CGRectMake(172,220,80,32) parent:_tools];
     importThemeButton.titleLabel.font=[UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
     UIButton *createThemeButton=[self editorButton:@"Create theme" action:@selector(createCustomTheme)
-        frame:CGRectMake(8,258,_launcherPreview ? 296 : 152,32) parent:_tools];
+        frame:CGRectMake(8,258,_launcherPreview ? (DM_ENABLE_BY_MACRO ? 296 : 336) : (DM_ENABLE_BY_MACRO ? 152 : 200),32) parent:_tools];
     createThemeButton.titleLabel.adjustsFontSizeToFitWidth=YES;
     importThemeButton.titleLabel.adjustsFontSizeToFitWidth=YES;
     importThemeButton.titleLabel.minimumScaleFactor=0.8;
     importThemeButton.titleLabel.lineBreakMode=NSLineBreakByClipping;
 
-    // Keep the Y+B toggle available in both the live and pre-launch control editors.
-    _macroToggleButton=[UIButton buttonWithType:UIButtonTypeSystem];
-    _macroToggleButton.hidden=NO;
-    _macroToggleButton.frame=_launcherPreview ? CGRectMake(312,258,40,32) : CGRectMake(168,258,40,32);
-    _macroToggleButton.backgroundColor=[UIColor colorWithWhite:0.12 alpha:0.96];
-    _macroToggleButton.layer.cornerRadius=6;
-    _macroToggleButton.accessibilityLabel=@"Y+B macro button";
-    _macroToggleButton.accessibilityHint=@"Toggle the Y+B simultaneous touch button";
-    NSMutableAttributedString *macroToggleGlyphs=[[NSMutableAttributedString alloc] initWithString:@"Y + B"
-        attributes:@{NSFontAttributeName:[UIFont systemFontOfSize:15 weight:UIFontWeightBold],NSForegroundColorAttributeName:UIColor.whiteColor}];
-    [_macroToggleButton setAttributedTitle:macroToggleGlyphs forState:UIControlStateNormal];
-    [_macroToggleButton addTarget:self action:@selector(toggleBYMacro) forControlEvents:UIControlEventTouchUpInside];
-    [_tools addSubview:_macroToggleButton];
+    // The Y+B editor toggle exists only in builds that include the macro feature.
+    if (DM_ENABLE_BY_MACRO) {
+        _macroToggleButton=[UIButton buttonWithType:UIButtonTypeSystem];
+        _macroToggleButton.frame=_launcherPreview ? CGRectMake(312,258,40,32) : CGRectMake(168,258,40,32);
+        _macroToggleButton.backgroundColor=[UIColor colorWithWhite:0.12 alpha:0.96];
+        _macroToggleButton.layer.cornerRadius=6;
+        _macroToggleButton.accessibilityLabel=@"Y+B macro button";
+        _macroToggleButton.accessibilityHint=@"Toggle the Y+B simultaneous touch button";
+        NSMutableAttributedString *macroToggleGlyphs=[[NSMutableAttributedString alloc] initWithString:@"Y + B"
+            attributes:@{NSFontAttributeName:[UIFont systemFontOfSize:15 weight:UIFontWeightBold],NSForegroundColorAttributeName:UIColor.whiteColor}];
+        [_macroToggleButton setAttributedTitle:macroToggleGlyphs forState:UIControlStateNormal];
+        [_macroToggleButton addTarget:self action:@selector(toggleBYMacro) forControlEvents:UIControlEventTouchUpInside];
+        [_tools addSubview:_macroToggleButton];
+    }
 
     _hapticsButton=[UIButton buttonWithType:UIButtonTypeSystem];
     _hapticsButton.hidden=_launcherPreview;
