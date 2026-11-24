@@ -248,8 +248,16 @@ private struct LauncherView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 22))
                             .accessibilityHidden(true)
                     }
-                    Text((info("CFBundleDisplayName") as? String) ?? "Game")
-                        .font(.title.weight(.bold)).multilineTextAlignment(.center)
+                    if let logo = launcherLogo() {
+                        Image(uiImage: logo)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxWidth: 220, maxHeight: 84)
+                            .accessibilityLabel((info("CFBundleDisplayName") as? String) ?? "Game")
+                    } else {
+                        Text((info("CFBundleDisplayName") as? String) ?? "Game")
+                            .font(.title.weight(.bold)).multilineTextAlignment(.center)
+                    }
                     Text("Version \((info("CFBundleShortVersionString") as? String) ?? "") · Build \((info("CFBundleVersion") as? String) ?? "1")")
                         .font(.callout).foregroundStyle(.secondary)
                     playButton
@@ -391,6 +399,11 @@ private struct LauncherView: View {
             Text("Play").font(.title3.weight(.semibold)).frame(maxWidth: 220)
         }.controlSize(.large).tint(accentColor)
         if #available(iOS 26.0, *) { button.buttonStyle(.glassProminent) } else { button.buttonStyle(.borderedProminent) }
+    }
+
+    private func launcherLogo() -> UIImage? {
+        guard let url = Bundle.main.resourceURL?.appendingPathComponent("dm/launcher-custom-logo.png") else { return nil }
+        return UIImage(contentsOfFile: url.path)
     }
 
     private func launcherBackground() -> UIImage? {
