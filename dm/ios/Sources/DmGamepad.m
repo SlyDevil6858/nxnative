@@ -1883,7 +1883,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
                 [strongSelf closeThemeMenu];
             }] forControlEvents:UIControlEventTouchUpInside]; [_themeMenuScroll addSubview:pick];
             if ([current isEqualToString:title]) {
-                CGFloat markX=hasManagementActions ? renameButtonX-38 : 236;
+                CGFloat markX=hasManagementActions ? renameButtonX-38 : 252;
                 CGFloat markWidth=hasManagementActions ? 26 : 32;
                 UILabel *activeMark=[[UILabel alloc] initWithFrame:CGRectMake(markX,row*rowHeight,markWidth,rowHeight)];
                 activeMark.text=@"✓"; activeMark.textAlignment=hasManagementActions ? NSTextAlignmentRight : NSTextAlignmentCenter;
