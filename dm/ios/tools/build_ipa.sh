@@ -106,10 +106,16 @@ if [ "$GFXAPI" = nvn ] && [ -n "$GPUS" ] && [ "$GPUS" != none ] && [ -f "$GD/sha
     | while IFS= read -r ln; do t "$ln"; done
   [ "${PIPESTATUS[0]}" = 0 ] || die "pipeline archive (dm/gfx/tools/pso_offline.py; DM_PSO_GPUS=none builds the app without it)"
 else [ "$GFXAPI" != nvn ] || t "no pipeline archive ($([ -n "${DM_PSO_GPUS+set}" ] && echo "DM_PSO_GPUS=${GPUS:-empty}" || echo "the profile does not set pso_mtl4 on; DM_PSO_GPUS=g18p builds one")$([ -f "$GD/shader_pairs.tsv" ] || echo ', no shader_pairs.tsv'))"; fi
-# Optional SteamGridDB game logo: when present, Launcher.swift displays it in place of the text title.
-if [ -n "${DM_LAUNCHER_LOGO:-}" ] && [ -f "$DM_LAUNCHER_LOGO" ]; then
-  cp "$DM_LAUNCHER_LOGO" Gen/dm/launcher-custom-logo.png || die "copy custom launcher logo"
-  t "custom launcher game logo: bundled (replaces text title)"
+# Optional game-matched title font: the workflow downloads an SIL Open Font License font for the selected ROM.
+if [ -n "${DM_LAUNCHER_TITLE_FONT:-}" ] && [ -f "$DM_LAUNCHER_TITLE_FONT" ]; then
+  mkdir -p Gen/dm/font || die "mkdir launcher font resources"
+  cp "$DM_LAUNCHER_TITLE_FONT" Gen/dm/font/game-title.ttf || die "copy game title font"
+  if [ -n "${DM_LAUNCHER_TITLE_FONT_LICENSE:-}" ] && [ -f "$DM_LAUNCHER_TITLE_FONT_LICENSE" ]; then
+    cp "$DM_LAUNCHER_TITLE_FONT_LICENSE" Gen/dm/font/game-title-OFL.txt || die "copy game title font license"
+  fi
+  t "game-matched launcher title font: bundled"
+elif [ -n "${DM_LAUNCHER_TITLE_FONT_NAME:-}" ]; then
+  die "DM_LAUNCHER_TITLE_FONT_NAME was set but the font file is missing"
 fi
 # Optional launcher background override: copied into the app bundle under dm/; absent = original launcher appearance.
 if [ -n "${DM_LAUNCHER_BACKGROUND:-}" ] && [ -f "$DM_LAUNCHER_BACKGROUND" ]; then
