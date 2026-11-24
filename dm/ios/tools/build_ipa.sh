@@ -76,6 +76,13 @@ BUILTIN_THEMES="$DM/../TouchControlThemes"
 [ -d "$BUILTIN_THEMES" ] || die "built-in TouchControlThemes directory is missing: $BUILTIN_THEMES"
 cp -R "$BUILTIN_THEMES/." Gen/TouchControlThemes/ || die "stage built-in TouchControlThemes"
 python3 tools/gen_build.py "$DM/host" Gen > Gen/dm.xcconfig || die "gen_build"
+case "${DM_ENABLE_BY_MACRO:-false}" in
+  1|YES|yes|TRUE|true) BY_MACRO=1 ;;
+  0|NO|no|FALSE|false|"") BY_MACRO=0 ;;
+  *) die "DM_ENABLE_BY_MACRO must be true or false" ;;
+esac
+echo "OTHER_CFLAGS = \$(inherited) -DDM_ENABLE_BY_MACRO=$BY_MACRO" >> Gen/dm.xcconfig
+t "Y+B macro: $([ "$BY_MACRO" = 1 ] && echo enabled || echo excluded)"
 F=$(python3 tools/gen_embed.py "$PATCHED" Gen/embed.S $MODS) || die "gen_embed"
 echo "OTHER_LDFLAGS = \$(inherited) \$(DM_FRAMEWORKS) $F" >> Gen/dm.xcconfig
 cp "$PATCHED"/*.fixups.tsv "$PATCHED"/*.gates.tsv "$PATCHED"/*.cuts.tsv "$PATCHED"/*.obs.tsv Gen/dm/ || die "copy rewriter tables"
