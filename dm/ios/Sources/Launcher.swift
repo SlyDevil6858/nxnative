@@ -429,16 +429,20 @@ private struct LauncherView: View {
             ForEach(themes) { theme in
                 HStack(spacing: 0) {
                     if themeRenamePath == theme.path {
-                        TextField("Theme name", text: $themeRenameText)
-                            .focused($themeRenameFocused)
-                            .submitLabel(.done)
-                            .textInputAutocapitalization(.words)
-                            .autocorrectionDisabled()
-                            .padding(.leading, 16)
-                            .frame(height: 36)
-                            .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
-                            .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.white.opacity(0.18), lineWidth: 1))
-                            .onSubmit { saveLauncherThemeRename(theme) }
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 7)
+                                .fill(Color.white.opacity(0.10))
+                            TextField("Theme name", text: $themeRenameText)
+                                .focused($themeRenameFocused)
+                                .submitLabel(.done)
+                                .textInputAutocapitalization(.words)
+                                .autocorrectionDisabled()
+                                .padding(.leading, 16)
+                                .onSubmit { saveLauncherThemeRename(theme) }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 36)
+                        .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.white.opacity(0.18), lineWidth: 1))
                         Button {
                             saveLauncherThemeRename(theme)
                         } label: {
