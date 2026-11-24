@@ -106,6 +106,11 @@ if [ "$GFXAPI" = nvn ] && [ -n "$GPUS" ] && [ "$GPUS" != none ] && [ -f "$GD/sha
     | while IFS= read -r ln; do t "$ln"; done
   [ "${PIPESTATUS[0]}" = 0 ] || die "pipeline archive (dm/gfx/tools/pso_offline.py; DM_PSO_GPUS=none builds the app without it)"
 else [ "$GFXAPI" != nvn ] || t "no pipeline archive ($([ -n "${DM_PSO_GPUS+set}" ] && echo "DM_PSO_GPUS=${GPUS:-empty}" || echo "the profile does not set pso_mtl4 on; DM_PSO_GPUS=g18p builds one")$([ -f "$GD/shader_pairs.tsv" ] || echo ', no shader_pairs.tsv'))"; fi
+# Optional SteamGridDB game logo: when present, Launcher.swift displays it in place of the text title.
+if [ -n "${DM_LAUNCHER_LOGO:-}" ] && [ -f "$DM_LAUNCHER_LOGO" ]; then
+  cp "$DM_LAUNCHER_LOGO" Gen/dm/launcher-custom-logo.png || die "copy custom launcher logo"
+  t "custom launcher game logo: bundled (replaces text title)"
+fi
 # Optional launcher background override: copied into the app bundle under dm/; absent = original launcher appearance.
 if [ -n "${DM_LAUNCHER_BACKGROUND:-}" ] && [ -f "$DM_LAUNCHER_BACKGROUND" ]; then
   cp "$DM_LAUNCHER_BACKGROUND" Gen/dm/launcher-custom-background.png || die "copy custom launcher background"
