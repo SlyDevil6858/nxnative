@@ -242,7 +242,7 @@ private struct LauncherView: View {
     var body: some View {
         GeometryReader { geometry in
             HStack(alignment: .top, spacing: 0) {
-                VStack(alignment: .center, spacing: 16) {
+                VStack(alignment: .center, spacing: 8) {
                     if let icon = appIcon() {
                         Image(uiImage: icon).resizable().frame(width: 96, height: 96)
                             .clipShape(RoundedRectangle(cornerRadius: 22))
