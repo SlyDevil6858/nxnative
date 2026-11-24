@@ -170,6 +170,10 @@ jobs:
           print(f"Initial IPA filename: {ipa_name}_A15_<version>_<build>.ipa")
           print("prod.keys file exists; its contents will not be printed or uploaded.")
 
+      - name: Install Pillow for SteamGridDB artwork conversion
+        if: steps.verify-input.outputs.list_only != 'true'
+        run: python3 -m pip install --disable-pip-version-check Pillow
+
       - name: Select ROM-matched launcher appearance and accent color
         if: steps.verify-input.outputs.list_only != 'true'
         working-directory: nxnative
@@ -349,9 +353,27 @@ jobs:
                       "image/jpeg": (".jpg", image_bytes.startswith(bytes([255, 216, 255]))),
                       "image/webp": (".webp", len(image_bytes) >= 12 and image_bytes[:4] == b"RIFF" and image_bytes[8:12] == b"WEBP"),
                   }
-                  if content_type not in signatures or not signatures[content_type][1]:
-                      raise RuntimeError(f"SteamGridDB {expected_kind} response was not a valid PNG, JPEG, or WebP image (Content-Type: {content_type or 'missing'}).")
-                  extension = signatures[content_type][0]
+                  if content_type in signatures and signatures[content_type][1]:
+                      extension = signatures[content_type][0]
+                  elif content_type in {"image/x-icon", "image/vnd.microsoft.icon", "image/ico"} or image_bytes.startswith(bytes([0, 0, 1, 0])):
+                      # SteamGridDB can return ICO files. Decode the best available
+                      # resolution with Pillow and normalize it to PNG for the iOS bundler.
+                      from io import BytesIO
+                      from PIL import Image
+                      try:
+                          with Image.open(BytesIO(image_bytes)) as ico_image:
+                              ico_image.load()
+                              converted = BytesIO()
+                              ico_image.convert("RGBA").save(converted, format="PNG")
+                              image_bytes = converted.getvalue()
+                      except Exception as error:
+                          raise RuntimeError(f"SteamGridDB {expected_kind} ICO could not be converted to PNG: {error}") from error
+                      if not image_bytes.startswith(bytes([137]) + b"PNG" + bytes([13, 10, 26, 10])):
+                          raise RuntimeError(f"SteamGridDB {expected_kind} ICO conversion did not produce a valid PNG.")
+                      extension = ".png"
+                      print(f"Converted SteamGridDB {expected_kind} ICO to PNG with Pillow.")
+                  else:
+                      raise RuntimeError(f"SteamGridDB {expected_kind} response was not a valid PNG, JPEG, WebP, or ICO image (Content-Type: {content_type or 'missing'}).")
                   destination = folder / f"{output_stem}{extension}"
                   if destination.parent.resolve() != folder or destination.stem != output_stem:
                       raise RuntimeError(f"Refusing to save {expected_kind}: output path failed verification.")
