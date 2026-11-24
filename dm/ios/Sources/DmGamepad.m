@@ -1833,14 +1833,25 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         BOOL editingThisTheme=[_themeRenamePath isEqualToString:path];
         UIButton *rowPick=nil,*rowRename=nil,*rowDelete=nil,*rowSave=nil,*rowCancel=nil;
         UITextField *rowField=nil;
+        UIView *rowPrimary=nil;
         UILabel *rowMark=nil;
         if (editingThisTheme) {
             UITextField *field=[[UITextField alloc] initWithFrame:CGRectMake(4,row*rowHeight+7,renameButtonX-12,34)];
             rowField=field;
+            UIView *fieldSlot=[UIView new];
+            rowPrimary=fieldSlot;
+            [fieldSlot addSubview:field];
+            field.translatesAutoresizingMaskIntoConstraints=NO;
+            [NSLayoutConstraint activateConstraints:@[
+                [field.leadingAnchor constraintEqualToAnchor:fieldSlot.leadingAnchor constant:4],
+                [field.trailingAnchor constraintEqualToAnchor:fieldSlot.trailingAnchor constant:-4],
+                [field.centerYAnchor constraintEqualToAnchor:fieldSlot.centerYAnchor],
+                [field.heightAnchor constraintEqualToConstant:34]
+            ]];
             field.text=title; field.placeholder=@"Theme name"; field.borderStyle=UITextBorderStyleRoundedRect;
             field.backgroundColor=[UIColor colorWithWhite:1 alpha:0.10]; field.textColor=UIColor.whiteColor; field.tintColor=UIColor.whiteColor;
             field.font=[UIFont systemFontOfSize:13]; field.autocapitalizationType=UITextAutocapitalizationTypeWords; field.clearButtonMode=UITextFieldViewModeWhileEditing;
-            field.returnKeyType=UIReturnKeyDone; field.accessibilityLabel=@"New theme name"; _themeRenameField=field; [_themeMenuScroll addSubview:field];
+            field.returnKeyType=UIReturnKeyDone; field.accessibilityLabel=@"New theme name"; _themeRenameField=field;
             [field addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) { (void)action; [weakSelf saveInlineThemeRenameAtPath:path]; }] forControlEvents:UIControlEventEditingDidEndOnExit];
             UIButton *save=[UIButton buttonWithType:UIButtonTypeCustom]; save.frame=CGRectMake(renameButtonX,row*rowHeight+8,actionButtonSize,actionButtonSize);
             rowSave=save;
@@ -1963,7 +1974,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
         // selection/rename field flexes; management buttons keep fixed hit
         // targets and the stack's trailing edge defines their inset.
         NSMutableArray<UIView *> *rowControls=[NSMutableArray array];
-        UIView *primaryControl=rowPick ?: (UIView *)rowField;
+        UIView *primaryControl=rowPrimary ?: (UIView *)rowPick;
         if (primaryControl) [rowControls addObject:primaryControl];
         UIView *firstAction=rowRename ?: (UIView *)rowSave;
         UIView *lastAction=rowDelete ?: (UIView *)rowCancel;
@@ -1979,7 +1990,7 @@ static NSString *const k_theme_name_key = @"DmTouchControlThemeName";
                 contentWidth-(hasManagementActions?24:0),rowHeight);
             for (UIView *control in rowControls) control.translatesAutoresizingMaskIntoConstraints=NO;
             if (primaryControl) {
-                [primaryControl.heightAnchor constraintEqualToConstant:rowField?34:rowHeight].active=YES;
+                [primaryControl.heightAnchor constraintEqualToConstant:rowHeight].active=YES;
                 [primaryControl setContentHuggingPriority:UILayoutPriorityDefaultLow forAxis:UILayoutConstraintAxisHorizontal];
                 [primaryControl setContentCompressionResistancePriority:UILayoutPriorityDefaultLow forAxis:UILayoutConstraintAxisHorizontal];
             }
