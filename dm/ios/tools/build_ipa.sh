@@ -210,6 +210,8 @@ from urllib.parse import urlsplit
 
 plist_path = sys.argv[1]
 support_url = os.environ.get("DM_SUPPORT_URL", "").strip()
+font_name = os.environ.get("DM_LAUNCHER_TITLE_FONT_NAME", "").strip()
+font_path = os.path.join(os.path.dirname(plist_path), "dm", "font", "game-title.ttf")
 if support_url:
     parsed = urlsplit(support_url)
     if parsed.scheme.lower() not in {"http", "https"} or not parsed.hostname:
@@ -217,9 +219,20 @@ if support_url:
 with open(plist_path, "rb") as source:
     info = plistlib.load(source)
 info["DMSupportURL"] = support_url
+if font_name:
+    if not os.path.isfile(font_path):
+        raise SystemExit("A launcher title font name was supplied, but dm/font/game-title.ttf is missing.")
+    app_fonts = info.get("UIAppFonts", [])
+    if "dm/font/game-title.ttf" not in app_fonts:
+        app_fonts.append("dm/font/game-title.ttf")
+    info["UIAppFonts"] = app_fonts
+    info["DMGameTitleFontName"] = font_name
+else:
+    info.pop("DMGameTitleFontName", None)
 with open(plist_path, "wb") as destination:
     plistlib.dump(info, destination, sort_keys=False)
 print("Support button URL configured." if support_url else "Support button URL is blank; button hidden.")
+print(f"Registered game-matched launcher font: {font_name}" if font_name else "Using the default launcher title font.")
 PY_SUPPORT
 # DMCommit / DMChain: the checkout that built the app (+dirty with uncommitted changes to tracked files) and the shader chain it carries, which the host logs at start (main.c)
 COMMIT=$(git -C "$DM" rev-parse --short=12 HEAD 2> /dev/null) && { [ -z "$(git -C "$DM" status --porcelain --untracked-files=no 2> /dev/null)" ] || COMMIT=$COMMIT+dirty
