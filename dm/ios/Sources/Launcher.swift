@@ -460,7 +460,7 @@ private struct LauncherView: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("Cancel theme rename")
-                        .padding(.trailing, 16)
+                        .padding(.trailing, 12)
                     } else {
                         Button {
                             selectTheme(theme.path, name: theme.name)
@@ -476,6 +476,7 @@ private struct LauncherView: View {
                                 if selectedTheme == theme.name {
                                     Image(systemName: "checkmark")
                                         .foregroundStyle(Color(red: 0.22, green: 0.48, blue: 0.28))
+                                        .offset(x: canDeleteTheme(theme) ? -4 : 0)
                                 }
                             }
                             .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
@@ -497,6 +498,7 @@ private struct LauncherView: View {
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel("Rename \\(theme.name)")
+                            .padding(.trailing, 4)
                         }
                         if canDeleteTheme(theme) {
                             Button(role: .destructive) {
@@ -511,7 +513,7 @@ private struct LauncherView: View {
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel("Delete \\(theme.name)")
-                            .padding(.trailing, 16)
+                            .padding(.trailing, 12)
                         }
                     }
                 }
